@@ -1,0 +1,10 @@
+### Check backend status
+GET http://127.0.0.1:8000/
+
+### Generate plan (POST)
+POST http://127.0.0.1:8000/generate-plan
+Content-Type: application/json
+
+{
+  "prompt": "build a portfolio website"
+}
