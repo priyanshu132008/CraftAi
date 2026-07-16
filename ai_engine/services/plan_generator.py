@@ -1,57 +1,36 @@
-import requests
+import os
 import json
-from ai_engine.config.settings import GROQ_API_KEY, MODEL_NAME, GROQ_URL
-from ai_engine.services.validator import validate_plan
+from openai import OpenAI, OpenAIError
+from dotenv import load_dotenv
 
+load_dotenv()
 
-def load_system_prompt():
-    with open("ai_engine/prompts/system_prompt.txt", "r") as f:
-        return f.read()
+client = OpenAI(
+    base_url=os.getenv("OLLAMA_CLOUD_BASE_URL", "http://localhost:11434/v1"),
+    api_key=os.getenv("OLLAMA_CLOUD_API_KEY", "ollama")
+)
 
-
-SYSTEM_PROMPT = load_system_prompt()
-
-
-def call_ai(user_prompt: str):
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "model": MODEL_NAME,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
-        ],
-        "temperature": 0.2
-    }
-
-    response = requests.post(GROQ_URL, headers=headers, json=payload)
-
-    if response.status_code != 200:
-        raise Exception(f"Groq API Error: {response.text}")
-
-    data = response.json()
-
-    return data["choices"][0]["message"]["content"]
-
-
-def extract_json(text: str):
+def generate_plan(user_prompt: str):
     try:
-        return json.loads(text)
-    except:
-        # fallback extraction
-        start = text.find("{")
-        end = text.rfind("}") + 1
-        return json.loads(text[start:end])
-
-
-def generate_plan(prompt: str):
-    raw_output = call_ai(prompt)
-
-    parsed = extract_json(raw_output)
-
-    validated = validate_plan(parsed)
-
-    return validated
+        with open("ai_engine/prompts/system_prompt.txt", "r") as f:
+            system_instruction = f.read()
+        
+        response = client.chat.completions.create(
+            model="deepseek-v4-pro:cloud",
+            messages=[
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.2,
+            response_format={"type": "json_object"}
+        )
+        
+        content = response.choices[0].message.content
+        return json.loads(content)
+        
+    except OpenAIError as api_err:
+        return {"error": "API connection failure", "details": str(api_err)}
+    except json.JSONDecodeError:
+        return {"error": "Invalid JSON format returned from model", "raw_content": content}
+    except Exception as e:
+        return {"error": "An unexpected error occurred", "details": str(e)}
