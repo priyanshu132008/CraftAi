@@ -1,0 +1,42 @@
+Instructions for Priyanshu
+Communicate to Priyanshu that the database, authentication, and file-writing infrastructure is fully complete. His sole focus is updating the services/generator.py file. Provide him with these specific requirements:
+
+The Objective: Replace the hardcoded ai_generated_data dictionary in the generate_content() function with a live API call to the LLM.
+
+The Input: His function will receive the user's plan dictionary from the Next.js frontend to use as context for the prompt.
+
+The Output Format: The LLM must return a structured JSON response containing the exact HTML, CSS, and JS strings required by the build_project pipeline. The backend will automatically handle saving the output to Supabase and writing the physical files.
+
+Here is how responsibility for those files breaks down across your team:
+Core backend infrastructure (FastAPI, Supabase PostgreSQL, JWT security, and file-writing engine) is completely finished. Those blueprint files (index.html, style.css, config.json) are static assets that your Content Injector (generator.py) uses as templates.
+
+1. Who owns the Blueprint Files?
+Priyanshu (AI Integration): While Priyanshu doesn't necessarily need to rewrite these HTML files, he must know what placeholders they expect (e.g., {name}, {about}, {projects}, {email}). When he writes the LLM prompt inside generator.py, the AI's output structure must match the keys that these templates use so the SafeDict injector can fill them in correctly.
+
+Frontend / UI Design: Anyone on the team can freely edit index.html or add more styling to style.css to make the generated portfolios look prettier. Because your backend uses a dynamic folder-scanning Blueprint Registry, you can drop brand-new templates (like a "Landing Page" or "Blog") into the blueprints/ folder later without changing a single line of your database or server code!
+
+Priyanshu's Task: Hooking the LLM into services/generator.py so it populates those exact template placeholders dynamically using AI.
+
+Frontend Action Plan for CRAFTAI
+To seamlessly connect your newly secured FastAPI backend to the Next.js frontend, your frontend team members need to focus on authentication integration, API communication, and UI rendering.
+
+1. Configure Supabase Authentication
+Initialize the official Supabase JavaScript SDK in the Next.js project using your public project URL and anon key.
+
+Build standard Login and Signup pages so users can authenticate and establish a secure session.
+
+Extract the JWT access_token from the active user session so it can be attached to subsequent backend calls.
+
+2. Set Up the API Service Layer
+Create a centralized API helper (using Axios or fetch) pointing to your FastAPI base URL ([http://127.0.0.1:8000](http://127.0.0.1:8000)).
+
+Configure an automatic request interceptor to inject the Authorization: Bearer <token> header into every outgoing request.
+
+Handle global API exceptions, ensuring that a 401 Unauthorized response automatically redirects the user back to the login page.
+
+3. Build the Generation & IDE Views
+Wire the prompt submission interface to trigger POST /generate-project with the structured JSON plan payload.
+
+Design the user dashboard to list past generations by calling the backend endpoints.
+
+Embed the Monaco code editor and populate it with raw code strings fetched from the GET /projects/{project_id}/files endpoint.

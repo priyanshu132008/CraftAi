@@ -1,0 +1,6 @@
+{
+  "type": "portfolio",
+  "name": "Minimal Developer Portfolio",
+  "description": "A clean, responsive portfolio for software developers.",
+  "required_sections": ["Hero", "About", "Projects", "Contact"]
+}

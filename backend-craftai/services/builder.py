@@ -10,7 +10,7 @@ def build_project(blueprint, content):
     files = {}
 
     for filename, template in blueprint.items():
-        final_code = template.format(**content)
+        final_code = template.format_map(content)
 
         path = os.path.join(folder, filename)
 
