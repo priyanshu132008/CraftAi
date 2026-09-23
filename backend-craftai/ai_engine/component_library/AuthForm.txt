@@ -1,0 +1,24 @@
+export default function AuthForm({ formTitle, buttonText }) {
+  return (
+    <section className="flex justify-center items-center py-20 bg-black">
+      <div className="w-full max-w-md p-8 border border-gray-800 rounded-2xl bg-gray-900/30">
+        <h2 className="text-2xl font-bold text-white text-center mb-6">{formTitle || "Welcome Back"}</h2>
+        <form className="flex flex-col gap-4">
+          <input 
+            type="email" 
+            placeholder="name@developer.com" 
+            className="w-full p-3 rounded-lg bg-black border border-gray-700 text-white focus:outline-none focus:border-gray-500"
+          />
+          <input 
+            type="password" 
+            placeholder="••••••••" 
+            className="w-full p-3 rounded-lg bg-black border border-gray-700 text-white focus:outline-none focus:border-gray-500"
+          />
+          <button className="w-full py-3 mt-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200">
+            {buttonText || "Continue"}
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+}

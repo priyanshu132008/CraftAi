@@ -1,0 +1,7 @@
+export default function Footer({ companyName }) {
+  return (
+    <footer className="w-full py-8 border-t border-gray-900 bg-black text-center text-gray-500 text-sm mt-auto">
+      <p>© {new Date().getFullYear()} {companyName || "CRAFT.AI"}. All rights reserved.</p>
+    </footer>
+  );
+}

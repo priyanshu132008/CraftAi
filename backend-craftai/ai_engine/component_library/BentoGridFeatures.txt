@@ -1,0 +1,18 @@
+export default function BentoGridFeatures({ featureOne, featureTwo, featureThree }) {
+  return (
+    <section className="py-20 bg-black px-6 md:px-12 max-w-6xl mx-auto">
+      <h2 className="text-3xl md:text-5xl font-bold text-white mb-10 text-center">Powerful Features</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 p-8 rounded-3xl bg-gradient-to-br from-gray-900 to-black border border-gray-800 min-h-[300px] flex items-end">
+          <h3 className="text-2xl font-bold text-white">{featureOne || "Real-time AI Compilation"}</h3>
+        </div>
+        <div className="p-8 rounded-3xl bg-gray-900 border border-gray-800 flex items-end">
+          <h3 className="text-xl font-bold text-gray-300">{featureTwo || "Instant Deployments"}</h3>
+        </div>
+        <div className="md:col-span-3 p-8 rounded-3xl bg-gray-900 border border-gray-800 flex items-center justify-center">
+          <h3 className="text-xl md:text-3xl font-bold text-gray-400">{featureThree || "Zero-config Architecture"}</h3>
+        </div>
+      </div>
+    </section>
+  );
+}
