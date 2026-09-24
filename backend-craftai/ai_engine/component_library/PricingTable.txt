@@ -1,0 +1,28 @@
+import { motion } from "framer-motion";
+
+export default function PricingTable({ tierName, price, features }) {
+  const list = features || ["API Access", "Unlimited Generations", "24/7 Support"];
+
+  return (
+    <section className="py-20 bg-black text-white flex flex-col items-center">
+      <h2 className="text-3xl md:text-5xl font-bold mb-12">Simple Pricing</h2>
+      <motion.div 
+        whileHover={{ scale: 1.05 }}
+        className="p-8 border border-gray-800 rounded-2xl bg-gray-900/50 w-full max-w-sm text-center"
+      >
+        <h3 className="text-xl text-gray-400 mb-4">{tierName || "Pro Plan"}</h3>
+        <p className="text-5xl font-extrabold mb-6">{price || "$29"}<span className="text-lg text-gray-500 font-normal">/mo</span></p>
+        <ul className="space-y-4 mb-8 text-gray-300">
+          {list.map((item, i) => (
+            <li key={i} className="flex items-center justify-center gap-2">
+              <span className="text-green-500">✔</span> {item}
+            </li>
+          ))}
+        </ul>
+        <button className="w-full py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200">
+          Subscribe Now
+        </button>
+      </motion.div>
+    </section>
+  );
+}

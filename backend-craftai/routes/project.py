@@ -3,6 +3,7 @@ from sqlalchemy.future import select
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
+from services.code_assembler import get_available_components, assemble_page
 from services.blueprint import registry
 from services.generator import generate_content
 from services.builder import build_project
@@ -12,8 +13,15 @@ from models.project import Project
 
 router = APIRouter()
 
+# Add this model at the top near ProjectRequest
+class PromptRequest(BaseModel):
+    prompt: str
+
 class ProjectRequest(BaseModel):
     plan: dict
+
+class AssembleRequest(BaseModel):
+    sections: list[str]
 
 # Add user = Depends(get_current_user) to the parameters
 @router.post("/generate-project")
@@ -105,3 +113,45 @@ async def get_project_files(
         "project_id": project.id,
         "files": files_content
     }
+
+# Add this new endpoint to turn raw text into a plan
+@router.post("/generate-plan")
+async def create_plan_from_prompt(
+    req: PromptRequest,
+    user = Depends(get_current_user)
+):
+    # Here you would call your AI to turn the text prompt into a structured plan dictionary
+    # Example: ai_plan = await planner.generate(req.prompt)
+    
+    # For now, returning a mock plan
+    return {
+        "status": "success",
+        "plan": {
+            "type": "portfolio",
+            "description": req.prompt
+        }
+    }
+
+# 1. The Manifest Endpoint (Tells the AI what blocks it can use)
+@router.get("/api/components")
+async def list_components():
+    components = get_available_components()
+    return {
+        "status": "success",
+        "available_components": components
+    }
+
+# 2. The Stitching Endpoint (Compiles the code)
+@router.post("/api/assemble")
+async def compile_components(req: AssembleRequest, user = Depends(get_current_user)):
+    try:
+        # Pass the array (e.g., ["DarkNavbar", "HeroSection"]) to your service
+        compiled_code = assemble_page(req.sections)
+        
+        return {
+            "status": "success",
+            "message": "Next.js components successfully assembled.",
+            "compiled_output": compiled_code
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

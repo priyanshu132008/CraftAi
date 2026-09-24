@@ -1,0 +1,377 @@
+/* Components Design System - Vercel Monochrome Edition */
+
+/* Logo */
+.eyebrow {
+  display: inline-block;
+  color: #71717A;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.about-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 5rem;
+  align-items: end;
+}
+
+@media (max-width: 720px) {
+  .about-intro {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+.craftai-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.35rem;
+  letter-spacing: -0.03em;
+  color: #FFFFFF;
+  cursor: pointer;
+  user-select: none;
+}
+.craftai-logo-icon {
+  width: 22px;
+  height: 22px;
+  background: #FFFFFF;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z'/%3E%3C/svg%3E") no-repeat center / contain;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.craftai-logo span.highlight {
+  color: #FFFFFF;
+  font-weight: 800;
+}
+
+/* Primary White / Black Buttons (Vercel Style) */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  background: #FFFFFF;
+  color: #000000;
+  border: 1px solid #FFFFFF;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+  transition: all var(--transition-normal);
+  white-space: nowrap;
+}
+.btn-primary:hover {
+  background: #EDEDED;
+  transform: translateY(-1px);
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #0A0A0A;
+  color: #FFFFFF;
+  border: 1px solid #2E2E2E;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+.btn-secondary:hover {
+  background: #171717;
+  border-color: #555555;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #0A0A0A;
+  color: #EDEDED;
+  border: 1px solid #27272A;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.btn-outline:hover {
+  background: #18181B;
+  border-color: #3F3F46;
+  color: #FFFFFF;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  color: #A1A1AA;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.btn-ghost:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Inputs & Form Elements */
+.input-field {
+  width: 100%;
+  padding: 11px 16px;
+  font-size: 0.92rem;
+  border: 1px solid #27272A;
+  border-radius: 8px;
+  background: #050505;
+  color: #FFFFFF;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+.input-field:focus {
+  border-color: #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
+.input-field::placeholder {
+  color: #52525B;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+.input-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #D4D4D8;
+}
+
+/* Social Buttons */
+.btn-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 16px;
+  background: #0A0A0A;
+  border: 1px solid #27272A;
+  border-radius: 8px;
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.btn-social:hover {
+  background: #141414;
+  border-color: #3F3F46;
+}
+
+/* Pill / Chips */
+.pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.chip-selectable {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: #0A0A0A;
+  border: 1.5px solid #27272A;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #A1A1AA;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.chip-selectable:hover {
+  border-color: #FFFFFF;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+.chip-selectable.active {
+  border-color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+}
+
+/* Stepper (Wizard) */
+.stepper-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 2rem;
+  position: relative;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.stepper-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  cursor: pointer;
+  flex: 1;
+}
+.stepper-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #0A0A0A;
+  border: 1.5px solid #27272A;
+  color: #71717A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: all var(--transition-normal);
+  margin-bottom: 6px;
+}
+.stepper-step.completed .stepper-circle {
+  background: #FFFFFF;
+  border-color: #FFFFFF;
+  color: #000000;
+}
+.stepper-step.active .stepper-circle {
+  background: #FFFFFF;
+  border-color: #FFFFFF;
+  color: #000000;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15);
+}
+.stepper-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #71717A;
+}
+.stepper-step.active .stepper-label {
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.stepper-line {
+  position: absolute;
+  top: 18px;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: #27272A;
+  z-index: 1;
+}
+.stepper-line-progress {
+  height: 100%;
+  background: #FFFFFF;
+  transition: width 0.3s ease;
+}
+
+/* Card System */
+.craft-card {
+  background: #0A0A0A;
+  border-radius: 12px;
+  border: 1px solid #222222;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+  overflow: hidden;
+}
+.craft-card:hover {
+  border-color: #444444;
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px);
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease-out;
+}
+.modal-content {
+  background: #0A0A0A;
+  border-radius: 14px;
+  border: 1px solid #27272A;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+  max-width: 650px;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #FFFFFF;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Notification & Status */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid #27272A;
+}
+.status-pill.success {
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+.status-pill.live {
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+}
+.status-pill.building {
+  background: rgba(255, 255, 255, 0.05);
+  color: #A1A1AA;
+}
