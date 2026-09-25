@@ -1,22 +1,60 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Eye, EyeOff, Sparkles, ArrowLeft } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
+import { Eye, EyeOff, Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
 
 export const SignupPage: React.FC = () => {
   const { setCurrentScreen, setUser } = useApp();
-  const [name, setName] = useState('Shreya Raut');
-  const [email, setEmail] = useState('shreya@example.com');
-  const [password, setPassword] = useState('••••••••••••');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setUser({
-      name: name || 'Shreya Raut',
-      email: email || 'shreya@example.com',
-      avatar: (name ? name[0] : 'S').toUpperCase()
+    setBusy(true);
+    setAuthError(null);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } }
     });
-    setCurrentScreen('dashboard');
+    setBusy(false);
+
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+
+    // Email-confirmation projects return a session only after the user
+    // clicks the link in their inbox.
+    if (data.session) {
+      setUser({
+        name: name || email.split('@')[0],
+        email,
+        avatar: (name ? name[0] : email[0]).toUpperCase()
+      });
+      setCurrentScreen('dashboard');
+    } else {
+      setAuthError('Account created — check your inbox to confirm your email, then log in.');
+    }
+  };
+
+  const handleOAuth = async (provider: 'google' | 'github') => {
+    setBusy(true);
+    setAuthError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: window.location.origin }
+    });
+    setBusy(false);
+    if (error) {
+      setAuthError(
+        `${provider} sign-in is not configured for this Supabase project (${error.message}).`
+      );
+    }
   };
 
   return (
@@ -105,11 +143,16 @@ export const SignupPage: React.FC = () => {
           <button
             type="submit"
             className="btn-primary"
+            disabled={busy}
             style={{ width: '100%', padding: '12px', borderRadius: '10px', marginTop: '0.5rem' }}
           >
-            Create Account
+            {busy ? <Loader2 size={16} className="animate-spin" /> : 'Create Account'}
           </button>
         </form>
+
+        {authError && (
+          <p style={{ marginTop: '1rem', fontSize: '0.82rem', color: '#F87171' }}>{authError}</p>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', margin: '1.25rem 0', color: 'var(--neutral-gray)' }}>
           <div style={{ flex: 1, height: '1px', background: 'var(--neutral-light-gray)' }} />
@@ -122,7 +165,8 @@ export const SignupPage: React.FC = () => {
           <button
             type="button"
             className="btn-social"
-            onClick={handleSubmit}
+            disabled={busy}
+            onClick={() => handleOAuth('google')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -136,7 +180,8 @@ export const SignupPage: React.FC = () => {
           <button
             type="button"
             className="btn-social"
-            onClick={handleSubmit}
+            disabled={busy}
+            onClick={() => handleOAuth('github')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>

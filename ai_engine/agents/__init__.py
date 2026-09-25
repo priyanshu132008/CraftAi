@@ -1,0 +1,1 @@
+"""Multi-agent system for CraftAI. Each agent owns one stage of generation."""

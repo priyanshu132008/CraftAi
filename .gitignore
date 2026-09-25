@@ -1,12 +1,3 @@
-<<<<<<< HEAD
-node_modules/
-.next/
-dist/
-build/
-__pycache__/
-*.pyc
-.env
-=======
 # Environments
 .env
 .env.*
@@ -20,43 +11,24 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# C extensions
-*.so
-
-# Packages
 *.egg
 *.egg-info
-dist
-build
-eggs
-parts
-bin
-var
-sdist
-develop-eggs
-.installed.cfg
-lib
-lib64
-
-# Installer logs
+.eggs/
+develop-eggs/
+sdist/
+wheels/
 pip-log.txt
 pip-delete-this-directory.txt
+
+# Build output
+build/
+dist/
+downloads/
+parts/
+var/
+lib/
+lib64/
+bin/
 
 # Unit test / coverage reports
 htmlcov/
@@ -65,29 +37,26 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
-nosetests.xml
+.pytest_cache/
 coverage.xml
 *.cover
-*.py,cover
 .hypothesis/
-.pytest_cache/
-cover/
-
-# Jupyter Notebook
-.ipynb_checkpoints
+.ipynb_checkpoints/
 
 # Node
 node_modules/
+.next/
 npm-debug.log
 yarn-error.log
 
-# IDEs
+# CraftAI generated output (transient)
+generated_projects/
+frontend/src/generated/project/
+
+# IDEs / OS
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# OS files
 .DS_Store
 Thumbs.db
->>>>>>> 96c684ab7ed0e2d8535b6850e4fa39e557ca7c1c

@@ -1,5 +1,33 @@
+/* Tailwind utilities for AI-generated pages (preview iframe renders them).
+   Only the utilities layer — preflight is skipped so it cannot reset the
+   hand-written workspace styles below. */
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
 @import './variables.css';
 @import './components.css';
 @import './layout.css';
 @import './ide.css';
 @import './plan.css';
+
+/* Global reset: raw HTML buttons/inputs must never show the browser's
+   default white borders or UA pill shapes. Class-based styles (btn-primary,
+   input-field, …) still win via specificity — this only normalizes bare,
+   AI-generated elements that ship without utility classes. */
+*,
+::before,
+::after {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 100%;
+  line-height: 1.15;
+  margin: 0;
+  border-style: none;
+  background-color: transparent;
+}
