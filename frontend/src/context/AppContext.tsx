@@ -8,6 +8,8 @@ import React, {
 } from 'react';
 import { ProjectItem } from './defaultData';
 import {
+  deleteProjectApi,
+  editProjectApi,
   fetchProjects,
   generateProjectApi,
   GENERATION_EVENTS_URL,
@@ -162,6 +164,7 @@ interface AppContextType {
   refreshRecents: () => Promise<void>;
   /** Load a saved project's files into the canvas and open the workspace. */
   openProject: (projectId: string) => Promise<void>;
+  deleteProject: (projectId: string) => Promise<void>;
 
   chatMessages: ChatMessage[];
   sendChatMessage: (msg: string) => void;
@@ -294,6 +297,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [openFileRequest, setOpenFileRequest] = useState<OpenFileRequest | null>(null);
 
   const [currentProject, setCurrentProject] = useState<ProjectItem | null>(null);
+  // The project currently loaded in the workspace canvas — "Edit with AI"
+  // patches this one in place instead of generating a whole new project.
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [recents, setRecents] = useState<ProjectListItem[]>([]);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -476,6 +482,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const openProject = useCallback(async (projectId: string) => {
     try {
       const data = await loadProjectApi(projectId);
+      setActiveProjectId(projectId);
       setGeneratedFiles(data.files ?? []);
       setGeneratedCode(data.generated_code ?? '');
       setOpenFileRequest(null);
@@ -493,6 +500,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
   }, []);
+
+  /** Delete a project (disk + Supabase row) and refresh the shared lists. */
+  const deleteProject = useCallback(async (projectId: string) => {
+    try {
+      await deleteProjectApi(projectId);
+      if (activeProjectId === projectId) {
+        // Deleted the project in the canvas — clear it.
+        setActiveProjectId(null);
+        setGeneratedFiles([]);
+        setGeneratedCode('');
+        setIsGenerated(false);
+      }
+      await refreshRecents();
+      setStatusMessage('Project deleted.');
+    } catch (err) {
+      setStatusMessage(err instanceof Error ? err.message : String(err));
+    }
+  }, [activeProjectId, refreshRecents]);
 
   // ---- Live agent thought stream (SSE) ----
   const startTraceStream = () => {
@@ -587,6 +612,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       if (mode === 'build') {
+        setActiveProjectId(data.project_id ?? null);
         setCurrentPlan(data.plan ?? DEFAULT_PLAN);
         setGeneratedCode(data.generated_code);
         setGeneratedFiles(data.files ?? []);
@@ -681,42 +707,67 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setGeneratedFiles([]);
     setGeneratedCode('');
     setOpenFileRequest(null);
-    setStatusMessage('Applying your edit through the 3-agent pipeline…');
     startTraceStream();
     try {
-      const data = await generateProjectApi(
-        `Update the previously generated app with this change: ${text}`,
-        {
-          mode: 'build',
-          connectors: selectedConnectors,
-          customConnectors: customConnectorPayload(),
-          mcpServers: mcpServerPayload(),
-          connectorPermissions,
-          connectorCredentials: credentialFlags(),
-          connectorSecrets: connectorSecretsPayload(),
-          designStyle,
-          context: attachedContext?.content ?? null
+      if (activeProjectId) {
+        // Incremental edit: the Debugger/Edit endpoint patches the EXISTING
+        // project directory in place — same project id, no new project.
+        setStatusMessage('Patching the existing project in place…');
+        const data = await editProjectApi(activeProjectId, text);
+        if (data.trace && data.trace.length > 0) {
+          setAgentTrace(data.trace);
         }
-      );
-      if (data.trace && data.trace.length > 0) {
-        setAgentTrace(data.trace);
+        setGeneratedCode(data.generated_code);
+        setGeneratedFiles(data.files ?? []);
+        setIsGenerated(true);
+        setPreviewVersion(v => v + 1);
+        setStatusMessage('Edit applied — preview reloaded.');
+        appendMessage({
+          id: (Date.now() + 1).toString(),
+          sender: 'ai',
+          text: `Done! Patched "${data.name ?? 'the project'}" in place — no new project was created.`,
+          timestamp: timestamp(),
+          files: data.files ?? [],
+          suggestions: ['Add search filter', 'Polish the animations']
+        });
+      } else {
+        // Nothing loaded in the canvas yet — fall back to a fresh build.
+        setStatusMessage('No project loaded yet — running a fresh build…');
+        const data = await generateProjectApi(
+          `Update the previously generated app with this change: ${text}`,
+          {
+            mode: 'build',
+            connectors: selectedConnectors,
+            customConnectors: customConnectorPayload(),
+            mcpServers: mcpServerPayload(),
+            connectorPermissions,
+            connectorCredentials: credentialFlags(),
+            connectorSecrets: connectorSecretsPayload(),
+            designStyle,
+            context: attachedContext?.content ?? null
+          }
+        );
+        if (data.trace && data.trace.length > 0) {
+          setAgentTrace(data.trace);
+        }
+        setActiveProjectId(data.project_id ?? null);
+        setCurrentPlan(data.plan ?? null);
+        setGeneratedCode(data.generated_code);
+        setGeneratedFiles(data.files ?? []);
+        setIsGenerated(true);
+        setPreviewVersion(v => v + 1);
+        setStatusMessage('Edit applied — preview reloaded.');
+        refreshRecents();
+        appendMessage({
+          id: (Date.now() + 1).toString(),
+          sender: 'ai',
+          text: `Done! Applied "${text}" — ${data.files?.length ?? 0} files regenerated, preview updated.`,
+          timestamp: timestamp(),
+          changes: data.plan?.sections as string[] | undefined,
+          files: data.files ?? [],
+          suggestions: ['Add search filter', 'Polish the animations']
+        });
       }
-      setCurrentPlan(data.plan ?? null);
-      setGeneratedCode(data.generated_code);
-      setGeneratedFiles(data.files ?? []);
-      setIsGenerated(true);
-      setPreviewVersion(v => v + 1);
-      setStatusMessage('Edit applied — preview reloaded.');
-      refreshRecents();
-      appendMessage({
-        id: (Date.now() + 1).toString(),
-        sender: 'ai',
-        text: `Done! Applied "${text}" — ${data.files?.length ?? 0} files regenerated, preview updated.`,
-        timestamp: timestamp(),
-        changes: data.plan?.sections as string[] | undefined,
-        files: data.files ?? [],
-        suggestions: ['Add search filter', 'Polish the animations']
-      });
     } catch (err) {
       handleAuthError('chat', err);
     } finally {
@@ -774,6 +825,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recents,
         refreshRecents,
         openProject,
+        deleteProject,
         chatMessages,
         sendChatMessage,
         handleGeneratePlan,

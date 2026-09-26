@@ -184,3 +184,92 @@ class DebuggerAgent:
             text = text[m.start():]
 
         return text.strip()
+    # ---- Incremental edit (Edit-with-AI / patch mode) ----
+
+    EDIT_SYSTEM_PROMPT = """You are the Edit Agent of a website generation pipeline.
+You receive an existing React project (Next.js + Tailwind, plain TSX files)
+and a change instruction. Your job is to apply ONLY the requested change by
+editing the affected files in place.
+
+Rules:
+- Return ONLY a JSON array of the files you CHANGED, each as:
+  {"path": "<exact same path as given>", "content": "<full updated file>"}
+- Copy the path string EXACTLY from the input; never invent new paths.
+- Return the FULL content of every changed file — no diffs, no ellipses,
+  no "... unchanged ...".
+- Preserve everything not related to the instruction: imports, styling,
+  copy, structure.
+- Keep styling as Tailwind utility classes only.
+- If the instruction requires no file change, return [].
+Output raw JSON only — no markdown fences, no commentary."""
+
+    # ponytail: whole-file responses (not unified diffs) — robust to model
+    # sloppiness; raise the cap only when real projects exceed it.
+    EDIT_INPUT_CAP = 60_000
+
+    def apply_edit(self, files: list, instruction: str) -> list:
+        """Incremental patch: edit the EXISTING files per the instruction.
+
+        `files` is the current [{path, content}] of the project directory.
+        Returns the list of changed files ([{path, content}]); empty list when
+        the model produced nothing usable (caller keeps the originals).
+        """
+        payload = ""
+        for f in files:
+            if len(payload) + len(f["content"]) > self.EDIT_INPUT_CAP:
+                break  # ponytail: tail files beyond the cap stay unpatched
+            payload += f"\n\n### FILE: {f['path']}\n{f['content']}"
+        if not payload:
+            return []
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.EDIT_SYSTEM_PROMPT},
+                    {"role": "user",
+                     "content": "Existing project files follow."
+                                + payload
+                                + "\n\n### CHANGE INSTRUCTION:\n" + instruction},
+                ],
+                temperature=0.1,
+                max_tokens=REPAIR_MAX_TOKENS,
+            )
+            content = response.choices[0].message.content
+        except Exception as e:
+            print(f"[DebuggerAgent] edit call failed: {e}")
+            return []
+
+        if not content or not content.strip():
+            return []
+        text = content.strip()
+        text = re.sub(r"^```(?:json)?\s*\n?", "", text)
+        text = re.sub(r"\n?```\s*$", "", text)
+        # Tolerate stray prose around the JSON body.
+        start, end = text.find("["), text.rfind("]")
+        if start == -1 or end <= start:
+            return []
+        try:
+            parsed = json.loads(text[start:end + 1])
+        except ValueError:
+            print("[DebuggerAgent] edit response was not valid JSON")
+            return []
+
+        changed: list = []
+        for item in parsed if isinstance(parsed, list) else []:
+            if (not isinstance(item, dict)
+                    or not isinstance(item.get("path"), str)
+                    or not isinstance(item.get("content"), str)
+                    or not item["content"].strip()):
+                continue
+            # Cheap safety net for patched files of ANY kind (html/css too,
+            # so structural_check's page.tsx-only "use client" rule is not
+            # enforced here): reject markdown fences and unbalanced brackets.
+            _, problems = self.structural_check(item["content"])
+            if "```" in item["content"] or any(
+                    p.startswith("unbalanced") for p in problems):
+                print(f"[DebuggerAgent] edit for {item['path']} failed the "
+                      f"structural check — keeping the original")
+                continue
+            changed.append({"path": item["path"], "content": item["content"]})
+        return changed

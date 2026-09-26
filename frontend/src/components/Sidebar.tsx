@@ -10,7 +10,8 @@ import {
   Clock,
   LogOut,
   LogIn,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { ProjectListItem } from '../services/api';
 import { timeAgo } from '../utils/timeAgo';
@@ -47,7 +48,7 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 );
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeScreen }) => {
-  const { setCurrentScreen, user, logout, recents, openProject } = useApp();
+  const { setCurrentScreen, user, logout, recents, openProject, deleteProject } = useApp();
   const [workspace, setWorkspace] = useState(WORKSPACES[0]);
   const [wsOpen, setWsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -213,7 +214,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeScreen }) => {
                 whiteSpace: 'nowrap',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8
+                gap: 8,
+                flex: 1,
+                minWidth: 0
               }}
             >
               <span style={{ color: '#52525B', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', flexShrink: 0 }}>
@@ -221,6 +224,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeScreen }) => {
               </span>
               {rec.name}
             </span>
+            <button
+              type="button"
+              title="Delete project"
+              onClick={e => {
+                e.stopPropagation();
+                if (window.confirm(`Delete "${rec.name}"? This cannot be undone.`)) {
+                  deleteProject(rec.id);
+                }
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#52525B',
+                display: 'flex',
+                padding: 2,
+                flexShrink: 0
+              }}
+            >
+              <Trash2 size={13} />
+            </button>
           </div>
         ))}
         {recents.length === 0 && (

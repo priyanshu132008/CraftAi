@@ -1032,38 +1032,40 @@ def list_projects(limit: int = 50, authorization: Optional[str] = Header(None)):
     return {"status": "success", "projects": entries[:max(1, min(limit, 200))]}
 
 
-@app.get("/api/projects/{project_id}/load")
-def load_project(project_id: str, authorization: Optional[str] = Header(None)):
-    """Load a project's files back into the workspace canvas.
+def _owned_project_dir(project_id: str, authorization: Optional[str]):
+    """Resolve an authenticated, caller-owned project directory.
 
-    Same auth/ownership rules as the listing: an owner-stamped folder loads
-    only for its owner; an unstamped (legacy) folder is not loadable. Re-
-    mirrors the project into the Vite preview so /preview shows it.
+    Returns (project_dir, None) on success, or (None, error_response) —
+    shared by load / edit / delete so the auth, traversal and ownership
+    rules can never drift apart.
     """
     token = _bearer_token(authorization)
     user = _verify_supabase_token(token) if token else None
     if user is None:
-        return _unauthorized("Sign in to load projects.")
+        return None, _unauthorized("Sign in to access your projects.")
 
     rel = _safe_relpath(project_id)
     project_dir = PROJECTS_ROOT / rel if rel and len(rel.parts) == 1 else None
     if project_dir is None or not project_dir.is_dir():
-        return JSONResponse(status_code=404,
-                            content={"status": "error", "message": "Unknown project"})
-
+        return None, JSONResponse(status_code=404,
+                                  content={"status": "error", "message": "Unknown project"})
     try:
         owner_file = project_dir / "owner.json"
         if not owner_file.exists():
             # unstamped legacy project — clean-slate policy
-            return JSONResponse(status_code=404,
-                                content={"status": "error", "message": "Unknown project"})
+            return None, JSONResponse(status_code=404,
+                                      content={"status": "error", "message": "Unknown project"})
         meta = json.loads(owner_file.read_text())
         if meta.get("owner") != user.get("id"):
-            return _unauthorized("This project belongs to another account.")
+            return None, _unauthorized("This project belongs to another account.")
     except (OSError, ValueError):
-        return JSONResponse(status_code=404,
-                            content={"status": "error", "message": "Unknown project"})
+        return None, JSONResponse(status_code=404,
+                                  content={"status": "error", "message": "Unknown project"})
+    return project_dir, None
 
+
+def _read_project_files(project_dir: Path) -> list:
+    """All text files of a workspace folder as [{path, content}]."""
     files: list = []
     for path in sorted(project_dir.rglob("*")):
         if not path.is_file() or path.name == "owner.json":
@@ -1073,7 +1075,46 @@ def load_project(project_id: str, authorization: Optional[str] = Header(None)):
                           "content": path.read_text(encoding="utf-8")})
         except (UnicodeDecodeError, OSError):
             continue  # binary files (images etc.) are not canvas material
+    return files
 
+
+def _delete_supabase_project_row(authorization: Optional[str],
+                                 project_id: str) -> None:
+    """Remove the project's metadata row (fail-soft; RLS scopes the delete
+    to the caller's own row, so no service-role key is needed)."""
+    if not (SUPABASE_URL and SUPABASE_ANON_KEY):
+        return
+    token = _bearer_token(authorization)
+    if not token:
+        return
+    try:
+        resp = httpx.delete(
+            f"{SUPABASE_URL}/rest/v1/projects",
+            params={"id": f"eq.{project_id}"},
+            headers={"apikey": SUPABASE_ANON_KEY,
+                     "Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
+        if resp.status_code not in (200, 204):
+            print(f"[projects] Supabase delete failed: "
+                  f"{resp.status_code} {resp.text[:200]}")
+    except httpx.HTTPError as exc:
+        print(f"[projects] Supabase delete error: {exc}")
+
+
+@app.get("/api/projects/{project_id}/load")
+def load_project(project_id: str, authorization: Optional[str] = Header(None)):
+    """Load a project's files back into the workspace canvas.
+
+    Same auth/ownership rules as the listing: an owner-stamped folder loads
+    only for its owner; an unstamped (legacy) folder is not loadable. Re-
+    mirrors the project into the Vite preview so /preview shows it.
+    """
+    project_dir, err = _owned_project_dir(project_id, authorization)
+    if err:
+        return err
+
+    files = _read_project_files(project_dir)
     entry = _select_entry(files)
     if entry:
         _refresh_preview(files, entry["path"])
@@ -1089,6 +1130,105 @@ def load_project(project_id: str, authorization: Optional[str] = Header(None)):
         "generated_code": (entry["content"] if entry
                            else files[0]["content"] if files else ""),
     }
+
+
+@app.post("/api/projects/{project_id}/edit")
+def edit_project(project_id: str, payload: dict,
+                 authorization: Optional[str] = Header(None)):
+    """Incremental edit ("Edit with AI"): patch the EXISTING project
+    directory in place — no new project, no new project_id.
+
+    Body: {"prompt": "<change instruction>"}. The Debugger/Edit agent
+    rewrites only the affected files; everything else is preserved. Only
+    files that already exist on disk are patchable (paths the model invents
+    are dropped). Files failing the structural balance check keep the
+    original content. Returns the full updated file set like /load.
+    """
+    project_dir, err = _owned_project_dir(project_id, authorization)
+    if err:
+        return err
+
+    instruction = (payload or {}).get("prompt")
+    if not instruction or not isinstance(instruction, str):
+        return {"status": "error",
+                "message": "payload must include a 'prompt' string"}
+
+    trace: list = []
+    files = _read_project_files(project_dir)
+    if not files:
+        return JSONResponse(status_code=404,
+                            content={"status": "error", "message": "Unknown project"})
+
+    _emit_event({"step": "edit:started",
+                 "message": f"Reading {len(files)} existing files…"}, trace)
+    _emit_event({"step": "debugger:patching",
+                 "message": "Patching the existing project in place…"}, trace)
+    changed = _get_agents()["debugger"].apply_edit(files, instruction)
+    if not changed:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error",
+                     "message": "The edit agent couldn't apply that change. "
+                                "Try rephrasing it."})
+
+    merged = {f["path"]: dict(f) for f in files}
+    written = 0
+    for f in changed:
+        rel = _safe_relpath(f["path"])
+        if not rel or rel.as_posix() not in merged:
+            continue  # model invented a path — only existing files patch
+        merged[rel.as_posix()]["content"] = f["content"]
+        (project_dir / rel).write_text(f["content"], encoding="utf-8")
+        written += 1
+    if written == 0:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error",
+                     "message": "The edit agent couldn't apply that change. "
+                                "Try rephrasing it."})
+
+    _emit_event({"step": "debugger:completed",
+                 "message": f"Edited {written} file"
+                 + ("s" if written != 1 else "") + " in place."}, trace)
+    files = list(merged.values())
+    entry = _select_entry(files)
+    if entry:
+        _refresh_preview(files, entry["path"])
+
+    raw = project_dir.name
+    slug = raw.split("-", 1)[1] if "-" in raw else raw
+    print(f"[edit-project] id={raw} | {written} files patched in place")
+    return {
+        "status": "success",
+        "project_id": raw,
+        "name": slug.replace("-", " ").title() or raw,
+        "files": files,
+        "entry_path": entry["path"] if entry else None,
+        "generated_code": (entry["content"] if entry
+                           else files[0]["content"] if files else ""),
+        "trace": trace,
+    }
+
+
+@app.delete("/api/projects/{project_id}")
+def delete_project(project_id: str,
+                   authorization: Optional[str] = Header(None)):
+    """Delete a project: remove its disk workspace folder and its Supabase
+    metadata row. Owner-only (same ownership rules as load/edit)."""
+    project_dir, err = _owned_project_dir(project_id, authorization)
+    if err:
+        return err
+
+    raw = project_dir.name
+    try:
+        shutil.rmtree(project_dir)
+    except OSError as exc:
+        return JSONResponse(status_code=500,
+                            content={"status": "error",
+                                     "message": f"Failed to delete: {exc}"})
+    _delete_supabase_project_row(authorization, raw)
+    print(f"[delete-project] id={raw} removed from disk")
+    return {"status": "success", "project_id": raw}
 
 
 @app.post("/api/deploy")

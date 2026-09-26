@@ -37,6 +37,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialView = 'home' }) =>
     user,
     recents,
     openProject,
+    deleteProject,
     setCurrentScreen,
     isGenerated
   } = useApp();
@@ -315,7 +316,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialView = 'home' }) =>
                         {proj.category}
                       </span>
                     </div>
-                    <button className="btn-ghost" style={{ padding: '4px', color: '#71717A' }}>
+                    <button
+                      className="btn-ghost"
+                      style={{ padding: '4px', color: '#71717A' }}
+                      title="Delete project"
+                      onClick={() => {
+                        if (window.confirm(`Delete "${proj.title}"? This cannot be undone.`)) {
+                          deleteProject(proj.id);
+                        }
+                      }}
+                    >
                       <MoreVertical size={16} />
                     </button>
                   </div>

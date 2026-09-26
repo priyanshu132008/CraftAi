@@ -25,3 +25,7 @@ create policy "own rows insert" on public.projects
 drop policy if exists "own rows update" on public.projects;
 create policy "own rows update" on public.projects
   for update using (auth.uid() = user_id);
+
+drop policy if exists "own rows delete" on public.projects;
+create policy "own rows delete" on public.projects
+  for delete using (auth.uid() = user_id);

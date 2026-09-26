@@ -214,6 +214,55 @@ interface SupabaseProjectRow {
   created_at: string;
 }
 
+/** Incremental "Edit with AI": patch the EXISTING project in place —
+ *  no new project is created. Returns the full updated file set. */
+export async function editProjectApi(
+  projectId: string,
+  prompt: string
+): Promise<LoadedProject & { trace?: TraceStep[] }> {
+  const token = await getAuthToken();
+  if (!token) {
+    throw new NotAuthenticatedError();
+  }
+  const res = await fetch(
+    `${API_URL}/api/projects/${encodeURIComponent(projectId)}/edit`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ prompt })
+    }
+  );
+  if (res.status === 401) {
+    throw new NotAuthenticatedError();
+  }
+  const data = (await res.json()) as LoadedProject & { message?: string };
+  if (!res.ok || data.status !== 'success') {
+    throw new Error(data.message || `Edit failed (HTTP ${res.status})`);
+  }
+  return data;
+}
+
+/** Delete a project (disk folder + Supabase row). Owner-only. */
+export async function deleteProjectApi(projectId: string): Promise<void> {
+  const token = await getAuthToken();
+  if (!token) {
+    throw new NotAuthenticatedError();
+  }
+  const res = await fetch(
+    `${API_URL}/api/projects/${encodeURIComponent(projectId)}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (res.status === 401) {
+    throw new NotAuthenticatedError();
+  }
+  if (!res.ok) {
+    throw new Error(`Failed to delete project (HTTP ${res.status})`);
+  }
+}
+
 /** Fetch the logged-in user's projects — the Supabase `projects` table is the
  *  source of truth; the backend disk listing is only a fallback (pre-migration
  *  or Supabase outage). Returns [] when not signed in (never leaks accounts). */

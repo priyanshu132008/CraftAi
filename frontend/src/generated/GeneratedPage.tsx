@@ -7,7 +7,7 @@
 // repo always builds, even before the first generation.
 import React, { useEffect, useState } from 'react';
 
-let entryPath = './project/src/App.tsx';
+let entryPath = './project/src/components/Hero.tsx';
 
 export default function GeneratedPage() {
   const [Component, setComponent] = useState<React.ComponentType | null>(null);
