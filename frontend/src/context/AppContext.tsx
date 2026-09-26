@@ -6,11 +6,12 @@ import React, {
   useRef,
   useState
 } from 'react';
-import { INITIAL_PROJECTS, ProjectItem } from './defaultData';
+import { ProjectItem } from './defaultData';
 import {
   fetchProjects,
   generateProjectApi,
   GENERATION_EVENTS_URL,
+  loadProjectApi,
   NotAuthenticatedError,
   PlanResponse,
   GeneratedFile,
@@ -127,9 +128,11 @@ interface AppContextType {
   /** Connector services selected for the next generation. */
   selectedConnectors: string[];
   toggleConnector: (id: string) => void;
-  /** API key/token per standard connector id (persisted to localStorage). */
-  connectorKeys: Record<string, string>;
-  setConnectorKey: (id: string, key: string) => void;
+  /** Multi-field vault values per connector id, e.g.
+   * { supabase: { url, anonKey } } (persisted to localStorage). */
+  connectorSecrets: Record<string, Record<string, string>>;
+  setConnectorSecrets: (id: string, fields: Record<string, string>) => void;
+  clearConnectorSecrets: (id: string) => void;
 
   /** User-defined REST API connectors (persisted to localStorage). */
   customConnectors: CustomConnector[];
@@ -151,13 +154,14 @@ interface AppContextType {
   openFileRequest: OpenFileRequest | null;
   requestOpenFile: (path: string) => void;
 
-  projects: ProjectItem[];
   currentProject: ProjectItem | null;
   setCurrentProject: (proj: ProjectItem) => void;
 
   /** Real, server-fetched recents (sorted newest-first). */
   recents: ProjectListItem[];
   refreshRecents: () => Promise<void>;
+  /** Load a saved project's files into the canvas and open the workspace. */
+  openProject: (projectId: string) => Promise<void>;
 
   chatMessages: ChatMessage[];
   sendChatMessage: (msg: string) => void;
@@ -186,8 +190,7 @@ const timestamp = () =>
   new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 /** localStorage persistence for connector configs — one global vault so
- * settings persist across page reloads, project switches and sessions.
- * Falls back to the older keys from pre-vault sessions. */
+ * settings persist across page reloads, project switches and sessions. */
 const LS_GLOBAL = 'craftai_connector_vault';
 
 /** Agent tool permission per connector (and the global default rule). */
@@ -195,7 +198,8 @@ export type PermissionMode = 'ask' | 'always' | 'never';
 
 interface GlobalConnectorStore {
   enabledConnectors: string[];
-  connectorApiKeys: Record<string, string>;
+  /** Multi-field vault values per connector. */
+  connectorSecrets: Record<string, Record<string, string>>;
   customConnectors: CustomConnector[];
   mcpServers: McpServer[];
   permissions: Record<string, PermissionMode>;
@@ -213,7 +217,7 @@ function loadStored<T>(key: string, fallback: T): T {
 
 const EMPTY_STORE: GlobalConnectorStore = {
   enabledConnectors: [],
-  connectorApiKeys: {},
+  connectorSecrets: {},
   customConnectors: [],
   mcpServers: [],
   permissions: {},
@@ -231,7 +235,6 @@ function loadConnectorStore(): GlobalConnectorStore {
   }
   return {
     ...base,
-    connectorApiKeys: loadStored('craftai_connector_keys', base.connectorApiKeys),
     customConnectors: loadStored('craftai_custom_connectors', base.customConnectors),
     mcpServers: loadStored('craftai_mcp_servers', base.mcpServers)
   };
@@ -249,6 +252,9 @@ function saveConnectorStore(store: GlobalConnectorStore) {
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('landing');
+  /** Latest screen for the session bootstrap's guard (its effect runs once). */
+  const currentScreenRef = useRef<ScreenType>(currentScreen);
+  currentScreenRef.current = currentScreen;
   const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
   const [user, setUser] = useState<UserInfo | null>(null);
 
@@ -270,9 +276,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedConnectors, setSelectedConnectors] = useState<string[]>(
     INITIAL_STORE.enabledConnectors
   );
-  const [connectorKeys, setConnectorKeys] = useState<Record<string, string>>(
-    INITIAL_STORE.connectorApiKeys
-  );
+  const [connectorSecrets, setConnectorSecretsState] = useState<
+    Record<string, Record<string, string>>
+  >(INITIAL_STORE.connectorSecrets);
   const [customConnectors, setCustomConnectors] = useState<CustomConnector[]>(
     INITIAL_STORE.customConnectors
   );
@@ -287,7 +293,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
   const [openFileRequest, setOpenFileRequest] = useState<OpenFileRequest | null>(null);
 
-  const [projects] = useState<ProjectItem[]>(INITIAL_PROJECTS);
   const [currentProject, setCurrentProject] = useState<ProjectItem | null>(null);
   const [recents, setRecents] = useState<ProjectListItem[]>([]);
 
@@ -298,6 +303,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const traceStreamRef = useRef<EventSource | null>(null);
 
   // ---- Supabase session bootstrap ----
+  // Auth round trips (OAuth / email confirm) are FULL page loads, so the
+  // screen state resets to 'landing'. Any live session — the initial
+  // getSession() or an onAuthStateChange event — reroutes the user straight
+  // to the dashboard; sign-out drops them back to the landing page. The
+  // public-screen guard leaves the /connectors callback mapping and
+  // deliberate in-app navigation intact.
   useEffect(() => {
     const syncSession = async () => {
       const { data } = await supabase.auth.getSession();
@@ -309,12 +320,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           email,
           avatar: email.slice(0, 2).toUpperCase()
         });
+        if (['landing', 'login', 'signup'].includes(currentScreenRef.current)) {
+          setCurrentScreen('dashboard');
+        }
+        refreshRecents();
       } else {
         setUser(null);
+        setRecents([]);
       }
     };
     syncSession();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        // Nuke every cached store (recents, connector vault, ghost data) so
+        // the next account on this browser starts from a clean slate.
+        try {
+          localStorage.clear();
+        } catch {
+          /* storage unavailable — state-only cleanup below still runs */
+        }
+        setUser(null);
+        setRecents([]);
+        setCurrentScreen('landing');
+        return;
+      }
       syncSession();
     });
     return () => sub.subscription.unsubscribe();
@@ -336,10 +365,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const setConnectorKey = (id: string, key: string) => {
-    setConnectorKeys(prev => {
-      const next = key ? { ...prev, [id]: key } : { ...prev };
-      if (!key) delete next[id];
+  /** Save a connector's multi-field vault values. An empty map
+   *  (or all-empty fields) removes the entry. */
+  const setConnectorSecrets = (id: string, fields: Record<string, string>) => {
+    setConnectorSecretsState(prev => {
+      const next = { ...prev };
+      if (Object.values(fields).some(v => v.trim())) next[id] = fields;
+      else delete next[id];
+      return next;
+    });
+  };
+  const clearConnectorSecrets = (id: string) => {
+    setConnectorSecretsState(prev => {
+      const next = { ...prev };
+      delete next[id];
       return next;
     });
   };
@@ -364,13 +403,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     saveConnectorStore({
       enabledConnectors: selectedConnectors,
-      connectorApiKeys: connectorKeys,
+      connectorSecrets,
       customConnectors,
       mcpServers,
       permissions: connectorPermissions,
       defaultPermission
     });
-  }, [selectedConnectors, connectorKeys, customConnectors, mcpServers, connectorPermissions, defaultPermission]);
+  }, [selectedConnectors, connectorSecrets, customConnectors, mcpServers, connectorPermissions, defaultPermission]);
 
   /** Effective permission for a connector: its own rule, else the global default. */
   const permissionFor = useCallback(
@@ -378,13 +417,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [connectorPermissions, defaultPermission]
   );
 
-  /** Credential flags for the payload — which connectors have keys configured.
-   * Raw secret values deliberately never leave the browser; generated code
-   * reads them from import.meta.env.VITE_* at runtime. */
+  /** Credential flags for the payload — which connectors have vault values. */
   const credentialFlags = useCallback(
     (): Record<string, boolean> =>
-      Object.fromEntries(selectedConnectors.map(id => [id, Boolean(connectorKeys[id])])),
-    [selectedConnectors, connectorKeys]
+      Object.fromEntries(selectedConnectors.map(id => [id, Boolean(connectorSecrets[id])])),
+    [selectedConnectors, connectorSecrets]
+  );
+
+  /** Multi-field vault values for enabled connectors, sent to
+   *  /generate-project so the Developer Agent injects them into the
+   *  generated app's .env (VITE_* vars). */
+  const connectorSecretsPayload = useCallback(
+    (): Record<string, Record<string, string>> =>
+      Object.fromEntries(
+        selectedConnectors.filter(id => connectorSecrets[id]).map(id => [id, connectorSecrets[id]])
+      ),
+    [selectedConnectors, connectorSecrets]
   );
 
   /** Convert local config shapes into the /generate-project payload shapes. */
@@ -422,6 +470,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     refreshRecents();
   }, [refreshRecents]);
+
+  /** Sidebar "Recents" click: pull the project's files off the backend,
+   *  load them into the canvas state and re-mirror the live preview. */
+  const openProject = useCallback(async (projectId: string) => {
+    try {
+      const data = await loadProjectApi(projectId);
+      setGeneratedFiles(data.files ?? []);
+      setGeneratedCode(data.generated_code ?? '');
+      setOpenFileRequest(null);
+      setIsGenerating(false);
+      setIsGenerated(true);
+      setPreviewVersion(v => v + 1);
+      setCurrentScreen('workspace');
+      setStatusMessage(`Loaded "${data.name ?? projectId}" into the workspace.`);
+    } catch (err) {
+      if (err instanceof NotAuthenticatedError) {
+        handleAuthError('login', err);
+      } else {
+        // e.g. 404 unknown project — surface it, don't bounce to the login screen.
+        setStatusMessage(err instanceof Error ? err.message : String(err));
+      }
+    }
+  }, []);
 
   // ---- Live agent thought stream (SSE) ----
   const startTraceStream = () => {
@@ -483,6 +554,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setGeneratedFiles([]);
     setGeneratedCode('');
     setOpenFileRequest(null);
+    // A new build starts a fresh session — no stale chat thread from the
+    // previous project.
+    if (mode === 'build') setChatMessages([]);
     setStatusMessage(
       mode === 'build'
         ? 'Running the 3-agent pipeline: Architect → Developer → Debugger…'
@@ -504,6 +578,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         mcpServers: mcpServerPayload(),
         connectorPermissions,
         connectorCredentials: credentialFlags(),
+        connectorSecrets: connectorSecretsPayload(),
         designStyle: style,
         context: attachedContext?.content ?? null
       });
@@ -618,6 +693,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           mcpServers: mcpServerPayload(),
           connectorPermissions,
           connectorCredentials: credentialFlags(),
+          connectorSecrets: connectorSecretsPayload(),
           designStyle,
           context: attachedContext?.content ?? null
         }
@@ -677,8 +753,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         agentTrace,
         selectedConnectors,
         toggleConnector,
-        connectorKeys,
-        setConnectorKey,
+        connectorSecrets,
+        setConnectorSecrets,
+        clearConnectorSecrets,
         customConnectors,
         addCustomConnector,
         removeCustomConnector,
@@ -692,11 +769,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         permissionFor,
         openFileRequest,
         requestOpenFile,
-        projects,
         currentProject,
         setCurrentProject,
         recents,
         refreshRecents,
+        openProject,
         chatMessages,
         sendChatMessage,
         handleGeneratePlan,

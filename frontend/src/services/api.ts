@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000';
+export const API_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000';
 
 export interface PlanResponse {
   type: string;
@@ -124,6 +125,9 @@ export async function generateProjectApi(
     connectorPermissions?: Record<string, string>;
     /** Which connectors have credentials configured (flags, never raw secrets). */
     connectorCredentials?: Record<string, boolean>;
+    /** Multi-field vault values for Category 2 connectors (Cloud & Database) —
+     *  injected into the generated app's .env by the Developer Agent. */
+    connectorSecrets?: Record<string, Record<string, string>>;
     designStyle?: string | null;
     context?: string | null;
   } = {}
@@ -147,6 +151,7 @@ export async function generateProjectApi(
       mcp_servers: options.mcpServers ?? [],
       connector_permissions: options.connectorPermissions ?? {},
       connector_credentials: options.connectorCredentials ?? {},
+      connector_secrets: options.connectorSecrets ?? {},
       design_style: options.designStyle ?? undefined,
       context: options.context ?? undefined
     })
@@ -173,10 +178,70 @@ export interface ProjectListItem {
   created_at: string;
 }
 
-/** Fetch recent generated projects from the backend. Returns [] on error. */
+/** Files + entry of a project loaded back from the workspace disk. */
+export interface LoadedProject {
+  status: string;
+  project_id: string;
+  name?: string;
+  files: GeneratedFile[];
+  entry_path: string | null;
+  generated_code: string;
+}
+
+/** Load a saved project's files into the canvas (Bearer-authenticated). */
+export async function loadProjectApi(projectId: string): Promise<LoadedProject> {
+  const token = await getAuthToken();
+  if (!token) {
+    throw new NotAuthenticatedError();
+  }
+  const res = await fetch(
+    `${API_URL}/api/projects/${encodeURIComponent(projectId)}/load`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (res.status === 401) {
+    throw new NotAuthenticatedError();
+  }
+  const data = (await res.json()) as LoadedProject & { message?: string };
+  if (!res.ok || data.status !== 'success') {
+    throw new Error(data.message || `Failed to load project (HTTP ${res.status})`);
+  }
+  return data;
+}
+
+interface SupabaseProjectRow {
+  id: string;
+  title: string;
+  created_at: string;
+}
+
+/** Fetch the logged-in user's projects — the Supabase `projects` table is the
+ *  source of truth; the backend disk listing is only a fallback (pre-migration
+ *  or Supabase outage). Returns [] when not signed in (never leaks accounts). */
 export async function fetchProjects(): Promise<ProjectListItem[]> {
+  const token = await getAuthToken();
+  if (!token) return [];
   try {
-    const res = await fetch(`${API_URL}/api/projects`);
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id, title, created_at')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (!error && Array.isArray(data)) {
+      return (data as SupabaseProjectRow[]).map(row => ({
+        id: row.id,
+        name: row.title,
+        // Disk workspace ids are "{epoch}-{slug}" — show the slug part.
+        slug: row.id.includes('-') ? row.id.split('-').slice(1).join('-') : row.id,
+        created_at: row.created_at
+      }));
+    }
+  } catch {
+    /* fall through to the backend listing */
+  }
+  try {
+    const res = await fetch(`${API_URL}/api/projects`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     if (!res.ok) return [];
     const data = (await res.json()) as { status?: string; projects?: ProjectListItem[] };
     return Array.isArray(data.projects) ? data.projects : [];

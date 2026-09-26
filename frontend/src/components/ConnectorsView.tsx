@@ -7,6 +7,8 @@ import {
   Check,
   ChevronDown,
   ExternalLink,
+  Eye,
+  EyeOff,
   Globe,
   KeyRound,
   Loader2,
@@ -23,6 +25,8 @@ import {
   X
 } from 'lucide-react';
 import {
+  CONNECTOR_AUTH,
+  CONNECTOR_CATALOG,
   CONNECTOR_CATEGORIES,
   CONNECTOR_LIST,
   ConnectorCategory,
@@ -30,6 +34,11 @@ import {
   connectorDetail
 } from '../lib/connectorCatalog';
 import { BrandLogo } from './BrandLogos';
+import { API_URL } from '../services/api';
+import { CATEGORY2_SCHEMAS } from '../config/category2Schemas';
+import { CATEGORY3_SCHEMAS } from '../config/category3Schemas';
+import { CATEGORY4_SCHEMAS } from '../config/category4Schemas';
+import { CATEGORY567_SCHEMAS } from '../config/category567Schemas';
 
 type HubTab = 'Enabled' | 'All' | ConnectorCategory;
 type SortFilter = 'Popular' | 'Newest' | 'Connected';
@@ -125,12 +134,80 @@ const Modal: React.FC<{ title: string; onClose: () => void; children: React.Reac
 const EMPTY_CUSTOM: CustomConnector = { name: '', baseUrl: '', headerKey: '', headerValue: '', openApiSchema: '' };
 const EMPTY_MCP: McpServer = { name: '', serverUrl: '', authToken: '' };
 
-/** Providers that get an OAuth-style consent flow instead of a manual API
- * key paste. Add new provider ids here as their OAuth handshake ships. */
-const OAUTH_PROVIDERS = new Set<string>([
-  'google_sheets', 'gmail', 'google_drive', 'google_calendar',
-  'stripe', 'github', 'notion', 'shopify', 'slack'
-]);
+/** Masked credential input with a show/hide toggle. */
+const SecretField: React.FC<{
+  label: string;
+  placeholder: string;
+  value: string;
+  optional?: boolean;
+  onChange: (v: string) => void;
+}> = ({ label, placeholder, value, optional, onChange }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div>
+      <label style={LABEL_STYLE}>
+        {label}
+        {optional && <span className="ml-1 normal-case text-neutral-600">(optional)</span>}
+      </label>
+      <div style={{ position: 'relative' }}>
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{ ...INPUT_STYLE, paddingRight: 36 }}
+          className={optional ? '' : 'required-field'}
+        />
+        <button
+          type="button"
+          onClick={() => setShow(s => !s)}
+          style={{
+            position: 'absolute',
+            right: 10,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            background: 'none',
+            border: 'none',
+            color: 'var(--neutral-gray, #71717A)',
+            cursor: 'pointer',
+            padding: 2
+          }}
+          title={show ? 'Hide' : 'Show'}
+        >
+          {show ? <EyeOff size={14} /> : <Eye size={14} />}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/** Multi-field credential form for a vault connector (Category 2 or 3) —
+ *  renders one SecretField per schema entry. */
+const VaultForm: React.FC<{
+  connectorId: string;
+  values: Record<string, string>;
+  onChange: (fields: Record<string, string>) => void;
+}> = ({ connectorId, values, onChange }) => {
+  const fields =
+    CATEGORY2_SCHEMAS[connectorId] ??
+    CATEGORY3_SCHEMAS[connectorId] ??
+    CATEGORY4_SCHEMAS[connectorId] ??
+    CATEGORY567_SCHEMAS[connectorId] ?? [];
+  return (
+    <div className="flex flex-col gap-1">
+      {fields.map(f => (
+        <SecretField
+          key={f.key}
+          label={f.label}
+          placeholder={f.placeholder}
+          optional={f.optional}
+          value={values[f.key] ?? ''}
+          onChange={v => onChange({ ...values, [f.key]: v })}
+        />
+      ))}
+    </div>
+  );
+};
 
 const PERMISSION_OPTIONS: { id: PermissionMode; label: string }[] = [
   { id: 'ask', label: 'Ask each time' },
@@ -193,8 +270,8 @@ const ConnectorDetailPage: React.FC<{ id: string; onBack: () => void; startOauth
   const {
     selectedConnectors,
     toggleConnector,
-    connectorKeys,
-    setConnectorKey,
+    connectorSecrets,
+    setConnectorSecrets,
     connectorPermissions,
     setConnectorPermission,
     defaultPermission,
@@ -205,15 +282,18 @@ const ConnectorDetailPage: React.FC<{ id: string; onBack: () => void; startOauth
   } = useApp();
 
   const meta = CONNECTOR_LIST.find(c => c.id === id);
-  const [token, setToken] = useState(connectorKeys[id] ?? '');
-  const [showTokenField, setShowTokenField] = useState(false);
+  /** Multi-field vault values for vault connectors. */
+  const [secrets, setSecrets] = useState<Record<string, string>>(connectorSecrets[id] ?? {});
   if (!meta) return null;
   const detail = connectorDetail(meta);
   const enabled = selectedConnectors.includes(id);
 
   const saveCredentials = () => {
-    setConnectorKey(id, token.trim());
-    setShowTokenField(false);
+    const cleaned = Object.fromEntries(
+      Object.entries(secrets).map(([k, v]) => [k, v.trim()])
+    );
+    setConnectorSecrets(id, cleaned);
+    if (!enabled) toggleConnector(id);
   };
 
   /** Use-case card: populate the console prompt and jump into the studio. */
@@ -329,33 +409,40 @@ const ConnectorDetailPage: React.FC<{ id: string; onBack: () => void; startOauth
               <Globe size={13} /> Connect your {meta.name} Account
             </button>
             <p className="mt-2 text-[0.7rem] text-neutral-500">
-              You'll see a consent popup. After authorizing, an OAuth token is
-              stored in your browser vault and referenced via an env
-              placeholder.
+              You'll be redirected to {meta.name} to authorize. CraftAI stores
+              the resulting access token in the workspace vault on the backend
+              — it never reaches the browser.
             </p>
           </>
+        ) : detail.authType === 'none' ? (
+          <p className="text-xs text-neutral-400">
+            <strong className="text-white">Zero-auth open SDK.</strong> Enable it
+            for your workspace and the Developer Agent wires it straight into
+            the generated app — no credentials required.
+          </p>
         ) : (
           <p className="mb-2 text-xs text-neutral-400">
-            Paste your {meta.name} API key / token below. It is stored locally
-            in your browser only and never sent to the generation pipeline.
+            Enter your {meta.name} credentials below. They are stored in your
+            browser vault (craftai_connector_vault) and injected into the
+            generated app's <code className="text-indigo-300">.env</code> by the
+            Developer Agent.
           </p>
         )}
-        {(showTokenField || detail.authType === 'apikey') && (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <input
-              type="password"
-              value={token}
-              onChange={e => setToken(e.target.value)}
-              placeholder={detail.authType === 'oauth' ? 'Admin API token' : 'API key / token'}
-              style={{ ...INPUT_STYLE, maxWidth: 340 }}
-            />
-            <button type="button" className="btn-primary" style={{ borderRadius: 8 }} onClick={saveCredentials}>
-              <Check size={13} /> Update Credentials
-            </button>
-            {connectorKeys[id] && (
-              <span style={BADGE_STYLE('#10B981')}>Configured</span>
-            )}
-          </div>
+        {detail.authType === 'api_key' && (
+          <>
+            <VaultForm connectorId={id} values={secrets} onChange={setSecrets} />
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ borderRadius: 8 }}
+                onClick={saveCredentials}
+              >
+                <Check size={13} /> {enabled ? 'Save Credentials' : 'Save & Enable Connector'}
+              </button>
+              {connectorSecrets[id] && <span style={BADGE_STYLE('#10B981')}>Configured</span>}
+            </div>
+          </>
         )}
       </div>
 
@@ -414,8 +501,9 @@ export const ConnectorsView: React.FC = () => {
   const {
     selectedConnectors,
     toggleConnector,
-    connectorKeys,
-    setConnectorKey,
+    connectorSecrets,
+    setConnectorSecrets,
+    clearConnectorSecrets,
     customConnectors,
     addCustomConnector,
     removeCustomConnector,
@@ -431,7 +519,8 @@ export const ConnectorsView: React.FC = () => {
   const [filterOpen, setFilterOpen] = useState(false);
   const [modal, setModal] = useState<'custom' | 'mcp' | 'registry' | 'settings' | null>(null);
   const [settingsId, setSettingsId] = useState<string>('');
-  const [settingsKey, setSettingsKey] = useState('');
+  /** Multi-field form values for the connector being configured. */
+  const [settingsSecrets, setSettingsSecrets] = useState<Record<string, string>>({});
   const [customForm, setCustomForm] = useState<CustomConnector>(EMPTY_CUSTOM);
   const [mcpForm, setMcpForm] = useState<McpServer>(EMPTY_MCP);
   /** Detail-page routing: null = hub grid, connector id = detail page. */
@@ -452,7 +541,7 @@ export const ConnectorsView: React.FC = () => {
   const [toast, setToast] = useState<string | null>(null);
   // OAuth consent modal: which provider, which phase.
   const [oauthId, setOauthId] = useState<string | null>(null);
-  const [oauthPhase, setOauthPhase] = useState<'consent' | 'authenticating' | 'done'>('consent');
+  const [oauthPhase, setOauthPhase] = useState<'consent' | 'authenticating'>('consent');
 
   // Outside clicks close the popovers.
   useEffect(() => {
@@ -464,40 +553,64 @@ export const ConnectorsView: React.FC = () => {
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
-  /** Enabling a standard connector routes by auth type:
-   *  OAuth providers get a consent modal; everyone else gets the API-key
-   *  modal. Disabling is always direct. */
+  // Real OAuth callback landing: the backend redirects back to
+  // /connectors?success=true&provider=<id> (or success=false&error=<msg>).
+  // Runs once on mount — the round trip is a full page load.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('success')) return;
+    if (params.get('success') === 'true') {
+      const provider = params.get('provider') ?? '';
+      if (provider && !selectedConnectors.includes(provider)) toggleConnector(provider);
+      const meta = CONNECTOR_LIST.find(c => c.id === provider);
+      setToast(`Successfully connected to ${meta?.name ?? provider}!`);
+    } else {
+      setToast(`Connection failed: ${params.get('error') ?? 'unknown error'}`);
+    }
+    window.history.replaceState({}, '', '/');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Enabling a standard connector routes by its strict auth tier:
+   *  oauth   -> consent modal, then the real backend OAuth redirect
+   *  api_key -> vault modal (specific key name + placeholder per provider)
+   *  none    -> zero-auth open SDK, enables immediately
+   *  Disabling is always direct. */
   const handleToggle = (id: string) => {
     if (selectedConnectors.includes(id)) {
       toggleConnector(id); // disabling is direct
       return;
     }
-    if (OAUTH_PROVIDERS.has(id)) {
+    const tier = CONNECTOR_AUTH[id] ?? 'api_key';
+    if (tier === 'none') {
+      toggleConnector(id);
+      setToast(`${CONNECTOR_CATALOG[id]?.name ?? id} enabled — no credentials needed.`);
+      return;
+    }
+    if (tier === 'oauth') {
       setOauthId(id);
       setOauthPhase('consent');
       return;
     }
     setSettingsId(id);
-    setSettingsKey(connectorKeys[id] ?? '');
+    setSettingsSecrets(connectorSecrets[id] ?? {}); // prefill vault values
     setModal('settings');
   };
 
-  /** OAuth consent callback — show "Authenticating…" for 1.5s, then mark
-   *  the connector enabled and stash a mock bearer in connectorKeys. */
+  /** Kick off the REAL OAuth handshake: full-page navigation to the backend
+   *  authorize route, which 302s to the provider's consent page. The backend
+   *  lands the user back on /connectors?success=true&provider=<id> when done. */
   const completeOauth = () => {
     if (!oauthId) return;
     setOauthPhase('authenticating');
-    setTimeout(() => {
-      const mockToken = `oauth_${oauthId}_${Date.now().toString(36)}`;
-      setConnectorKey(oauthId, mockToken);
-      toggleConnector(oauthId);
-      setOauthPhase('done');
-      setToast(`${oauthId.replace(/_/g, ' ')} connected via OAuth.`);
-    }, 1500);
+    window.location.href = `${API_URL}/api/oauth/${oauthId}/authorize`;
   };
 
   const saveSettingsAndEnable = () => {
-    setConnectorKey(settingsId, settingsKey.trim());
+    const cleaned = Object.fromEntries(
+      Object.entries(settingsSecrets).map(([k, v]) => [k, v.trim()])
+    );
+    setConnectorSecrets(settingsId, cleaned);
     toggleConnector(settingsId);
     setModal(null);
   };
@@ -764,7 +877,7 @@ export const ConnectorsView: React.FC = () => {
               key={meta.id}
               meta={meta}
               enabled={selectedConnectors.includes(meta.id)}
-              hasKey={Boolean(connectorKeys[meta.id])}
+              hasKey={Boolean(connectorSecrets[meta.id])}
               onToggle={() => handleToggle(meta.id)}
               onOpen={() => setSelectedConnectorId(meta.id)}
             />
@@ -851,33 +964,32 @@ export const ConnectorsView: React.FC = () => {
       </div>
 
       {/* ---------------- Modals ---------------- */}
-      {modal === 'settings' && (
-        <Modal title="Connector settings" onClose={() => setModal(null)}>
-          <p className="text-sm text-neutral-400">
-            Paste the API key / token for{' '}
-            <strong className="text-indigo-300">{settingsId}</strong>. It stays in
-            your browser (localStorage) — generated code references it via an env
-            placeholder, never hardcoded.
-          </p>
-          <label style={LABEL_STYLE}>API key / token (optional)</label>
-          <input
-            type="password"
-            value={settingsKey}
-            onChange={e => setSettingsKey(e.target.value)}
-            placeholder="sk-…"
-            style={INPUT_STYLE}
-            autoFocus
-          />
-          <div className="mt-5 flex justify-end gap-2">
-            <button type="button" className="btn-ghost" onClick={() => setModal(null)}>
-              Cancel
-            </button>
-            <button type="button" className="btn-primary" onClick={saveSettingsAndEnable}>
-              <Check size={14} /> Enable connector
-            </button>
-          </div>
-        </Modal>
-      )}
+      {modal === 'settings' && (() => {
+        const providerName = CONNECTOR_CATALOG[settingsId]?.name ?? settingsId;
+        return (
+          <Modal title={`${providerName} credentials`} onClose={() => setModal(null)}>
+            <p className="mb-2 text-sm text-neutral-400">
+              Enter your <strong className="text-indigo-300">{providerName}</strong>{' '}
+              credentials. They are stored in your browser vault
+              (localStorage&nbsp;<code className="text-indigo-300">craftai_connector_vault</code>)
+              and injected into the generated app's <code>.env</code> as VITE_* vars.
+            </p>
+            <VaultForm
+              connectorId={settingsId}
+              values={settingsSecrets}
+              onChange={setSettingsSecrets}
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" className="btn-ghost" onClick={() => setModal(null)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={saveSettingsAndEnable}>
+                <Check size={14} /> Save & Enable Connector
+              </button>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {modal === 'custom' && (
         <Modal title="Custom connector" onClose={() => setModal(null)}>
@@ -1039,14 +1151,18 @@ export const ConnectorsView: React.FC = () => {
             ))}
           </div>
 
-          {adminTab === 'vault' && (
-            <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
-              {Object.keys(connectorKeys).length === 0 ? (
+          {adminTab === 'vault' && (() => {
+            const multiEntries = Object.entries(connectorSecrets);
+            if (multiEntries.length === 0) {
+              return (
                 <p className="py-6 text-center text-xs text-neutral-500">
-                  No API keys configured yet. Enable a connector to add one.
+                  No credentials configured yet. Enable a connector to add one.
                 </p>
-              ) : (
-                Object.entries(connectorKeys).map(([id, key]) => (
+              );
+            }
+            return (
+              <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
+                {multiEntries.map(([id, fields]) => (
                   <div
                     key={id}
                     className="flex items-center justify-between rounded-lg border border-white/10 bg-neutral-900/60 px-3 py-2"
@@ -1054,16 +1170,17 @@ export const ConnectorsView: React.FC = () => {
                     <div className="min-w-0">
                       <div className="text-xs font-semibold text-white">{id}</div>
                       <div className="truncate font-mono text-[0.7rem] text-neutral-500">
-                        ••••••••{key.slice(-4) || ''}
+                        {Object.values(fields).filter(Boolean).length} credential
+                        field{Object.values(fields).filter(Boolean).length === 1 ? '' : 's'} in vault
                       </div>
                     </div>
                     <div className="flex gap-1.5">
                       <button
                         type="button"
-                        title="Update key"
+                        title="Update credentials"
                         onClick={() => {
                           setSettingsId(id);
-                          setSettingsKey(key);
+                          setSettingsSecrets(fields);
                           setModal('settings');
                           setIsAdminModalOpen(false);
                         }}
@@ -1073,18 +1190,18 @@ export const ConnectorsView: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        title="Revoke key"
-                        onClick={() => setConnectorKey(id, '')}
+                        title="Revoke credentials"
+                        onClick={() => clearConnectorSecrets(id)}
                         className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-[0.65rem] text-red-300 hover:bg-red-500/20"
                       >
                         Revoke
                       </button>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          )}
+                ))}
+              </div>
+            );
+          })()}
 
           {adminTab === 'usage' && (
             <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">

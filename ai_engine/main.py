@@ -30,9 +30,12 @@ os.chdir(ROOT)
 
 # Agent credentials (Groq / Ollama / NVIDIA) live in ai_engine/.env; Supabase
 # credentials (used to verify Bearer tokens on /generate-project) live in
-# backend-craftai/.env.
-load_dotenv(ROOT / "ai_engine" / ".env")
-load_dotenv(ROOT / "backend-craftai" / ".env")
+# backend-craftai/.env. The path is resolved explicitly (cwd-independent)
+# and override=True forces the file values to win over any stale/empty
+# GOOGLE_* etc. already exported in the shell.
+env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=env_path, override=True)
+load_dotenv(ROOT / "backend-craftai" / ".env", override=True)
 
 from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,9 +43,22 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from ai_engine.agents.architect import ArchitectAgent
 from ai_engine.agents.debugger import DebuggerAgent
-from ai_engine.agents.developer import DeveloperAgent, SUPPORTED_CONNECTORS
+from ai_engine.agents.developer import DeveloperAgent, SUPPORTED_CONNECTORS, VAULT_ENV_VARS
+from ai_engine.routes.oauth import router as oauth_router
 
 app = FastAPI(title="CraftAI Engine")
+
+# Universal OAuth 2.0 engine for the Connectors Hub (authorize + callback).
+app.include_router(oauth_router)
+
+
+@app.on_event("startup")
+async def _startup_env_debug():
+    """Prove on boot whether the .env was actually parsed."""
+    print("=== ENV DEBUG ===")
+    print(f"Path used: {env_path}")
+    print(f"GOOGLE_CLIENT_ID loaded: {bool(os.getenv('GOOGLE_CLIENT_ID'))}")
+    print("=================")
 
 # Allow the Next.js frontend on port 3000 to call this backend from the browser.
 app.add_middleware(
@@ -273,7 +289,8 @@ def _run_pipeline(prompt: str, connectors: Optional[list] = None,
                   context: Optional[str] = None,
                   custom_connectors: Optional[list] = None,
                   mcp_servers: Optional[list] = None,
-                  connector_rules: Optional[dict] = None):
+                  connector_rules: Optional[dict] = None,
+                  connector_secrets: Optional[dict] = None):
     """ArchitectAgent -> DeveloperAgent -> DebuggerAgent.
 
     Returns (architect_json_plan, files, entry_path) where `files` is the
@@ -313,7 +330,7 @@ def _run_pipeline(prompt: str, connectors: Optional[list] = None,
     files = agents["developer"].generate_files(
         plan, connectors,
         custom_connectors=custom_connectors, mcp_servers=mcp_servers,
-        connector_rules=connector_rules)
+        connector_rules=connector_rules, connector_secrets=connector_secrets)
     if not files:
         raise PipelineError("Developer agent returned no files")
     emit("developer:completed",
@@ -666,6 +683,35 @@ def _extract_connector_rules(payload: dict) -> dict:
     return out
 
 
+def _extract_connector_secrets(payload: dict) -> dict:
+    """Validate the optional `connector_secrets` vault values from the
+    api_key-tier credential forms (Categories 2-7: Cloud & Database,
+    Messaging & OTP, AI Providers, Ecommerce, Productivity, Design &
+    Assets):
+    {connector_id: {field: value}}. Trust boundary: only known vault
+    connector ids and their whitelisted field keys (VAULT_ENV_VARS) are
+    accepted; everything else is dropped.
+
+    Returned values are injected into the generated app's .env by the
+    Developer Agent.
+    """
+    raw = (payload or {}).get("connector_secrets")
+    if not isinstance(raw, dict):
+        return {}
+    out: dict = {}
+    for cid, fields in list(raw.items())[:50]:
+        env_map = VAULT_ENV_VARS.get(cid)
+        if not env_map or not isinstance(fields, dict):
+            continue
+        clean = {}
+        for fkey, value in list(fields.items())[:20]:
+            if fkey in env_map and isinstance(value, str) and value.strip():
+                clean[fkey] = value.strip()[:500]
+        if clean:
+            out[cid] = clean
+    return out
+
+
 def _extract_mode(payload: dict) -> str:
     """Validate the optional console `mode` (build | chat | plan)."""
     mode = (payload or {}).get("mode") or "build"
@@ -687,7 +733,9 @@ def _generate_and_write(prompt: str, connectors: Optional[list],
                         context: Optional[str] = None,
                         custom_connectors: Optional[list] = None,
                         mcp_servers: Optional[list] = None,
-                        connector_rules: Optional[dict] = None) -> dict:
+                        connector_rules: Optional[dict] = None,
+                        connector_secrets: Optional[dict] = None,
+                        owner: Optional[str] = None) -> dict:
     """Shared build-mode flow: run the pipeline, persist the full project to
     the workspace folder, refresh the Vite preview mirror, and build the
     success response payload (including the execution trace)."""
@@ -697,7 +745,7 @@ def _generate_and_write(prompt: str, connectors: Optional[list],
         prompt, connectors, trace=trace,
         design_style=design_style, context=context,
         custom_connectors=custom_connectors, mcp_servers=mcp_servers,
-        connector_rules=connector_rules)
+        connector_rules=connector_rules, connector_secrets=connector_secrets)
     elapsed = time.time() - t0
 
     entry = _select_entry(files)
@@ -706,6 +754,10 @@ def _generate_and_write(prompt: str, connectors: Optional[list],
                  "message": f"Writing {len(files)} files to the workspace…"},
                 trace)
     project_dir, written = _write_workspace(files, project_id)
+    # Owner stamp — /api/projects lists only workspaces whose owner.json
+    # matches the caller, so recents never leak across accounts.
+    if owner:
+        (project_dir / "owner.json").write_text(json.dumps({"owner": owner}))
     _refresh_preview(files, entry_path)
     _emit_event({"step": "done",
                  "message": "Generation complete — preview updated.",
@@ -773,6 +825,42 @@ def _conversational_response(prompt: str, mode: str,
     return response
 
 
+def _record_project_in_supabase(token: str, user_id: str, project_id: str,
+                                 title: str, prompt: str,
+                                 project_path: str) -> None:
+    """Upsert the generated project's metadata row into the Supabase
+    `projects` table. RLS scopes rows to the calling user's token, so the
+    insert needs no service-role key. Fail-soft: the disk workspace remains
+    the file store regardless; the listing just falls back to it."""
+    if not (SUPABASE_URL and SUPABASE_ANON_KEY and token and user_id):
+        print("[projects] Supabase not configured — skipping metadata insert")
+        return
+    try:
+        resp = httpx.post(
+            f"{SUPABASE_URL}/rest/v1/projects",
+            headers={
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                # id is the PK — re-running a slug reuses the row.
+                "Prefer": "resolution=merge-duplicates",
+            },
+            json={
+                "id": project_id,
+                "user_id": user_id,
+                "title": title[:200],
+                "prompt": prompt[:2000],
+                "files": project_path,
+            },
+            timeout=10,
+        )
+        if resp.status_code not in (200, 201):
+            print(f"[projects] Supabase insert failed: "
+                  f"{resp.status_code} {resp.text[:200]}")
+    except httpx.HTTPError as exc:
+        print(f"[projects] Supabase insert error: {exc}")
+
+
 @app.post("/generate-project")
 def generate_project(payload: dict, authorization: Optional[str] = Header(default=None)):
     """Authenticated generation: 3-agent pipeline -> generated repository.
@@ -814,12 +902,14 @@ def generate_project(payload: dict, authorization: Optional[str] = Header(defaul
     custom_connectors = _extract_custom_connectors(payload)
     mcp_servers = _extract_mcp_servers(payload)
     connector_rules = _extract_connector_rules(payload)
+    connector_secrets = _extract_connector_secrets(payload)
 
     try:
         if mode == "build":
             response = _generate_and_write(
                 prompt, connectors, design_style, context,
-                custom_connectors, mcp_servers, connector_rules)
+                custom_connectors, mcp_servers, connector_rules,
+                connector_secrets=connector_secrets, owner=user.get("id"))
         else:
             response = _conversational_response(
                 prompt, mode, connectors, design_style, context,
@@ -831,6 +921,15 @@ def generate_project(payload: dict, authorization: Optional[str] = Header(defaul
         )
 
     response["user_email"] = user.get("email")
+    # Every build also lands a metadata row in the Supabase `projects` table
+    # (the source of truth for Recents / My Projects). Fail-soft: see helper.
+    if mode == "build" and response.get("project_id"):
+        raw = response["project_id"]
+        slug = raw.split("-", 1)[1] if "-" in raw else raw
+        _record_project_in_supabase(
+            token, user.get("id") or "", raw,
+            slug.replace("-", " ").title() or raw, prompt,
+            response.get("projectPath", ""))
     print(f"[generate-project] user={user.get('email', 'unknown')} "
           f"connectors={connectors or []}")
     return response
@@ -853,12 +952,14 @@ def handle_prompt(payload: dict):
     custom_connectors = _extract_custom_connectors(payload)
     mcp_servers = _extract_mcp_servers(payload)
     connector_rules = _extract_connector_rules(payload)
+    connector_secrets = _extract_connector_secrets(payload)
 
     try:
         if mode == "build":
             return _generate_and_write(
                 prompt, connectors, design_style, context,
-                custom_connectors, mcp_servers, connector_rules)
+                custom_connectors, mcp_servers, connector_rules,
+                connector_secrets=connector_secrets)
         return _conversational_response(
             prompt, mode, connectors, design_style, context,
             custom_connectors, mcp_servers)
@@ -874,14 +975,32 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/api/projects")
-def list_projects(limit: int = 50):
-    """List recent generated projects.
+@app.get("/api/health/env")
+def check_env():
+    """Browser-visible diagnostic: what the RUNNING process actually sees.
+    Visit http://localhost:8000/api/health/env to settle env-loading doubts."""
+    return {
+        "google_id_exists": bool(os.getenv("GOOGLE_CLIENT_ID")),
+        "google_secret_exists": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
+        "expected_env_path": str(env_path),
+    }
 
-    Scans `generated_projects/` and returns one entry per workspace folder,
-    sorted newest-first by directory mtime. Falls back to an empty list when
-    the directory hasn't been created yet (cold start).
+
+@app.get("/api/projects")
+def list_projects(limit: int = 50, authorization: Optional[str] = Header(None)):
+    """List recent generated projects visible to the authenticated user.
+
+    Requires the same Supabase Bearer token as /generate-project. Only
+    owner-stamped folders are listed — a folder without an owner.json is a
+    pre-tenancy legacy project and is hidden (clean slate: new accounts
+    start entirely empty).
     """
+    token = _bearer_token(authorization)
+    user = _verify_supabase_token(token) if token else None
+    if user is None:
+        return _unauthorized("Sign in to list your projects.")
+    owner = user.get("id")
+
     if not PROJECTS_ROOT.exists():
         return {"status": "success", "projects": []}
     entries: list = []
@@ -889,9 +1008,15 @@ def list_projects(limit: int = 50):
         if not child.is_dir():
             continue
         try:
+            owner_file = child / "owner.json"
+            if not owner_file.exists():
+                continue  # unstamped legacy project — clean-slate policy
+            meta = json.loads(owner_file.read_text())
+            if meta.get("owner") != owner:
+                continue  # someone else's project
             mtime = child.stat().st_mtime
             ts = datetime.fromtimestamp(mtime).isoformat()
-        except OSError:
+        except (OSError, ValueError):
             continue
         # Workspace folder name: "{epoch}-{slug}"; strip the epoch prefix
         # for a human-friendly name and surface the raw slug separately.
@@ -905,6 +1030,65 @@ def list_projects(limit: int = 50):
         })
     entries.sort(key=lambda e: e["created_at"], reverse=True)
     return {"status": "success", "projects": entries[:max(1, min(limit, 200))]}
+
+
+@app.get("/api/projects/{project_id}/load")
+def load_project(project_id: str, authorization: Optional[str] = Header(None)):
+    """Load a project's files back into the workspace canvas.
+
+    Same auth/ownership rules as the listing: an owner-stamped folder loads
+    only for its owner; an unstamped (legacy) folder is not loadable. Re-
+    mirrors the project into the Vite preview so /preview shows it.
+    """
+    token = _bearer_token(authorization)
+    user = _verify_supabase_token(token) if token else None
+    if user is None:
+        return _unauthorized("Sign in to load projects.")
+
+    rel = _safe_relpath(project_id)
+    project_dir = PROJECTS_ROOT / rel if rel and len(rel.parts) == 1 else None
+    if project_dir is None or not project_dir.is_dir():
+        return JSONResponse(status_code=404,
+                            content={"status": "error", "message": "Unknown project"})
+
+    try:
+        owner_file = project_dir / "owner.json"
+        if not owner_file.exists():
+            # unstamped legacy project — clean-slate policy
+            return JSONResponse(status_code=404,
+                                content={"status": "error", "message": "Unknown project"})
+        meta = json.loads(owner_file.read_text())
+        if meta.get("owner") != user.get("id"):
+            return _unauthorized("This project belongs to another account.")
+    except (OSError, ValueError):
+        return JSONResponse(status_code=404,
+                            content={"status": "error", "message": "Unknown project"})
+
+    files: list = []
+    for path in sorted(project_dir.rglob("*")):
+        if not path.is_file() or path.name == "owner.json":
+            continue
+        try:
+            files.append({"path": path.relative_to(project_dir).as_posix(),
+                          "content": path.read_text(encoding="utf-8")})
+        except (UnicodeDecodeError, OSError):
+            continue  # binary files (images etc.) are not canvas material
+
+    entry = _select_entry(files)
+    if entry:
+        _refresh_preview(files, entry["path"])
+
+    raw = project_dir.name
+    slug = raw.split("-", 1)[1] if "-" in raw else raw
+    return {
+        "status": "success",
+        "project_id": raw,
+        "name": slug.replace("-", " ").title() or raw,
+        "files": files,
+        "entry_path": entry["path"] if entry else None,
+        "generated_code": (entry["content"] if entry
+                           else files[0]["content"] if files else ""),
+    }
 
 
 @app.post("/api/deploy")

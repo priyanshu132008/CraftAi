@@ -13,6 +13,7 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import { ProjectItem } from '../context/defaultData';
+import { timeAgo } from '../utils/timeAgo';
 import { PromptConsole } from './PromptConsole';
 import { ConnectorsView } from './ConnectorsView';
 
@@ -34,10 +35,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialView = 'home' }) =>
     isGenerating,
     statusMessage,
     user,
-    projects,
     recents,
+    openProject,
     setCurrentScreen,
-    setCurrentProject,
     isGenerated
   } = useApp();
 
@@ -154,10 +154,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialView = 'home' }) =>
   // ------------------------------------------------------------------
   const renderSearch = () => {
     const q = searchQuery.toLowerCase();
-    const results = [
-      ...projects.map(p => ({ id: p.id, title: p.title, category: p.category, timeAgo: p.timeAgo })),
-      ...recents.map(r => ({ id: r.id, title: r.name, category: 'recent', timeAgo: r.created_at }))
-    ].filter(r => !q || r.title.toLowerCase().includes(q) || r.category.toLowerCase().includes(q));
+    const results = recents
+      .map(r => ({ id: r.id, title: r.name, category: 'recent', timeAgo: timeAgo(r.created_at) }))
+      .filter(r => !q || r.title.toLowerCase().includes(q) || r.category.toLowerCase().includes(q));
 
     return (
       <div className="main-content">
@@ -199,7 +198,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialView = 'home' }) =>
               key={r.id}
               className="sidebar-link"
               style={{ padding: '12px 16px', border: '1px solid #222222', borderRadius: 10 }}
-              onClick={() => setCurrentScreen('workspace')}
+              onClick={() => openProject(r.id)}
             >
               <Layers size={16} />
               <span style={{ flex: 1, color: '#FFFFFF', fontSize: '0.9rem' }}>{r.title}</span>
@@ -217,10 +216,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialView = 'home' }) =>
   // Projects view
   // ------------------------------------------------------------------
   const renderProjects = () => {
-    const handleOpenProject = (proj: ProjectItem) => {
-      setCurrentProject(proj);
-      setCurrentScreen('workspace');
-    };
+    // Same centralized list as the sidebar Recents — the Supabase-backed
+    // project index, mapped onto the card shape.
+    const gridProjects: ProjectItem[] = recents.map(r => ({
+      id: r.id,
+      title: r.name,
+      category: 'recent',
+      timeAgo: timeAgo(r.created_at),
+      previewGradient: 'linear-gradient(135deg, #6366F1 0%, #A855F7 100%)',
+      badge: '',
+      tech: []
+    }));
+    const handleOpenProject = (proj: ProjectItem) => openProject(proj.id);
 
     return (
       <div className="main-content">
@@ -246,7 +253,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialView = 'home' }) =>
           </div>
         </div>
 
-        {projects.length === 0 ? (
+        {gridProjects.length === 0 ? (
           <div
             style={{
               border: '1px dashed #27272A',
@@ -273,7 +280,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialView = 'home' }) =>
           </div>
         ) : (
           <div className="projects-grid">
-            {projects.map(proj => (
+            {gridProjects.map(proj => (
               <motion.div
                 key={proj.id}
                 className="project-card"
