@@ -119,6 +119,8 @@ interface AppContextType {
   isGenerated: boolean;
   generatedCode: string;
   generatedFiles: GeneratedFile[];
+  selectedFile: GeneratedFile | null;
+  setSelectedFile: React.Dispatch<React.SetStateAction<GeneratedFile | null>>;
   statusMessage: string | null;
   previewVersion: number;
   /** Live agent thought-stream steps for the execution trace card. */
@@ -264,6 +266,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isGenerated, setIsGenerated] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
   const [generatedFiles, setGeneratedFiles] = useState<GeneratedFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [previewVersion, setPreviewVersion] = useState(0);
   const [agentTrace, setAgentTrace] = useState<TraceStep[]>([]);
@@ -672,6 +675,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isGenerated,
         generatedCode,
         generatedFiles,
+        selectedFile,
+        setSelectedFile,
         statusMessage,
         previewVersion,
         agentTrace,

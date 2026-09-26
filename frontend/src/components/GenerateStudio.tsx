@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp, ChatMessage } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -24,8 +24,8 @@ import {
   Tablet,
   User
 } from 'lucide-react';
-import MonacoEditor from '@monaco-editor/react';
 import { FileTree } from './FileTree';
+import CodeViewer from './CodeViewer';
 import { PromptConsole } from './PromptConsole';
 import { GeneratedFile, TraceStep } from '../services/api';
 
@@ -39,29 +39,6 @@ const VIEWPORT_SIZES = {
   mobile: { width: 375, height: 667, radius: 24 }
 } as const;
 type ViewportMode = keyof typeof VIEWPORT_SIZES;
-
-/** Monaco language id from a generated file's extension. */
-const languageFor = (path?: string): string => {
-  const ext = path?.slice(path.lastIndexOf('.')).toLowerCase();
-  switch (ext) {
-    case '.ts':
-    case '.tsx':
-      return 'typescript';
-    case '.js':
-    case '.jsx':
-      return 'javascript';
-    case '.json':
-      return 'json';
-    case '.css':
-      return 'css';
-    case '.html':
-      return 'html';
-    case '.md':
-      return 'markdown';
-    default:
-      return 'plaintext';
-  }
-};
 
 // ---------------------------------------------------------------------------
 // Markdown-lite renderer for chat/plan replies (headings, bullets, bold,
@@ -490,6 +467,8 @@ export const GenerateStudio: React.FC = () => {
     isGenerated,
     generatedCode,
     generatedFiles,
+    selectedFile,
+    setSelectedFile,
     statusMessage,
     previewVersion,
     chatMessages,
@@ -505,7 +484,6 @@ export const GenerateStudio: React.FC = () => {
   const [chatInput, setChatInput] = useState('');
   const [rightTab, setRightTab] = useState<'preview' | 'code'>('preview');
   const [reloadKey, setReloadKey] = useState(0);
-  const [selectedFile, setSelectedFile] = useState<GeneratedFile | null>(null);
   const [viewport, setViewport] = useState<ViewportMode>('desktop');
   const [deployState, setDeployState] = useState<'idle' | 'deploying' | 'live'>('idle');
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
@@ -628,11 +606,6 @@ export const GenerateStudio: React.FC = () => {
       setDeployState('live');
     }
   };
-
-  const monacoValue = useMemo(
-    () => selectedFile?.content ?? generatedCode,
-    [selectedFile, generatedCode]
-  );
 
   const onChatSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1042,29 +1015,44 @@ export const GenerateStudio: React.FC = () => {
               background: '#090D16'
             }}
           >
-            {(['preview', 'code'] as const).map(tab => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setRightTab(tab)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  background: rightTab === tab ? 'rgba(99,102,241,0.15)' : 'transparent',
-                  color: rightTab === tab ? '#A5B4FC' : '#64748B',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                {tab === 'preview' ? <Eye size={13} /> : <Code2 size={13} />}
-                {tab === 'preview' ? 'Live Preview' : 'Code'}
-              </button>
-            ))}
+            <div
+              role="group"
+              aria-label="Right pane view"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                padding: 3,
+                borderRadius: 8,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)'
+              }}
+            >
+              {(['preview', 'code'] as const).map(tab => (
+                <button
+                  key={tab}
+                  type="button"
+                  aria-pressed={rightTab === tab}
+                  onClick={() => setRightTab(tab)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    background: rightTab === tab ? 'rgba(99,102,241,0.2)' : 'transparent',
+                    color: rightTab === tab ? '#A5B4FC' : '#64748B',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {tab === 'preview' ? <Eye size={13} /> : <Code2 size={13} />}
+                  {tab === 'preview' ? 'Live Preview' : 'Code'}
+                </button>
+              ))}
+            </div>
             {rightTab === 'code' && selectedFile && (
               <span
                 style={{
@@ -1149,7 +1137,19 @@ export const GenerateStudio: React.FC = () => {
             )}
           </div>
 
-          <div style={{ flex: 1, minHeight: 0, background: '#05070D', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: viewport === 'desktop' ? 0 : 24 }}>
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              minWidth: 0,
+              background: rightTab === 'code' ? '#0A0A0A' : '#05070D',
+              display: 'flex',
+              alignItems: rightTab === 'preview' ? 'center' : 'stretch',
+              justifyContent: rightTab === 'preview' ? 'center' : 'stretch',
+              overflow: rightTab === 'preview' ? 'auto' : 'hidden',
+              padding: rightTab === 'preview' && viewport !== 'desktop' ? 24 : 0
+            }}
+          >
             <AnimatePresence mode="wait">
               {rightTab === 'preview' ? (
                 <motion.iframe
@@ -1183,37 +1183,16 @@ export const GenerateStudio: React.FC = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
-                  style={{ height: '100%' }}
+                  style={{
+                    display: 'flex',
+                    flex: 1,
+                    width: '100%',
+                    height: '100%',
+                    minWidth: 0,
+                    minHeight: 0
+                  }}
                 >
-                  {monacoValue ? (
-                    <MonacoEditor
-                      height="100%"
-                      language={languageFor(selectedFile?.path)}
-                      theme="vs-dark"
-                      value={monacoValue}
-                      key={selectedFile?.path ?? 'code'}
-                      options={{
-                        readOnly: true,
-                        fontSize: 13,
-                        minimap: { enabled: true },
-                        scrollBeyondLastLine: false,
-                        wordWrap: 'on'
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#64748B',
-                        fontSize: '0.85rem'
-                      }}
-                    >
-                      Generated source will appear here.
-                    </div>
-                  )}
+                  <CodeViewer />
                 </motion.div>
               )}
             </AnimatePresence>
