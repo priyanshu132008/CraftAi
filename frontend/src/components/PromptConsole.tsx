@@ -13,6 +13,7 @@ import {
   X
 } from 'lucide-react';
 import { GenerationMode } from '../services/api';
+import { BrandLogo } from './BrandLogos';
 import {
   CONNECTOR_CATALOG,
   CONNECTOR_LIST,
@@ -279,7 +280,7 @@ export const PromptConsole: React.FC = () => {
                         }}
                       >
                         <span style={{ color: active ? '#A5B4FC' : '#71717A' }}>
-                          {meta.icon}
+                          <BrandLogo id={meta.id} size={16} />
                         </span>
                         <span style={{ flex: 1 }}>
                           <span style={{ display: 'block', fontWeight: 600 }}>

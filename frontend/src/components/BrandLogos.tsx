@@ -1,9 +1,10 @@
 import React from 'react';
+import { CONNECTOR_LOGO_PATHS } from '../config/connectorLogos.generated';
 
 /**
- * Registry of simplified brand-colored SVG marks for every connector in the
- * catalog. Not pixel-perfect official assets — compact, recognizable marks in
- * each brand's palette, drawn at 24x24 and scaled by the consumer.
+ * Real brand logo (downloaded to /public/connector-logos, see
+ * CONNECTOR_LOGO_PATHS) with a graceful fallback to the hand-drawn SVG mark
+ * below when the image is missing or fails to load.
  */
 
 type Logo = React.ReactNode;
@@ -27,6 +28,10 @@ const letter = (fill: string, glyph: string, size = 11) => (
   </text>
 );
 
+/**
+ * Fallback registry of simplified brand-colored SVG marks — used only when a
+ * connector's downloaded logo is missing or fails to load.
+ */
 const BRAND_LOGOS: Record<string, Logo> = {
   // ---- Google -------------------------------------------------------
   gmail: (
@@ -320,20 +325,51 @@ const BRAND_LOGOS: Record<string, Logo> = {
   )
 };
 
-export const BrandLogo: React.FC<{ id: string; size?: number }> = ({ id, size = 34 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    style={{ display: 'block', flexShrink: 0 }}
-    aria-label={id}
-    role="img"
-  >
-    {BRAND_LOGOS[id] ?? (
-      <>
-        <circle cx="12" cy="12" r="10" fill="#27272A" />
-        {letter('#A1A1AA', '◈', 12)}
-      </>
-    )}
-  </svg>
-);
+export const BrandLogo: React.FC<{ id: string; size?: number }> = ({ id, size = 34 }) => {
+  const [imgFailed, setImgFailed] = React.useState(false);
+  const logoPath = CONNECTOR_LOGO_PATHS[id];
+
+  // Prefer the real downloaded logo; fall back to the SVG mark on any error.
+  if (logoPath && !imgFailed) {
+    return (
+      <img
+        src={logoPath}
+        alt={id}
+        width={size}
+        height={size}
+        loading="lazy"
+        onError={() => setImgFailed(true)}
+        style={{
+          display: 'block',
+          flexShrink: 0,
+          width: size,
+          height: size,
+          objectFit: 'contain',
+          // Raw brand glyphs default to black — a light chip keeps them
+          // visible on the dark UI and uniform across brands.
+          background: '#F8FAFC',
+          borderRadius: Math.max(4, size * 0.14),
+          padding: size >= 24 ? 3 : 2,
+          boxSizing: 'border-box'
+        }}
+      />
+    );
+  }
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      style={{ display: 'block', flexShrink: 0 }}
+      aria-label={id}
+      role="img"
+    >
+      {BRAND_LOGOS[id] ?? (
+        <>
+          <circle cx="12" cy="12" r="10" fill="#27272A" />
+          {letter('#A1A1AA', '◈', 12)}
+        </>
+      )}
+    </svg>
+  );
+};

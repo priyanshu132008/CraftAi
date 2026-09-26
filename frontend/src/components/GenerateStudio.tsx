@@ -156,7 +156,31 @@ const TraceCard: React.FC<{ steps: TraceStep[]; isGenerating: boolean }> = ({
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [steps.length, isGenerating]);
 
-  if (steps.length === 0) return null;
+  if (steps.length === 0) {
+    // Generation just started — show the first phase immediately instead of
+    // a silent empty panel until the first SSE event lands.
+    if (!isGenerating) return null;
+    return (
+      <div
+        style={{
+          border: '1px solid rgba(129, 140, 248, 0.25)',
+          background: 'rgba(99, 102, 248, 0.06)',
+          borderRadius: 10,
+          padding: '10px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          color: '#A5B4FC',
+          fontSize: '0.78rem',
+          fontWeight: 700,
+          flexShrink: 0
+        }}
+      >
+        <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+        Analyzing prompt intent — dispatching to the Architect…
+      </div>
+    );
+  }
 
   return (
     <div
@@ -700,8 +724,9 @@ export const GenerateStudio: React.FC = () => {
               </p>
             )}
 
-            {/* Live trace on the hero while the pipeline runs */}
-            {isGenerating && agentTrace.length > 0 && (
+            {/* Live trace on the hero while the pipeline runs (TraceCard
+                renders its own "Analyzing prompt intent…" starter step) */}
+            {isGenerating && (
               <div
                 style={{
                   maxWidth: 560,
@@ -1139,6 +1164,7 @@ export const GenerateStudio: React.FC = () => {
 
           <div
             style={{
+              position: 'relative',
               flex: 1,
               minHeight: 0,
               minWidth: 0,
@@ -1150,6 +1176,55 @@ export const GenerateStudio: React.FC = () => {
               padding: rightTab === 'preview' && viewport !== 'desktop' ? 24 : 0
             }}
           >
+            {/* Generation skeleton — covers the stale previous-project
+                preview/code the moment a new build starts. */}
+            {isGenerating && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 10,
+                  background: '#05070D',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 12,
+                  padding: 24,
+                  textAlign: 'center'
+                }}
+              >
+                <Loader2
+                  size={26}
+                  style={{ animation: 'spin 1s linear infinite', color: '#818CF8' }}
+                />
+                <span
+                  style={{
+                    fontSize: '0.92rem',
+                    fontWeight: 700,
+                    color: '#E2E8F0',
+                    fontFamily: 'var(--font-mono)'
+                  }}
+                >
+                  {agentTrace.length === 0
+                    ? 'Analyzing prompt intent…'
+                    : agentTrace[agentTrace.length - 1]?.message ?? 'Building…'}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#64748B',
+                    fontFamily: 'var(--font-mono)'
+                  }}
+                >
+                  Architect → Developer → Debugger · preview reloads when the
+                  build lands
+                </span>
+              </motion.div>
+            )}
             <AnimatePresence mode="wait">
               {rightTab === 'preview' ? (
                 <motion.iframe

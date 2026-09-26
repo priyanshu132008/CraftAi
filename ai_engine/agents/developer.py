@@ -474,6 +474,116 @@ CONNECTOR_SPECS = {
 }
 SUPPORTED_CONNECTORS = tuple(CONNECTOR_SPECS)
 
+# Category 2 (Cloud & Database) vault fields -> generated .env variable names.
+# VITE_-prefixed because generated client code reads them via
+# import.meta.env, which only exposes VITE_* vars to the browser bundle.
+# Mirrors frontend/src/config/category2Schemas.ts — also the trust-boundary
+# whitelist for the /generate-project connector_secrets payload.
+CATEGORY2_ENV_VARS = {
+    "supabase": {
+        "url": "VITE_SUPABASE_URL",
+        "anonKey": "VITE_SUPABASE_ANON_KEY",
+        "serviceKey": "VITE_SUPABASE_SERVICE_ROLE_KEY",
+    },
+    "postgres": {"connectionString": "VITE_DATABASE_URL"},
+    "mongodb": {"connectionString": "VITE_MONGODB_URI"},
+    "upstash_redis": {
+        "url": "VITE_UPSTASH_REDIS_REST_URL",
+        "token": "VITE_UPSTASH_REDIS_REST_TOKEN",
+    },
+    "neon": {"connectionString": "VITE_NEON_DATABASE_URL"},
+    "planetscale": {"connectionString": "VITE_PLANETSCALE_DATABASE_URL"},
+    "aws": {
+        "accessKeyId": "VITE_AWS_ACCESS_KEY_ID",
+        "secretAccessKey": "VITE_AWS_SECRET_ACCESS_KEY",
+        "region": "VITE_AWS_REGION",
+        "s3Bucket": "VITE_AWS_S3_BUCKET",
+    },
+    "azure": {
+        "connectionString": "VITE_AZURE_STORAGE_CONNECTION_STRING",
+        "accountKey": "VITE_AZURE_ACCOUNT_KEY",
+    },
+}
+
+# Category 3 (Messaging & OTP) vault fields -> generated .env variable names.
+# Mirrors frontend/src/config/category3Schemas.ts.
+CATEGORY3_ENV_VARS = {
+    "resend": {
+        "apiKey": "VITE_RESEND_API_KEY",
+        "fromEmail": "VITE_RESEND_FROM_EMAIL",
+    },
+    "twilio": {
+        "accountSid": "VITE_TWILIO_ACCOUNT_SID",
+        "authToken": "VITE_TWILIO_AUTH_TOKEN",
+        "phoneNumber": "VITE_TWILIO_SENDER_PHONE",
+    },
+    "slack": {"webhookOrToken": "VITE_SLACK_WEBHOOK_URL"},
+    "discord_webhook": {"webhookUrl": "VITE_DISCORD_WEBHOOK_URL"},
+    "whatsapp_business": {
+        "accessToken": "VITE_WHATSAPP_ACCESS_TOKEN",
+        "phoneNumberId": "VITE_WHATSAPP_PHONE_NUMBER_ID",
+        "wabaId": "VITE_WHATSAPP_WABA_ID",
+    },
+    "brevo": {
+        "apiKey": "VITE_BREVO_API_KEY",
+        "senderEmail": "VITE_BREVO_SENDER_EMAIL",
+    },
+    "telegram_bot": {
+        "botToken": "VITE_TELEGRAM_BOT_TOKEN",
+        "chatId": "VITE_TELEGRAM_CHAT_ID",
+    },
+    "microsoft_teams": {"webhookUrl": "VITE_TEAMS_WEBHOOK_URL"},
+    "mailgun": {
+        "apiKey": "VITE_MAILGUN_API_KEY",
+        "domain": "VITE_MAILGUN_DOMAIN",
+        "region": "VITE_MAILGUN_REGION",
+    },
+}
+
+# Category 4 (AI Providers) vault fields -> generated .env variable names.
+# Mirrors frontend/src/config/category4Schemas.ts.
+CATEGORY4_ENV_VARS = {
+    "openai_api": {
+        "apiKey": "VITE_OPENAI_API_KEY",
+        "baseUrl": "VITE_OPENAI_BASE_URL",
+    },
+    "anthropic_claude": {"apiKey": "VITE_ANTHROPIC_API_KEY"},
+    "google_gemini": {"apiKey": "VITE_GEMINI_API_KEY"},
+    "groq": {"apiKey": "VITE_GROQ_API_KEY"},
+    "deepseek": {
+        "apiKey": "VITE_DEEPSEEK_API_KEY",
+        "baseUrl": "VITE_DEEPSEEK_BASE_URL",
+    },
+    "perplexity": {"apiKey": "VITE_PERPLEXITY_API_KEY"},
+    "replicate": {"apiKey": "VITE_REPLICATE_API_KEY"},
+}
+
+# Categories 5-7 (Ecommerce, Productivity, Design & Assets) vault fields ->
+# generated .env variable names. Mirrors frontend/src/config/category567Schemas.ts.
+CATEGORY567_ENV_VARS = {
+    "stripe": {
+        "publishableKey": "VITE_STRIPE_PUBLISHABLE_KEY",
+        "secretKey": "VITE_STRIPE_SECRET_KEY",
+    },
+    "airtable": {
+        "pat": "VITE_AIRTABLE_PAT",
+        "baseId": "VITE_AIRTABLE_BASE_ID",
+    },
+    "looker": {
+        "clientId": "VITE_LOOKER_CLIENT_ID",
+        "clientSecret": "VITE_LOOKER_CLIENT_SECRET",
+        "hostUrl": "VITE_LOOKER_HOST_URL",
+    },
+    "figma_api": {"pat": "VITE_FIGMA_PAT"},
+    "unsplash_api": {"accessKey": "VITE_UNSPLASH_ACCESS_KEY"},
+    "firebase": {"apiKey": "VITE_FIREBASE_API_KEY"},
+}
+
+# Merged vault whitelist: every connector whose multi-field secrets the
+# /generate-project payload may carry.
+VAULT_ENV_VARS = {**CATEGORY2_ENV_VARS, **CATEGORY3_ENV_VARS,
+                 **CATEGORY4_ENV_VARS, **CATEGORY567_ENV_VARS}
+
 
 def _load_component_library() -> str:
     """Format the component templates as reference context for the LLM.
@@ -562,7 +672,7 @@ class DeveloperAgent:
 
     def generate_files(self, plan_json: dict, connectors=None,
                        custom_connectors=None, mcp_servers=None,
-                       connector_rules=None) -> list:
+                       connector_rules=None, connector_secrets=None) -> list:
         """Turn an Architect plan dict into a list of {path, content} files.
 
         Returns [] if the local Ollama call fails or the output cannot be
@@ -573,7 +683,7 @@ class DeveloperAgent:
         try:
             user_content = self._format_plan(
                 plan_json, connectors, custom_connectors, mcp_servers,
-                connector_rules)
+                connector_rules, connector_secrets)
             messages = [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_content},
@@ -606,7 +716,7 @@ class DeveloperAgent:
     @staticmethod
     def _format_plan(plan_json: dict, connectors=None,
                      custom_connectors=None, mcp_servers=None,
-                     connector_rules=None) -> str:
+                     connector_rules=None, connector_secrets=None) -> str:
         """Render the plan (+ connector/custom-API/MCP specs) for the user
         message. Kept as pretty JSON so the model sees the exact structure
         the Architect produced."""
@@ -642,6 +752,24 @@ class DeveloperAgent:
                 "NEVER hardcoded placeholders; wrap every fetch in try/catch "
                 "and throw a typed Error with the endpoint and status on "
                 "!response.ok.\n"
+            )
+        if connector_secrets:
+            parts.append(
+                "\nWorkspace vault credentials — ALSO generate a \".env\" "
+                "file in the project root with EXACTLY these lines (real "
+                "values, verbatim), and reference each variable as "
+                "import.meta.env.<NAME> inside the matching src/lib/ client:\n"
+            )
+            for cid, fields in (connector_secrets or {}).items():
+                env_map = VAULT_ENV_VARS.get(cid, {})
+                for fkey, value in (fields or {}).items():
+                    env_name = env_map.get(fkey)
+                    if env_name and value:
+                        parts.append(f"{env_name}={value}\n")
+            parts.append(
+                "The .env file MUST be included in the returned files list. "
+                "Never hardcode these values in lib files — read them from "
+                "import.meta.env at runtime.\n"
             )
         if connector_rules:
             parts.append("\nAgent tool permissions (user's connector vault):\n")

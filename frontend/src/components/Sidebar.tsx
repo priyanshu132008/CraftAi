@@ -10,9 +10,11 @@ import {
   Clock,
   LogOut,
   LogIn,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { ProjectListItem } from '../services/api';
+import { timeAgo } from '../utils/timeAgo';
 
 interface SidebarProps {
   activeScreen: ScreenType;
@@ -23,21 +25,6 @@ const WORKSPACES = [
   { id: 'personal', name: 'Personal Workspace' },
   { id: 'labs', name: 'CraftAI Labs' }
 ];
-
-/** "x minutes ago" style label from an ISO timestamp. */
-const timeAgo = (iso: string): string => {
-  const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return '';
-  const diff = Math.max(0, Date.now() - then);
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return 'just now';
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day}d ago`;
-  return new Date(iso).toLocaleDateString();
-};
 
 /** VS Code-style section label. */
 const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -61,7 +48,7 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 );
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeScreen }) => {
-  const { setCurrentScreen, user, logout, recents } = useApp();
+  const { setCurrentScreen, user, logout, recents, openProject, deleteProject } = useApp();
   const [workspace, setWorkspace] = useState(WORKSPACES[0]);
   const [wsOpen, setWsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -217,7 +204,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeScreen }) => {
             key={rec.id}
             className="sidebar-link"
             style={{ padding: '7px 14px', fontSize: '0.8rem' }}
-            onClick={() => setCurrentScreen('workspace')}
+            onClick={() => openProject(rec.id)}
             title={rec.name}
           >
             <span
@@ -227,7 +214,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeScreen }) => {
                 whiteSpace: 'nowrap',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8
+                gap: 8,
+                flex: 1,
+                minWidth: 0
               }}
             >
               <span style={{ color: '#52525B', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', flexShrink: 0 }}>
@@ -235,6 +224,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeScreen }) => {
               </span>
               {rec.name}
             </span>
+            <button
+              type="button"
+              title="Delete project"
+              onClick={e => {
+                e.stopPropagation();
+                if (window.confirm(`Delete "${rec.name}"? This cannot be undone.`)) {
+                  deleteProject(rec.id);
+                }
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#52525B',
+                display: 'flex',
+                padding: 2,
+                flexShrink: 0
+              }}
+            >
+              <Trash2 size={13} />
+            </button>
           </div>
         ))}
         {recents.length === 0 && (
