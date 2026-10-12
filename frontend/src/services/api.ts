@@ -1,7 +1,16 @@
 import { supabase } from '../lib/supabaseClient';
 
+// AI Engine (multi-agent generation pipeline): generation, projects, publish.
 export const API_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000';
+  (import.meta.env.VITE_AI_ENGINE_URL as string | undefined) ??
+  (import.meta.env.VITE_API_URL as string | undefined) ?? // legacy name
+  'http://localhost:8000';
+
+// CraftAI backend (planner/blueprint services) — nothing calls these
+// endpoints from the frontend yet; kept ready for when one does.
+export const BACKEND_URL =
+  (import.meta.env.VITE_BACKEND_CRAFTAI_URL as string | undefined) ??
+  'http://localhost:8001';
 
 export interface PlanResponse {
   type: string;

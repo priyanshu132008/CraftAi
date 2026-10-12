@@ -43,11 +43,11 @@ import TerminalDrawer from './TerminalDrawer';
 import StageWireframe from './StageWireframe';
 import PublishModal from './PublishModal';
 import { PromptConsole } from './PromptConsole';
-import { TraceStep } from '../services/api';
+import { TraceStep, API_URL } from '../services/api';
 import '../styles/studio.css';
 
 const PREVIEW_URL = 'http://localhost:3000/preview';
-const DEPLOY_API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000') + '/api/deploy';
+const DEPLOY_API_URL = API_URL + '/api/deploy';
 
 const VIEWPORT_SIZES = {
   desktop: { width: '100%', height: '100%', radius: 0 },

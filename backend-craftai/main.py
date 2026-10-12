@@ -15,11 +15,13 @@ from services.plan_generator import generate_plan
 
 app = FastAPI()
 
-# 1. Setup CORS
+# 1. Setup CORS: comma-separated CORS_ORIGINS in prod (e.g. the Vercel
+# domain), wildcard default. Bearer-token auth only, so a wildcard is safe.
+_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, replace "*" with your Next.js URL (e.g., "http://localhost:3000")
-    allow_credentials=True,
+    allow_origins=_cors_origins or ["*"],
+    allow_credentials=bool(_cors_origins),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -48,3 +50,11 @@ async def handle_prompt(payload: dict):
         "plan": plan,
         "preview_url": f"http://localhost:3000/blueprints/{blueprint_type}"
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    # Render assigns the port via $PORT; bind 0.0.0.0 for containers.
+    port = int(os.environ.get("PORT", 8001))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=port == 8001)
