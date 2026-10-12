@@ -60,11 +60,14 @@ async def _startup_env_debug():
     print(f"GOOGLE_CLIENT_ID loaded: {bool(os.getenv('GOOGLE_CLIENT_ID'))}")
     print("=================")
 
-# Allow the Next.js frontend on port 3000 to call this backend from the browser.
+# CORS: comma-separated CORS_ORIGINS in prod (e.g. the Vercel domain),
+# wildcard default so the browser frontend can't get blocked.
+# Uses Bearer auth only (no cookies), so a wildcard origin is safe.
+_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
+    allow_origins=_cors_origins or ["*"],
+    allow_credentials=bool(_cors_origins),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -1676,4 +1679,6 @@ def publish_github(payload: dict, authorization: Optional[str] = Header(None)):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("ai_engine.main:app", host="0.0.0.0", port=8000, reload=True)
+    # Railway (etc.) assigns the port via $PORT; bind 0.0.0.0 for containers.
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("ai_engine.main:app", host="0.0.0.0", port=port, reload=port == 8000)
