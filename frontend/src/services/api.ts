@@ -391,7 +391,8 @@ export async function fetchProjects(): Promise<ProjectListItem[]> {
     /* fall through to the backend listing */
   }
   try {
-    const res = await fetch(`${API_URL}/api/projects`, {
+    // Standard app feature: served by backend-craftai (Supabase metadata).
+    const res = await fetch(`${BACKEND_URL}/api/projects`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (!res.ok) return [];

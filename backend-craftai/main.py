@@ -34,6 +34,10 @@ def home():
 app.include_router(plan.router)
 app.include_router(project.router)
 
+# Supabase-backed project listing (matches the AI Engine's /api/projects shape)
+from routes.projects_meta import projects_meta_router  # noqa: E402
+app.include_router(projects_meta_router)
+
 # Include AI generator endpoint
 @app.post("/api/generate")
 async def handle_prompt(payload: dict):
