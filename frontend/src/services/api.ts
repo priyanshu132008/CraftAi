@@ -6,11 +6,10 @@ export const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ?? // legacy name
   'https://craftai-iw4q.onrender.com';
 
-// CraftAI backend (planner/blueprint services) — nothing calls these
-// endpoints from the frontend yet; kept ready for when one does.
+// CraftAI backend (planner/blueprint services).
 export const BACKEND_URL =
   (import.meta.env.VITE_BACKEND_CRAFTAI_URL as string | undefined) ??
-  'http://localhost:8001';
+  'https://craftai-1.onrender.com';
 
 export interface PlanResponse {
   type: string;
