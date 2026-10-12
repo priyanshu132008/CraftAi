@@ -41,7 +41,7 @@ export const HeroShowcase: React.FC = () => {
         style={{
           position: 'absolute',
           inset: '-20px',
-          background: 'radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.08), transparent 70%)',
+          background: 'radial-gradient(ellipse at 50% 50%, var(--accent-indigo-soft), transparent 70%)',
           filter: 'blur(30px)',
           zIndex: 0,
           pointerEvents: 'none'
@@ -54,25 +54,25 @@ export const HeroShowcase: React.FC = () => {
           rotateX,
           rotateY,
           transformStyle: 'preserve-3d',
-          background: 'rgba(8, 8, 8, 0.85)',
+          background: 'var(--ide-sidebar)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: '16px',
           boxShadow: '0 30px 70px -10px rgba(0, 0, 0, 0.95), 0 0 30px rgba(255, 255, 255, 0.04) inset',
           overflow: 'hidden',
           position: 'relative',
           zIndex: 1
         }}
-        whileHover={{ borderColor: 'rgba(255, 255, 255, 0.3)' }}
+        whileHover={{ borderColor: 'var(--border-active)' }}
         transition={{ duration: 0.2 }}
       >
         {/* Window Top Title Bar */}
         <div
           style={{
             height: '42px',
-            background: 'rgba(15, 15, 15, 0.95)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'var(--ide-activity)',
+            borderBottom: '1px solid var(--ide-border)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -84,8 +84,8 @@ export const HeroShowcase: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
             <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#EF4444', opacity: 0.85 }} />
             <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#F59E0B', opacity: 0.85 }} />
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10B981', opacity: 0.85 }} />
-            <span style={{ marginLeft: '8px', fontSize: '0.74rem', fontFamily: 'var(--font-mono)', color: '#71717A' }}>
+            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--agent-debugger)', opacity: 0.85 }} />
+            <span style={{ marginLeft: '8px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--ide-text-dim)' }}>
               craftai • live-workspace
             </span>
           </div>
@@ -93,11 +93,11 @@ export const HeroShowcase: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span
               style={{
-                fontSize: '0.7rem',
+                fontSize: '0.75rem',
                 fontFamily: 'var(--font-mono)',
-                color: '#10B981',
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.2)',
+                color: 'var(--agent-debugger)',
+                background: 'color-mix(in srgb, var(--agent-debugger) 10%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--agent-debugger) 30%, transparent)',
                 padding: '2px 8px',
                 borderRadius: '4px',
                 display: 'flex',
@@ -105,7 +105,7 @@ export const HeroShowcase: React.FC = () => {
                 gap: '5px'
               }}
             >
-              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#10B981' }} />
+              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--agent-debugger)' }} />
               Live HMR
             </span>
           </div>
@@ -116,8 +116,8 @@ export const HeroShowcase: React.FC = () => {
           {/* Left Pane: Code Editor */}
           <div
             style={{
-              background: '#040404',
-              borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+              background: 'var(--ide-bg)',
+              borderRight: '1px solid var(--ide-border)',
               padding: '1rem',
               display: 'flex',
               flexDirection: 'column',
@@ -127,17 +127,17 @@ export const HeroShowcase: React.FC = () => {
             }}
           >
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '1rem', borderBottom: '1px solid #1A1A1A', paddingBottom: '6px' }}>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '1rem', borderBottom: '1px solid var(--ide-border)', paddingBottom: '6px' }}>
               <button
                 type="button"
                 onClick={() => setActiveCodeTab('App.tsx')}
                 style={{
-                  background: activeCodeTab === 'App.tsx' ? '#141414' : 'transparent',
-                  color: activeCodeTab === 'App.tsx' ? '#FFFFFF' : '#71717A',
+                  background: activeCodeTab === 'App.tsx' ? 'var(--ide-tab-active)' : 'transparent',
+                  color: activeCodeTab === 'App.tsx' ? 'var(--ide-text)' : 'var(--ide-text-dim)',
                   border: 'none',
                   padding: '3px 8px',
                   borderRadius: '4px',
-                  fontSize: '0.72rem',
+                  fontSize: '0.75rem',
                   fontFamily: 'var(--font-mono)',
                   cursor: 'pointer'
                 }}
@@ -148,12 +148,12 @@ export const HeroShowcase: React.FC = () => {
                 type="button"
                 onClick={() => setActiveCodeTab('style.css')}
                 style={{
-                  background: activeCodeTab === 'style.css' ? '#141414' : 'transparent',
-                  color: activeCodeTab === 'style.css' ? '#FFFFFF' : '#71717A',
+                  background: activeCodeTab === 'style.css' ? 'var(--ide-tab-active)' : 'transparent',
+                  color: activeCodeTab === 'style.css' ? 'var(--ide-text)' : 'var(--ide-text-dim)',
                   border: 'none',
                   padding: '3px 8px',
                   borderRadius: '4px',
-                  fontSize: '0.72rem',
+                  fontSize: '0.75rem',
                   fontFamily: 'var(--font-mono)',
                   cursor: 'pointer'
                 }}
@@ -164,49 +164,49 @@ export const HeroShowcase: React.FC = () => {
 
             {/* Code Body */}
             {activeCodeTab === 'App.tsx' ? (
-              <div style={{ color: '#E4E4E7' }}>
-                <div style={{ color: '#71717A' }}>// 1. Autonomous AI Generation</div>
+              <div style={{ color: 'var(--ide-text)' }}>
+                <div style={{ color: 'var(--ide-text-dim)' }}>// 1. Autonomous AI Generation</div>
                 <div>
-                  <span style={{ color: '#FFFFFF', fontWeight: 600 }}>import</span>{' '}
-                  <span style={{ color: '#A1A1AA' }}>&#123; Hero, Showcase &#125;</span>{' '}
-                  <span style={{ color: '#FFFFFF', fontWeight: 600 }}>from</span>{' '}
-                  <span style={{ color: '#D4D4D8' }}>'@craftai/core'</span>
+                  <span style={{ color: 'var(--accent-indigo-bright)', fontWeight: 600 }}>import</span>{' '}
+                  <span style={{ color: 'var(--ide-text-dim)' }}>&#123; Hero, Showcase &#125;</span>{' '}
+                  <span style={{ color: 'var(--accent-indigo-bright)', fontWeight: 600 }}>from</span>{' '}
+                  <span style={{ color: 'var(--ide-text)' }}>'@craftai/core'</span>
                 </div>
                 <br />
                 <div>
-                  <span style={{ color: '#FFFFFF', fontWeight: 600 }}>export default function</span>{' '}
-                  <span style={{ color: '#FFFFFF' }}>Page()</span> &#123;
+                  <span style={{ color: 'var(--accent-indigo-bright)', fontWeight: 600 }}>export default function</span>{' '}
+                  <span style={{ color: 'var(--ide-text)' }}>Page()</span> &#123;
                 </div>
                 <div style={{ paddingLeft: '14px' }}>
-                  <span style={{ color: '#71717A' }}>// Formulated by AI Plan</span>
+                  <span style={{ color: 'var(--ide-text-dim)' }}>// Formulated by AI Plan</span>
                   <br />
-                  <span style={{ color: '#FFFFFF', fontWeight: 600 }}>const</span> dev = &#123;
+                  <span style={{ color: 'var(--accent-indigo-bright)', fontWeight: 600 }}>const</span> dev = &#123;
                   <br />
                   &nbsp;&nbsp;name:{' '}
-                  <span style={{ color: '#D4D4D8' }}>"Shreya Raut"</span>,
+                  <span style={{ color: 'var(--ide-text)' }}>"Shreya Raut"</span>,
                   <br />
                   &nbsp;&nbsp;role:{' '}
-                  <span style={{ color: '#D4D4D8' }}>"Frontend Architect"</span>,
+                  <span style={{ color: 'var(--ide-text)' }}>"Frontend Architect"</span>,
                   <br />
                   &nbsp;&nbsp;theme:{' '}
-                  <span style={{ color: '#D4D4D8' }}>"Vercel Monochrome"</span>
+                  <span style={{ color: 'var(--ide-text)' }}>"Vercel Monochrome"</span>
                   <br />
                   &#125;;
                   <br />
-                  <span style={{ color: '#FFFFFF', fontWeight: 600 }}>return</span> &lt;
-                  <span style={{ color: '#FFFFFF' }}>Hero</span> profile=&#123;dev&#125; /&gt;;
+                  <span style={{ color: 'var(--accent-indigo-bright)', fontWeight: 600 }}>return</span> &lt;
+                  <span style={{ color: 'var(--ide-text)' }}>Hero</span> profile=&#123;dev&#125; /&gt;;
                 </div>
                 <div>&#125;</div>
               </div>
             ) : (
-              <div style={{ color: '#A1A1AA' }}>
+              <div style={{ color: 'var(--ide-text-dim)' }}>
                 <div>:root &#123;</div>
                 <div style={{ paddingLeft: '14px' }}>
-                  --bg: <span style={{ color: '#FFFFFF' }}>#000000</span>;
+                  --bg: <span style={{ color: 'var(--ide-text)' }}>#000000</span>;
                   <br />
-                  --text: <span style={{ color: '#FFFFFF' }}>#FFFFFF</span>;
+                  --text: <span style={{ color: 'var(--ide-text)' }}>#FFFFFF</span>;
                   <br />
-                  --font: <span style={{ color: '#FFFFFF' }}>'Syne'</span>;
+                  --font: <span style={{ color: 'var(--ide-text)' }}>'Syne'</span>;
                 </div>
                 <div>&#125;</div>
               </div>
@@ -217,15 +217,15 @@ export const HeroShowcase: React.FC = () => {
               style={{
                 marginTop: 'auto',
                 paddingTop: '0.75rem',
-                borderTop: '1px solid #171717',
+                borderTop: '1px solid var(--ide-border)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                color: '#71717A',
-                fontSize: '0.7rem'
+                color: 'var(--ide-text-dim)',
+                fontSize: '0.75rem'
               }}
             >
-              <Terminal size={12} color="#FFFFFF" />
+              <Terminal size={12} color="var(--ide-text)" />
               <span>Compiled in 18ms • 0 warnings</span>
             </div>
           </div>
@@ -233,7 +233,7 @@ export const HeroShowcase: React.FC = () => {
           {/* Right Pane: Live Interactive Render Preview */}
           <div
             style={{
-              background: '#090909',
+              background: 'var(--ide-sidebar)',
               padding: '1.25rem',
               display: 'flex',
               flexDirection: 'column',
@@ -249,23 +249,23 @@ export const HeroShowcase: React.FC = () => {
                 justifyContent: 'space-between',
                 padding: '4px 8px',
                 borderRadius: '6px',
-                background: '#141414',
-                border: '1px solid #222222',
+                background: 'var(--bg-hover)',
+                border: '1px solid var(--ide-border)',
                 marginBottom: '1rem',
-                fontSize: '0.7rem',
-                color: '#71717A',
+                fontSize: '0.75rem',
+                color: 'var(--ide-text-dim)',
                 fontFamily: 'var(--font-mono)'
               }}
             >
               <span>localhost:3000</span>
-              <RefreshCw size={10} color="#71717A" />
+              <RefreshCw size={10} color="var(--ide-text-dim)" />
             </div>
 
             {/* Running Miniature Web Page */}
             <div
               style={{
-                background: '#000000',
-                border: '1px solid #222222',
+                background: 'var(--ide-bg)',
+                border: '1px solid var(--ide-border)',
                 borderRadius: '10px',
                 padding: '1.25rem',
                 textAlign: 'center',
@@ -279,21 +279,21 @@ export const HeroShowcase: React.FC = () => {
                   gap: '6px',
                   padding: '3px 8px',
                   borderRadius: '9999px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  fontSize: '0.68rem',
+                  background: 'var(--ide-activity)',
+                  fontSize: '0.75rem',
                   fontFamily: 'var(--font-mono)',
-                  color: '#FFFFFF',
+                  color: 'var(--ide-text)',
                   marginBottom: '0.75rem'
                 }}
               >
-                <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#FFFFFF' }} />
+                <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--ide-text)' }} />
                 <span>Active Builder</span>
               </div>
 
-              <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', color: '#FFFFFF', marginBottom: '4px' }}>
+              <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', color: 'var(--ide-text)', marginBottom: '4px' }}>
                 Hi, I'm Shreya
               </h4>
-              <p style={{ fontSize: '0.75rem', color: '#A1A1AA', marginBottom: '1rem', lineHeight: 1.4 }}>
+              <p style={{ fontSize: '0.75rem', color: 'var(--ide-text-dim)', marginBottom: '1rem', lineHeight: 1.4 }}>
                 Frontend Architect building high-performance modern web apps.
               </p>
 
@@ -303,12 +303,12 @@ export const HeroShowcase: React.FC = () => {
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setInteractiveCount(c => c + 1)}
                   style={{
-                    background: '#FFFFFF',
-                    color: '#000000',
+                    background: 'var(--ide-text)',
+                    color: 'var(--ide-bg)',
                     border: 'none',
                     borderRadius: '5px',
                     padding: '6px 12px',
-                    fontSize: '0.72rem',
+                    fontSize: '0.75rem',
                     fontWeight: 700,
                     cursor: 'pointer'
                   }}
@@ -319,11 +319,11 @@ export const HeroShowcase: React.FC = () => {
                   type="button"
                   style={{
                     background: 'transparent',
-                    color: '#FFFFFF',
-                    border: '1px solid #333333',
+                    color: 'var(--ide-text)',
+                    border: '1px solid var(--ide-border)',
                     borderRadius: '5px',
                     padding: '6px 10px',
-                    fontSize: '0.72rem',
+                    fontSize: '0.75rem',
                     cursor: 'pointer'
                   }}
                 >
@@ -338,17 +338,17 @@ export const HeroShowcase: React.FC = () => {
                 marginTop: '1rem',
                 padding: '8px 10px',
                 borderRadius: '6px',
-                background: '#121212',
-                border: '1px solid #1E1E1E',
+                background: 'var(--ide-activity)',
+                border: '1px solid var(--ide-border)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                fontSize: '0.72rem',
+                fontSize: '0.75rem',
                 fontFamily: 'var(--font-mono)',
-                color: '#71717A'
+                color: 'var(--ide-text-dim)'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#FFFFFF' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--ide-text)' }}>
                 <Globe size={12} />
                 <span>Edge CDN Live</span>
               </div>

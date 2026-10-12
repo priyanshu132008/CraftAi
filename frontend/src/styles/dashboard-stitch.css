@@ -1,0 +1,67 @@
+/* Stitch "Obsidian Kinetic" dashboard tokens — exec marquee, glass panels,
+   blueprint-matrix standby strip, hero glow. All colors via var(--*) so
+   light/dark theme toggle flips automatically. */
+
+@keyframes exec-marquee-stitch {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.stitch-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: exec-marquee-stitch 25s linear infinite;
+  gap: 3.5rem;
+}
+.stitch-marquee:hover .stitch-marquee-track {
+  animation-play-state: paused;
+}
+.stitch-marquee {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+          mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+/* Subtle radial glow behind the dashboard hero H1 */
+.stitch-hero-glow {
+  position: relative;
+}
+.stitch-hero-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    50% 50% at 50% 40%,
+    color-mix(in srgb, var(--text-heading) 4%, transparent) 0%,
+    transparent 80%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Dot-grid canvas background (theme-aware via --bg-dots) */
+.stitch-dashboard {
+  background-image: radial-gradient(var(--bg-dots) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Blueprint-matrix standby strip */
+.stitch-blueprint {
+  background-image:
+    linear-gradient(to right,  color-mix(in srgb, var(--border-subtle) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--border-subtle) 45%, transparent) 1px, transparent 1px);
+  background-size: 40px 40px;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 55%, transparent);
+  border-radius: 12px;
+  opacity: 0.5;
+}
+
+/* Glass panel — used by prompt console wrapper and marquee card */
+.stitch-glass {
+  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 75%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stitch-marquee-track { animation: none; }
+}

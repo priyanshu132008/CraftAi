@@ -1,33 +1,77 @@
 /* Tailwind utilities for AI-generated pages (preview iframe renders them).
    Only the utilities layer — preflight is skipped so it cannot reset the
    hand-written workspace styles below. */
+
+/* Layer declarations must come BEFORE any imports that USE them, otherwise
+   CSS cascade order places base AFTER utilities and base wins (wrong — we
+   want utilities to beat base). Pre-declare base + theme + utilities here. */
+@layer base, theme, utilities;
+
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities);
+
+/* Global reset in @layer base — utilities win over it (lower layer = loses). */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
+  * {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* ---- Tailwind v4 theme config (CSS-native successor of tailwind.config.js).
+   `darkMode: 'class'` equivalent = the @custom-variant below: `dark:` utilities
+   activate under the `dark` class ThemeProvider toggles on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* CraftAI palette */
+  --color-obsidian: #09090B;
+  --color-obsidian-card: #0A0A0A;
+  --color-snow: #FAFAFA;
+  --color-ink: #18181B;
+  --color-line: #27272A;
+  --color-line-light: #E4E4E7;
+  --color-brand: #4F46E5;
+  --color-brand-bright: #6366F1;
+
+  /* Generous named spacing (v4's dynamic *-scale covers the rest) */
+  --spacing-gutter: 2.5rem;
+  --spacing-section: 6rem;
+
+  /* Typography tokens (match --font-* in variables.css) */
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
 
 @import './variables.css';
 @import './components.css';
 @import './layout.css';
 @import './ide.css';
 @import './plan.css';
+@import './dashboard-stitch.css';
 
 /* Global reset: raw HTML buttons/inputs must never show the browser's
-   default white borders or UA pill shapes. Class-based styles (btn-primary,
-   input-field, …) still win via specificity — this only normalizes bare,
-   AI-generated elements that ship without utility classes. */
-*,
-::before,
-::after {
-  box-sizing: border-box;
-}
-
-button,
-input,
-select,
-textarea {
-  font-family: inherit;
-  font-size: 100%;
-  line-height: 1.15;
-  margin: 0;
-  border-style: none;
-  background-color: transparent;
+   default white borders or UA pill shapes. In @layer base so Tailwind
+   utilities (utilities layer, declared above) still win over it.
+   Unlayered, this reset stripped every background utility on buttons —
+   the sidebar "active item black on black" bug. */
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+    font-size: 100%;
+    line-height: 1.15;
+    margin: 0;
+    border-style: none;
+    background-color: transparent;
+  }
 }

@@ -106,6 +106,16 @@ OAUTH_PROVIDERS: Dict[str, OAuthProvider] = {
         extra_auth_params={"owner": "user"},
         extra_token_headers={"Notion-Version": "2022-06-28"},
     ),
+    # Bot-token OAuth (chat.postMessage). Slack's v2 flow takes
+    # comma-separated bot scopes; a single scope avoids the formatting issue.
+    # ponytail: add more bot scopes (channels:read…) if a generated app ever
+    # needs to LIST channels — posting works with chat:write alone.
+    "slack": OAuthProvider(
+        auth_url="https://slack.com/oauth/v2/authorize",
+        token_url="https://slack.com/api/oauth.v2.access",
+        scopes=("chat:write",),
+        client_env="SLACK",
+    ),
 }
 
 

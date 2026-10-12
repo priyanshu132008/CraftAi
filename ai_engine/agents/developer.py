@@ -26,6 +26,7 @@ import json
 import os
 import re
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -577,6 +578,12 @@ CATEGORY567_ENV_VARS = {
     "figma_api": {"pat": "VITE_FIGMA_PAT"},
     "unsplash_api": {"accessKey": "VITE_UNSPLASH_ACCESS_KEY"},
     "firebase": {"apiKey": "VITE_FIREBASE_API_KEY"},
+    # Shop domain is NOT a secret but travels with the vault pair; the
+    # Admin token is the secret (shpat_...).
+    "shopify": {
+        "storeDomain": "VITE_SHOPIFY_STORE_DOMAIN",
+        "adminToken": "VITE_SHOPIFY_ADMIN_ACCESS_TOKEN",
+    },
 }
 
 # Merged vault whitelist: every connector whose multi-field secrets the
@@ -636,6 +643,19 @@ FILE SET RULES:
   NO other libraries, NO image files — use styled gradient/pattern
   placeholder <div>s for imagery (or unsplash_api image URLs when requested).
 
+CRITICAL UI INSTRUCTION (icons — a violated rule CRASHES the bundler):
+- When importing icons from "lucide-react", NEVER use brand or third-party
+  icons (e.g. Github, Twitter, Facebook, Google, Apple, Instagram, Linkedin,
+  Youtube, Slack, Chrome, Gitlab, Dribbble, Twitch, Figma). These do NOT
+  exist in our installed lucide-react and cause a fatal bundler crash.
+- Strictly limit imports to standard, universal UI icons only: Home,
+  Settings, User, Search, Menu, ChevronRight, Bell, Layout, Globe, Camera,
+  Briefcase, Play, MessageSquare, Smartphone, Palette, Box, Mail, Users,
+  Code, Database, Zap, Star, Check, X. If a brand icon is requested, use a
+  generic fallback like "Globe" or "Box".
+- Before finalizing every file, re-verify each named import actually exists
+  in lucide-react's CURRENT release — no guessing, no deprecated aliases.
+
 DESIGN RULES (apply to every .tsx file):
 - Implement EVERY section listed in the plan's "sections" array, in order,
   as semantic JSX with real, niche-appropriate copy (no lorem ipsum).
@@ -655,7 +675,61 @@ DESIGN RULES (apply to every .tsx file):
   text-[#D4AF37]) so the rendered site matches the palette.
 - Include subtle transitions/animations where appropriate (hover states,
   opacity/transform transitions).
-- Be fully responsive (mobile-first: stacked grids, sm:/md:/lg: breakpoints)."""
+- Be fully responsive (mobile-first: stacked grids, sm:/md:/lg: breakpoints).
+- ROBUSTNESS: every component must render safely when data or props are
+  missing — default optional props, guard arrays/maps with optional chaining
+  and empty-state fallbacks, and never index into an unvalidated payload
+  (arr[0].x) without a check. Do not write fragile imports or references."""
+
+
+def monorepo_prompt(scope: Optional[str]) -> str:
+    """System-prompt block enforcing the repository structure for the
+    console's Scope dropdown.
+
+    "Frontend UI" (or no scope) keeps the root Vite layout the preview
+    pipeline is tuned for; every other scope ("Full-Stack Spec",
+    "Microservice API", "Database & RAG") enforces the /frontend + /backend
+    monorepo.
+    # ponytail: preview pipeline still needs a React entry — a pure-API
+    # backend can't be previewed, so monorepo scopes always ship a thin
+    # frontend even for Microservice API. Split preview targets first.
+    """
+    if not scope or not str(scope).strip():
+        return ""
+    label = str(scope).strip()
+    if label.lower() in ("frontend ui", "frontend"):
+        return f"\n\nREPOSITORY SCOPE: {label} — generate ONLY the client-side\n" \
+               "React + Vite + Tailwind project. No backend folder, no API\n" \
+               "server: use browser-internal state/mock data for app logic."
+    return f"""
+
+REPOSITORY STRUCTURE (STRICT MONOREPO — scope: {label}):
+You are acting as a Full-Stack AI Architect. Generate a strict monorepo with
+BOTH directories; ALL paths are prefixed accordingly:
+- All client-side UI code INSIDE a "/frontend" directory (React/Vite/Tailwind):
+  "frontend/package.json", entry "frontend/src/App.tsx" (must default-export
+  the root component), section components under "frontend/src/components/".
+- All server-side API, database and business logic INSIDE a "/backend"
+  directory (Node.js/Express in TypeScript unless the request is Python-heavy,
+  then FastAPI): "backend/server.ts" (or "backend/main.py"), routes under
+  "backend/routes/".
+Example structure:
+  frontend/package.json
+  frontend/src/App.tsx
+  backend/server.ts        (or backend/main.py)
+  backend/routes/api.ts
+- The frontend must consume the backend REST endpoints for real data
+  operations (fetch calls against /api/...) instead of mock data.
+- Every requested connector is wired ENTIRELY in the backend, following its
+  exact wire-up instructions; place the per-connector lib files from the
+  "Requested connectors" section under "backend/lib/" and have the backend
+  routes import them.
+- The preview still requires the React entry, so even for an API-first scope
+  include a minimal "frontend/src/App.tsx" dashboard showing the API status.
+- Vault credentials ("Workspace vault credentials" section): emit BOTH
+  "frontend/.env" and "backend/.env" with the EXACT lines given — the
+  frontend reads import.meta.env.<NAME>, the backend reads
+  process.env.<NAME>. Never invent dummy values."""
 
 
 class DeveloperAgent:
@@ -672,7 +746,8 @@ class DeveloperAgent:
 
     def generate_files(self, plan_json: dict, connectors=None,
                        custom_connectors=None, mcp_servers=None,
-                       connector_rules=None, connector_secrets=None) -> list:
+                       connector_rules=None, connector_secrets=None,
+                       scope=None, context=None) -> list:
         """Turn an Architect plan dict into a list of {path, content} files.
 
         Returns [] if the local Ollama call fails or the output cannot be
@@ -684,8 +759,17 @@ class DeveloperAgent:
             user_content = self._format_plan(
                 plan_json, connectors, custom_connectors, mcp_servers,
                 connector_rules, connector_secrets)
+            # Request_context from the console (connector wire-up
+            # instructions + attached file) — the model MUST follow it.
+            if context:
+                user_content += (
+                    "\n\nActive Connectors Context — you MUST implement the "
+                    "initialization and SDK wiring for every connector listed "
+                    "here in the backend code, following the exact "
+                    "instructions provided:\n" + context)
+            system = SYSTEM_PROMPT + monorepo_prompt(scope)
             messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system},
                 {"role": "user", "content": user_content},
             ]
             try:

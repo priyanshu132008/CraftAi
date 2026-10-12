@@ -1,15 +1,5 @@
 /* Components Design System - Vercel Monochrome Edition */
 
-/* Logo */
-.eyebrow {
-  display: inline-block;
-  color: #71717A;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
 .about-intro {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
@@ -29,49 +19,50 @@
   align-items: center;
   gap: 8px;
   font-family: var(--font-heading);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.35rem;
   letter-spacing: -0.03em;
-  color: #FFFFFF;
+  color: var(--text-heading);
   cursor: pointer;
   user-select: none;
 }
 .craftai-logo-icon {
   width: 22px;
   height: 22px;
-  background: #FFFFFF;
+  background: currentColor;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z'/%3E%3C/svg%3E") no-repeat center / contain;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z'/%3E%3C/svg%3E") no-repeat center / contain;
   display: inline-block;
   flex-shrink: 0;
 }
 .craftai-logo span.highlight {
-  color: #FFFFFF;
-  font-weight: 800;
+  color: var(--accent-indigo-bright);
+  font-weight: 700;
 }
 
-/* Primary White / Black Buttons (Vercel Style) */
+/* Primary inverted buttons — dark in light mode, white in dark mode */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 10px 22px;
-  background: #FFFFFF;
-  color: #000000;
-  border: 1px solid #FFFFFF;
+  background: var(--text-heading);
+  color: var(--bg-primary);
+  border: 1px solid var(--text-heading);
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.92rem;
   cursor: pointer;
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+  box-shadow: var(--shadow-md);
   transition: all var(--transition-normal);
   white-space: nowrap;
 }
 .btn-primary:hover {
-  background: #EDEDED;
+  background: color-mix(in srgb, var(--text-heading) 86%, var(--text-muted));
+  border-color: color-mix(in srgb, var(--text-heading) 86%, var(--text-muted));
   transform: translateY(-1px);
-  box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 .btn-primary:active {
   transform: translateY(0);
@@ -83,9 +74,9 @@
   justify-content: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #0A0A0A;
-  color: #FFFFFF;
-  border: 1px solid #2E2E2E;
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.92rem;
@@ -93,8 +84,9 @@
   transition: all var(--transition-normal);
 }
 .btn-secondary:hover {
-  background: #171717;
-  border-color: #555555;
+  background: var(--bg-hover);
+  border-color: var(--border-active);
+  color: var(--text-heading);
 }
 
 .btn-outline {
@@ -103,9 +95,9 @@
   justify-content: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #0A0A0A;
-  color: #EDEDED;
-  border: 1px solid #27272A;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   font-weight: 500;
   font-size: 0.88rem;
@@ -113,9 +105,9 @@
   transition: all var(--transition-fast);
 }
 .btn-outline:hover {
-  background: #18181B;
-  border-color: #3F3F46;
-  color: #FFFFFF;
+  background: var(--bg-hover);
+  border-color: var(--border-active);
+  color: var(--text-heading);
 }
 
 .btn-ghost {
@@ -125,7 +117,7 @@
   gap: 6px;
   padding: 8px 14px;
   background: transparent;
-  color: #A1A1AA;
+  color: var(--text-muted);
   border: none;
   border-radius: 8px;
   font-weight: 500;
@@ -134,8 +126,8 @@
   transition: all var(--transition-fast);
 }
 .btn-ghost:hover {
-  color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-heading);
+  background: var(--bg-hover);
 }
 
 /* Inputs & Form Elements */
@@ -143,19 +135,40 @@
   width: 100%;
   padding: 11px 16px;
   font-size: 0.92rem;
-  border: 1px solid #27272A;
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: #050505;
-  color: #FFFFFF;
+  background: var(--bg-input);
+  color: var(--text-heading);
   transition: all var(--transition-fast);
   outline: none;
 }
 .input-field:focus {
-  border-color: #FFFFFF;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+  border-color: var(--accent-indigo-bright);
+  box-shadow: 0 0 0 3px var(--accent-indigo-soft);
 }
 .input-field::placeholder {
-  color: #52525B;
+  color: var(--text-subtle);
+}
+
+/* Floating-label input (auth gateway) — room for the floated label on top */
+.floating-input {
+  width: 100%;
+  padding: 18px 14px 8px;
+  font-size: 0.95rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-input);
+  color: var(--text-heading);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.floating-input:focus {
+  border-color: var(--accent-indigo-bright);
+  box-shadow: 0 0 0 3px var(--accent-indigo-soft);
+}
+.floating-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .input-group {
@@ -167,7 +180,7 @@
 .input-label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #D4D4D8;
+  color: var(--text-main);
 }
 
 /* Social Buttons */
@@ -178,18 +191,19 @@
   gap: 10px;
   width: 100%;
   padding: 11px 16px;
-  background: #0A0A0A;
-  border: 1px solid #27272A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  color: #FFFFFF;
+  color: var(--text-main);
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 .btn-social:hover {
-  background: #141414;
-  border-color: #3F3F46;
+  background: var(--bg-hover);
+  border-color: var(--neutral-border-focus);
+  color: var(--text-heading);
 }
 
 /* Pill / Chips */
@@ -201,9 +215,9 @@
   font-size: 0.8rem;
   font-weight: 600;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--bg-hover);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
 }
 
 .chip-selectable {
@@ -211,24 +225,24 @@
   align-items: center;
   gap: 8px;
   padding: 10px 18px;
-  background: #0A0A0A;
-  border: 1.5px solid #27272A;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-subtle);
   border-radius: 10px;
   font-weight: 600;
   font-size: 0.9rem;
-  color: #A1A1AA;
+  color: var(--text-muted);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 .chip-selectable:hover {
-  border-color: #FFFFFF;
-  color: #FFFFFF;
+  border-color: var(--border-active);
+  color: var(--text-heading);
   transform: translateY(-1px);
 }
 .chip-selectable.active {
-  border-color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.1);
-  color: #FFFFFF;
+  border-color: var(--border-active);
+  background: var(--bg-hover);
+  color: var(--text-heading);
 }
 
 /* Stepper (Wizard) */
@@ -256,9 +270,9 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #0A0A0A;
-  border: 1.5px solid #27272A;
-  color: #71717A;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-subtle);
+  color: var(--text-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -268,23 +282,23 @@
   margin-bottom: 6px;
 }
 .stepper-step.completed .stepper-circle {
-  background: #FFFFFF;
-  border-color: #FFFFFF;
-  color: #000000;
+  background: var(--text-heading);
+  border-color: var(--text-heading);
+  color: var(--bg-primary);
 }
 .stepper-step.active .stepper-circle {
-  background: #FFFFFF;
-  border-color: #FFFFFF;
-  color: #000000;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15);
+  background: var(--text-heading);
+  border-color: var(--text-heading);
+  color: var(--bg-primary);
+  box-shadow: 0 0 0 4px var(--bg-hover);
 }
 .stepper-label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #71717A;
+  color: var(--text-muted);
 }
 .stepper-step.active .stepper-label {
-  color: #FFFFFF;
+  color: var(--text-heading);
   font-weight: 700;
 }
 .stepper-line {
@@ -293,27 +307,27 @@
   left: 12%;
   right: 12%;
   height: 1px;
-  background: #27272A;
+  background: var(--border-subtle);
   z-index: 1;
 }
 .stepper-line-progress {
   height: 100%;
-  background: #FFFFFF;
+  background: var(--border-active);
   transition: width 0.3s ease;
 }
 
 /* Card System */
 .craft-card {
-  background: #0A0A0A;
+  background: var(--bg-card);
   border-radius: 12px;
-  border: 1px solid #222222;
+  border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-normal);
   overflow: hidden;
 }
 .craft-card:hover {
-  border-color: #444444;
-  box-shadow: 0 0 25px rgba(255, 255, 255, 0.05);
+  border-color: var(--border-active);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
@@ -331,16 +345,16 @@
   animation: fadeIn 0.2s ease-out;
 }
 .modal-content {
-  background: #0A0A0A;
+  background: var(--bg-secondary);
   border-radius: 14px;
-  border: 1px solid #27272A;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-xl);
   max-width: 650px;
   width: 100%;
   overflow: hidden;
   position: relative;
   animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  color: #FFFFFF;
+  color: var(--text-main);
 }
 
 @keyframes fadeIn {
@@ -361,17 +375,105 @@
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
-  border: 1px solid #27272A;
+  border: 1px solid var(--border-subtle);
 }
 .status-pill.success {
-  background: rgba(255, 255, 255, 0.08);
-  color: #FFFFFF;
+  background: var(--bg-hover);
+  color: var(--text-heading);
 }
 .status-pill.live {
-  background: rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
+  background: var(--accent-indigo-soft);
+  color: var(--accent-indigo-bright);
+  border-color: color-mix(in srgb, var(--accent-indigo-bright) 35%, transparent);
 }
 .status-pill.building {
-  background: rgba(255, 255, 255, 0.05);
-  color: #A1A1AA;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+/* Command-center console: glassmorphism bar with an animated gradient
+   ring — a slowly rotating conic streak masked down to the 1.5px border,
+   quiet at rest and glowing on hover/focus. Reduced-motion users see a
+   static ring (the global override freezes the keyframes). */
+@property --console-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.console-glow {
+  position: relative;
+  border-radius: 17px;
+  padding: 1.5px;
+  background: var(--border-subtle);
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+.console-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--console-angle),
+    transparent 0deg,
+    var(--accent-indigo) 55deg,
+    var(--agent-architect) 105deg,
+    transparent 170deg,
+    transparent 360deg
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0.5;
+  transition: opacity 0.4s ease;
+  animation: console-border-spin 7s linear infinite;
+  pointer-events: none;
+}
+.console-glow:hover,
+.console-glow:focus-within {
+  background: color-mix(in srgb, var(--accent-indigo) 45%, var(--border-subtle));
+  box-shadow: var(--shadow-glow);
+}
+.console-glow:hover::before,
+.console-glow:focus-within::before {
+  opacity: 1;
+}
+@keyframes console-border-spin {
+  to {
+    --console-angle: 360deg;
+  }
+}
+.console-inner {
+  position: relative;
+  background: color-mix(in srgb, var(--bg-input) 78%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 15px;
+  overflow: hidden;
+}
+
+.connector-card {
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+.connector-card:hover {
+  border-color: color-mix(in srgb, var(--brand, #6366F1) 45%, transparent);
+  box-shadow: 0 0 30px -8px color-mix(in srgb, var(--brand, #6366F1) 32%, transparent);
+}
+
+/* ---------------------------------------------------------------
+ * Phase 6: resizable split-pane drag handles — slim rails that
+ * glow indigo on hover / while dragging.
+ * --------------------------------------------------------------- */
+.resize-handle {
+  position: relative;
+  width: 4px;
+  flex-shrink: 0;
+  background: transparent;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.resize-handle:hover,
+.resize-handle:active {
+  background: var(--accent-indigo-bright);
+  box-shadow: 0 0 8px var(--accent-indigo-soft);
 }

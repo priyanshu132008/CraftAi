@@ -97,6 +97,9 @@ ENTRY_CANDIDATES = (
     "src/index.tsx",
     "App.tsx",
     "page.tsx",
+    # Monorepo scopes (Full-Stack Spec / Microservice API…)
+    "frontend/src/App.tsx",
+    "frontend/src/main.tsx",
 )
 
 # Agents are created lazily on the first request: DebuggerAgent.__init__
@@ -105,6 +108,11 @@ _agents = None
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
+
+# Vercel auto-deploy (publish flow): token required, team id optional
+# (organization accounts scope every call with ?teamId=).
+VERCEL_API_TOKEN = os.getenv("VERCEL_API_TOKEN", "")
+VERCEL_TEAM_ID = os.getenv("VERCEL_TEAM_ID", "")
 
 
 def _get_agents():
@@ -224,7 +232,8 @@ def _style_line(design_style: Optional[str]) -> str:
 def _context_lines(context: Optional[str]) -> str:
     if not context or not context.strip():
         return ""
-    return ("\n\nAdditional context from the user's attached file:\n---\n"
+    return ("\n\nAdditional context from the user (connector wiring\n"
+            "instructions and any attached file):\n---\n"
             + context.strip()[:4000] + "\n---")
 
 
@@ -290,7 +299,8 @@ def _run_pipeline(prompt: str, connectors: Optional[list] = None,
                   custom_connectors: Optional[list] = None,
                   mcp_servers: Optional[list] = None,
                   connector_rules: Optional[dict] = None,
-                  connector_secrets: Optional[dict] = None):
+                  connector_secrets: Optional[dict] = None,
+                  scope: Optional[str] = None):
     """ArchitectAgent -> DeveloperAgent -> DebuggerAgent.
 
     Returns (architect_json_plan, files, entry_path) where `files` is the
@@ -330,7 +340,8 @@ def _run_pipeline(prompt: str, connectors: Optional[list] = None,
     files = agents["developer"].generate_files(
         plan, connectors,
         custom_connectors=custom_connectors, mcp_servers=mcp_servers,
-        connector_rules=connector_rules, connector_secrets=connector_secrets)
+        connector_rules=connector_rules, connector_secrets=connector_secrets,
+        scope=scope, context=context)
     if not files:
         raise PipelineError("Developer agent returned no files")
     emit("developer:completed",
@@ -426,17 +437,35 @@ import React, {{ useEffect, useState }} from 'react';
 
 let entryPath = '{entry}';
 
+const IMPORT_ATTEMPTS = 5;
+const IMPORT_RETRY_MS = 700;
+
 export default function GeneratedPage() {{
   const [Component, setComponent] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {{
     let cancelled = false;
+    let attempts = 0;
     setError(null);
     setComponent(null);
-    import(/* @vite-ignore */ entryPath)
-      .then(m => {{ if (!cancelled) setComponent(() => m.default); }})
-      .catch(e => {{ if (!cancelled) setError(String(e)); }});
+    // Mirror files land milliseconds before the preview iframe remounts;
+    // Vite's first on-demand transform can transiently fail — retry
+    // instead of sticking on the empty state.
+    const attemptImport = () => {{
+      attempts += 1;
+      import(/* @vite-ignore */ entryPath)
+        .then(m => {{ if (!cancelled) setComponent(() => m.default); }})
+        .catch(e => {{
+          if (cancelled) return;
+          if (attempts < IMPORT_ATTEMPTS) {{
+            setTimeout(attemptImport, IMPORT_RETRY_MS);
+          }} else {{
+            setError(String(e));
+          }}
+        }});
+    }};
+    attemptImport();
     return () => {{ cancelled = true; }};
   }}, []);
 
@@ -448,6 +477,11 @@ export default function GeneratedPage() {{
         <span style={{{{ fontSize: '1.1rem', color: '#94A3B8' }}}}>No preview yet</span>
         <span style={{{{ fontSize: '0.82rem' }}}}>
           Generate an app from the CraftAI dashboard — it will render here.
+        </span>
+        <span style={{{{ maxWidth: 640, fontSize: '0.72rem',
+          fontFamily: 'ui-monospace, monospace', color: '#475569',
+          overflowWrap: 'anywhere' }}}}>
+          {{error}}
         </span>
       </div>
     );
@@ -563,18 +597,56 @@ def _unauthorized(message: str) -> JSONResponse:
     )
 
 
+# lucide-react 1.x removed its brand icons, but models still hallucinate
+# them — one `import { Github }` is a fatal Vite import crash in /preview.
+# Swap brand glyphs to safe look-alikes in mirrored code files.
+# ponytail: whole-word swap also rewrites copy/text strings ("Twitter" ->
+# "Globe" inside prose). Narrow to JSX scope only if that ever ships.
+_ICON_ALIASES = {
+    "Github": "Globe", "Gitlab": "Globe", "Twitter": "Globe",
+    "Facebook": "Globe", "Chrome": "Globe", "Google": "Globe",
+    "Instagram": "Camera", "Linkedin": "Briefcase", "Youtube": "Play",
+    "Slack": "MessageSquare", "Apple": "Smartphone", "Dribbble": "Palette",
+    "Twitch": "Tv", "Figma": "PenTool",
+}
+
+
+def _fix_lucide_imports(code: str) -> str:
+    """Replace removed lucide brand icons with safe aliases, then dedupe the
+    named import list (a swap colliding with an existing import would leave
+    `{ Globe, Globe }` — itself a syntax error)."""
+    if "lucide-react" not in code:
+        return code
+    for brand, safe in _ICON_ALIASES.items():
+        code = re.sub(rf"\b{brand}\b", safe, code)
+
+    def dedupe(m):
+        seen, out = set(), []
+        for name in m.group(1).split(","):
+            key = name.strip()
+            if key and key not in seen:
+                seen.add(key)
+                out.append(key)
+        return f"import {{ {', '.join(out)} }} from 'lucide-react'"
+
+    return re.sub(r'import\s*\{([^}]*)\}\s*from\s*["\']lucide-react["\']',
+                  dedupe, code)
+
+
 def _sanitize_for_vite(code: str) -> str:
     """Adapt a Next.js-style generated page for the Vite preview host.
 
     - drop the meaningless-outside-Next "use client" directive
     - prepend @ts-nocheck so `tsc --noEmit` never breaks on LLM output
     - replace next/link <Link> with plain <a> (same href prop)
+    - swap hallucinated lucide-react brand icons for safe aliases
     """
     text = re.sub(r'^["\']use client["\'];?\s*\n?', "", code.strip())
     text = re.sub(r'^import\s+Link\s+from\s+["\']next/link["\'];?\s*\n', "",
                   text, flags=re.MULTILINE)
     text = re.sub(r"<Link\b", "<a", text)
     text = re.sub(r"</Link\s*>", "</a>", text)
+    text = _fix_lucide_imports(text)
     return "// @ts-nocheck\n" + text.strip() + "\n"
 
 
@@ -735,7 +807,8 @@ def _generate_and_write(prompt: str, connectors: Optional[list],
                         mcp_servers: Optional[list] = None,
                         connector_rules: Optional[dict] = None,
                         connector_secrets: Optional[dict] = None,
-                        owner: Optional[str] = None) -> dict:
+                        owner: Optional[str] = None,
+                        scope: Optional[str] = None) -> dict:
     """Shared build-mode flow: run the pipeline, persist the full project to
     the workspace folder, refresh the Vite preview mirror, and build the
     success response payload (including the execution trace)."""
@@ -745,7 +818,8 @@ def _generate_and_write(prompt: str, connectors: Optional[list],
         prompt, connectors, trace=trace,
         design_style=design_style, context=context,
         custom_connectors=custom_connectors, mcp_servers=mcp_servers,
-        connector_rules=connector_rules, connector_secrets=connector_secrets)
+        connector_rules=connector_rules, connector_secrets=connector_secrets,
+        scope=scope)
     elapsed = time.time() - t0
 
     entry = _select_entry(files)
@@ -857,8 +931,11 @@ def _record_project_in_supabase(token: str, user_id: str, project_id: str,
         if resp.status_code not in (200, 201):
             print(f"[projects] Supabase insert failed: "
                   f"{resp.status_code} {resp.text[:200]}")
-    except httpx.HTTPError as exc:
-        print(f"[projects] Supabase insert error: {exc}")
+    except Exception as exc:  # httpx.HTTPError + InvalidURL(ValueError) etc.
+        # Fail-soft by contract: schema-cache, RLS, network and config
+        # errors must never crash the generation pipeline. Disk workspace
+        # stays the file store; the listing falls back to it.
+        print(f"[projects] Supabase insert error (ignored): {exc}")
 
 
 @app.post("/generate-project")
@@ -899,6 +976,7 @@ def generate_project(payload: dict, authorization: Optional[str] = Header(defaul
     mode = _extract_mode(payload)
     design_style = _extract_str(payload, "design_style", 200)
     context = _extract_str(payload, "context", 8000)
+    scope = _extract_str(payload, "scope", 200)
     custom_connectors = _extract_custom_connectors(payload)
     mcp_servers = _extract_mcp_servers(payload)
     connector_rules = _extract_connector_rules(payload)
@@ -909,7 +987,8 @@ def generate_project(payload: dict, authorization: Optional[str] = Header(defaul
             response = _generate_and_write(
                 prompt, connectors, design_style, context,
                 custom_connectors, mcp_servers, connector_rules,
-                connector_secrets=connector_secrets, owner=user.get("id"))
+                connector_secrets=connector_secrets, owner=user.get("id"),
+                scope=scope)
         else:
             response = _conversational_response(
                 prompt, mode, connectors, design_style, context,
@@ -949,6 +1028,7 @@ def handle_prompt(payload: dict):
     mode = _extract_mode(payload)
     design_style = _extract_str(payload, "design_style", 200)
     context = _extract_str(payload, "context", 8000)
+    scope = _extract_str(payload, "scope", 200)
     custom_connectors = _extract_custom_connectors(payload)
     mcp_servers = _extract_mcp_servers(payload)
     connector_rules = _extract_connector_rules(payload)
@@ -959,7 +1039,7 @@ def handle_prompt(payload: dict):
             return _generate_and_write(
                 prompt, connectors, design_style, context,
                 custom_connectors, mcp_servers, connector_rules,
-                connector_secrets=connector_secrets)
+                connector_secrets=connector_secrets, scope=scope)
         return _conversational_response(
             prompt, mode, connectors, design_style, context,
             custom_connectors, mcp_servers)
@@ -1029,7 +1109,28 @@ def list_projects(limit: int = 50, authorization: Optional[str] = Header(None)):
             "created_at": ts,
         })
     entries.sort(key=lambda e: e["created_at"], reverse=True)
-    return {"status": "success", "projects": entries[:max(1, min(limit, 200))]}
+    top = entries[:max(1, min(limit, 200))]
+
+    # Attach the stored generation prompt (Supabase metadata rows) so cards
+    # can show a snippet. Fail-soft: no prompt column data -> empty string.
+    prompts: dict = {}
+    if SUPABASE_URL and SUPABASE_ANON_KEY and token:
+        try:
+            resp = httpx.get(
+                f"{SUPABASE_URL}/rest/v1/projects",
+                params={"select": "id,prompt", "user_id": f"eq.{owner}"},
+                headers={"apikey": SUPABASE_ANON_KEY,
+                         "Authorization": f"Bearer {token}"},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                prompts = {row.get("id"): row.get("prompt") or ""
+                           for row in resp.json() if isinstance(row, dict)}
+        except httpx.HTTPError as exc:
+            print(f"[projects] Supabase prompt lookup error: {exc}")
+    for entry in top:
+        entry["prompt"] = prompts.get(entry["id"], "")[:160]
+    return {"status": "success", "projects": top}
 
 
 def _owned_project_dir(project_id: str, authorization: Optional[str]):
@@ -1163,29 +1264,48 @@ def edit_project(project_id: str, payload: dict,
                  "message": f"Reading {len(files)} existing files…"}, trace)
     _emit_event({"step": "debugger:patching",
                  "message": "Patching the existing project in place…"}, trace)
-    changed = _get_agents()["debugger"].apply_edit(files, instruction)
+    debugger = _get_agents()["debugger"]
+    changed = debugger.apply_edit(files, instruction)
     if not changed:
+        # apply_edit logs the full chain to the terminal; give the user the
+        # final specific reason instead of a generic "try rephrasing".
+        reason = debugger.last_edit_error or "the agent produced no usable output"
+        print(f"[edit-project] id={project_id} instruction={instruction!r} "
+              f"failed: {reason}")
         return JSONResponse(
             status_code=500,
             content={"status": "error",
-                     "message": "The edit agent couldn't apply that change. "
-                                "Try rephrasing it."})
+                     "message": f"The edit agent couldn't apply that change: "
+                                f"{reason}. Try rephrasing it."})
 
     merged = {f["path"]: dict(f) for f in files}
-    written = 0
+    written_paths = []
     for f in changed:
         rel = _safe_relpath(f["path"])
         if not rel or rel.as_posix() not in merged:
             continue  # model invented a path — only existing files patch
         merged[rel.as_posix()]["content"] = f["content"]
         (project_dir / rel).write_text(f["content"], encoding="utf-8")
-        written += 1
-    if written == 0:
+        written_paths.append(rel.as_posix())
+    if not written_paths:
         return JSONResponse(
             status_code=500,
             content={"status": "error",
-                     "message": "The edit agent couldn't apply that change. "
+                     "message": "The edit agent returned changes only for "
+                                "files that don't exist in this project. "
                                 "Try rephrasing it."})
+    written = len(written_paths)
+
+    # Conversational pair-programmer reply for the chat panel (never lies
+    # about scope: it only knows the files actually patched).
+    assistant_message = debugger.conversational_summary(
+        instruction, sorted(written_paths))
+    if not assistant_message:
+        suffix = "s" if written != 1 else ""
+        names = ", ".join(sorted(written_paths)[:3])
+        assistant_message = (
+            f"Applied your change — updated {written} file{suffix} "
+            f"({names}). What would you like me to refine next?")
 
     _emit_event({"step": "debugger:completed",
                  "message": f"Edited {written} file"
@@ -1206,8 +1326,54 @@ def edit_project(project_id: str, payload: dict,
         "entry_path": entry["path"] if entry else None,
         "generated_code": (entry["content"] if entry
                            else files[0]["content"] if files else ""),
+        "assistant_message": assistant_message,
         "trace": trace,
     }
+
+
+@app.put("/api/projects/{project_id}/files")
+def update_project_file(project_id: str, payload: dict,
+                        authorization: Optional[str] = Header(None)):
+    """Monaco editor save: write an updated file back to the caller-owned
+    project's workspace directory on disk.
+
+    Body: {"path": "<relative file path>", "content": "<new text>"}. Only
+    files that already exist in the project are writable — the shared
+    safe-relpath guard blocks traversal, and paths the client invents 404.
+    The Vite preview mirror is refreshed so /preview picks up the edit
+    without a page reload.
+    """
+    project_dir, err = _owned_project_dir(project_id, authorization)
+    if err:
+        return err
+
+    raw_path = (payload or {}).get("path")
+    content = (payload or {}).get("content")
+    if not isinstance(raw_path, str) or not isinstance(content, str):
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error",
+                     "message": "payload must include 'path' and 'content' strings"},
+        )
+
+    rel = _safe_relpath(raw_path)
+    # owner.json is the ownership record itself — never client-writable (a
+    # "../owner.json" style path collapses to it via _safe_relpath).
+    target = (project_dir / rel
+              if rel and rel.as_posix() != "owner.json" else None)
+    if target is None or not target.is_file():
+        return JSONResponse(status_code=404,
+                            content={"status": "error",
+                                     "message": f"Unknown file: {raw_path}"})
+
+    target.write_text(content, encoding="utf-8")
+    # Keep the live preview in sync with the saved edit.
+    files = _read_project_files(project_dir)
+    entry = _select_entry(files)
+    if entry:
+        _refresh_preview(files, entry["path"])
+    print(f"[update-file] id={project_id} file={rel.as_posix()} saved from Monaco")
+    return {"status": "success", "path": rel.as_posix()}
 
 
 @app.delete("/api/projects/{project_id}")
@@ -1231,6 +1397,64 @@ def delete_project(project_id: str,
     return {"status": "success", "project_id": raw}
 
 
+@app.post("/api/projects/{project_id}/duplicate")
+def duplicate_project(project_id: str,
+                       authorization: Optional[str] = Header(None)):
+    """Duplicate a project: copy its disk workspace under a fresh id,
+    re-stamp ownership, and mirror the Supabase metadata row (including
+    the stored prompt). Owner-only (same rules as load/edit/delete)."""
+    project_dir, err = _owned_project_dir(project_id, authorization)
+    if err:
+        return err
+
+    raw = project_dir.name
+    slug = raw.split("-", 1)[1] if "-" in raw else raw
+    token = _bearer_token(authorization)
+    user = _verify_supabase_token(token) if token else None
+    owner = (user or {}).get("id")
+    if not owner:
+        return _unauthorized("Sign in to duplicate your projects.")
+
+    base_slug = slug if slug.endswith("-copy") else f"{slug}-copy"
+    new_dir = None
+    for attempt in range(5):
+        suffix = base_slug if attempt == 0 else f"{base_slug}{attempt + 1}"
+        candidate = PROJECTS_ROOT / f"{int(time.time())}-{suffix}"
+        if not candidate.exists():
+            new_dir = candidate
+            break
+    if new_dir is None:
+        return JSONResponse(status_code=500,
+                            content={"status": "error",
+                                     "message": "Could not allocate a duplicate id"})
+
+    shutil.copytree(project_dir, new_dir)
+    (new_dir / "owner.json").write_text(json.dumps({"owner": owner}))
+
+    # Carry the original generation prompt over (RLS scopes the read).
+    prompt = ""
+    if SUPABASE_URL and SUPABASE_ANON_KEY and token:
+        try:
+            resp = httpx.get(
+                f"{SUPABASE_URL}/rest/v1/projects",
+                params={"id": f"eq.{raw}", "select": "prompt"},
+                headers={"apikey": SUPABASE_ANON_KEY,
+                         "Authorization": f"Bearer {token}"},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                rows = resp.json()
+                prompt = (rows[0].get("prompt") or "") if rows else ""
+        except httpx.HTTPError as exc:
+            print(f"[projects] prompt fetch during duplicate failed: {exc}")
+
+    title = base_slug.replace("-", " ").title()
+    _record_project_in_supabase(token, owner, new_dir.name, title,
+                                prompt, str(new_dir))
+    print(f"[duplicate-project] {raw} -> {new_dir.name}")
+    return {"status": "success", "project_id": new_dir.name, "name": title}
+
+
 @app.post("/api/deploy")
 def deploy(payload: dict):
     """Subdomain deployment stub (Module 5).
@@ -1251,6 +1475,202 @@ def deploy(payload: dict):
         content={"status": "success", "slug": slug, "url": url},
         headers={"X-Deploy-Url": url},
     )
+
+
+@app.post("/api/publish/github")
+def publish_github(payload: dict, authorization: Optional[str] = Header(None)):
+    """Push the generated monorepo to the user's GitHub as a PRIVATE repo.
+
+    Body: {project_slug, github_token, files: [{path, content}]}. The token
+    is used for this request only and is NEVER persisted server-side; if the
+    body token is absent, the backend's GITHUB_TOKEN env stands in for local
+    demos. The whole tree lands on `main` as ONE commit via the Git Database
+    API (blobs -> tree -> commit -> ref update) so a 36-file monorepo stays
+    far under the rate limits.
+    """
+    slug = re.sub(r"[^a-z0-9-]+", "-",
+                  str((payload or {}).get("project_slug")
+                      or "project").lower()).strip("-")[:100] or "project"
+    gh_token = (payload or {}).get("github_token") or os.getenv("GITHUB_TOKEN")
+    if not gh_token or not isinstance(gh_token, str):
+        return JSONResponse(status_code=401,
+                            content={"status": "error",
+                                     "message": "A GitHub Personal Access Token "
+                                                "with the repo scope is required "
+                                                "to publish. Connect GitHub in the "
+                                                "publish dialog first."})
+    raw_files = (payload or {}).get("files")
+    if not isinstance(raw_files, list) or not raw_files:
+        return {"status": "error", "message": "payload must include a 'files' array"}
+
+    accepted: list = []
+    seen_paths: set = set()
+    for f in raw_files[:200]:
+        if not isinstance(f, dict) or not isinstance(f.get("content"), str):
+            continue
+        rel = _safe_relpath(f.get("path", ""))
+        if rel is None or rel.as_posix() in seen_paths:
+            continue
+        seen_paths.add(rel.as_posix())
+        accepted.append({"path": rel.as_posix(), "content": f["content"]})
+    if not accepted:
+        return {"status": "error", "message": "no files with safe relative paths"}
+
+    headers = {"Authorization": f"Bearer {gh_token}",
+               "Accept": "application/vnd.github+json",
+               "X-GitHub-Api-Version": "2022-11-28"}
+    api = "https://api.github.com"
+
+    def gh_fail(resp: httpx.Response, stage: str) -> JSONResponse:
+        detail = (resp.json().get("message") or resp.text)[:300] if resp.text else ""
+        print(f"[publish-github] {stage} failed: HTTP {resp.status_code} {detail}")
+        return JSONResponse(status_code=502,
+                            content={"status": "error",
+                                     "message": f"GitHub {stage} failed "
+                                                f"(HTTP {resp.status_code}): {detail}"})
+
+    # 1) Token check + owner login (also surfaces 401 early with an honest error).
+    user = httpx.get(f"{api}/user", headers=headers, timeout=15)
+    if user.status_code == 401:
+        return JSONResponse(status_code=401,
+                            content={"status": "error",
+                                     "message": "GitHub token is invalid or expired. "
+                                                "Generate a new PAT with the repo scope."})
+    if user.status_code >= 400:
+        return gh_fail(user, "auth check")
+    login = user.json().get("login", "")
+    repo_url = f"https://github.com/{login}/{slug}"
+
+    # 2) Create the private repo. HTTP 422 means the name exists — reuse the
+    #    caller's own repo when it does, or report honestly when it belongs
+    #    to someone else / was renamed.
+    created = httpx.post(f"{api}/user/repos", headers=headers, timeout=30,
+                         json={"name": slug, "private": True, "auto_init": True,
+                               "description": "Generated with CraftAI"})
+    if created.status_code == 422:
+        existing = httpx.get(f"{api}/repos/{login}/{slug}", headers=headers, timeout=15)
+        if existing.status_code >= 400:
+            return JSONResponse(status_code=409,
+                                content={"status": "error",
+                                         "message": f"'{slug}' can't be created — the name "
+                                                    f"is taken (try another slug)."})
+    elif created.status_code >= 400:
+        return gh_fail(created, "repository creation")
+
+    # 3) Base commit sha on main (auto_init guarantees it exists).
+    ref = httpx.get(f"{api}/repos/{login}/{slug}/git/ref/heads/main",
+                    headers=headers, timeout=15)
+    base_sha = None
+    if ref.status_code == 200:
+        base_sha = ref.json().get("object", {}).get("sha")
+
+    # 4) One blob per file, then ONE tree carrying the whole monorepo.
+    tree_entries: list = []
+    for f in accepted:
+        blob = httpx.post(f"{api}/repos/{login}/{slug}/git/blobs", headers=headers,
+                          timeout=20, json={"content": f["content"], "encoding": "utf-8"})
+        if blob.status_code >= 400:
+            return gh_fail(blob, f"blob upload ({f['path']})")
+        tree_entries.append({"path": f["path"], "mode": "100644",
+                             "type": "blob", "sha": blob.json().get("sha")})
+    if not tree_entries:
+        return {"status": "error", "message": "no file blobs could be created"}
+
+    tree_body: dict = {"tree": tree_entries}
+    if base_sha:
+        tree_body["base_tree"] = base_sha
+    tree = httpx.post(f"{api}/repos/{login}/{slug}/git/trees", headers=headers,
+                      timeout=30, json=tree_body)
+    if tree.status_code >= 400:
+        return gh_fail(tree, "tree creation")
+
+    commit_body: dict = {"message": "Publish via CraftAI — full monorepo push",
+                         "tree": tree.json().get("sha")}
+    if base_sha:
+        commit_body["parents"] = [base_sha]
+    commit = httpx.post(f"{api}/repos/{login}/{slug}/git/commits", headers=headers,
+                        timeout=20, json=commit_body)
+    if commit.status_code >= 400:
+        return gh_fail(commit, "commit creation")
+    commit_sha = commit.json().get("sha", "")
+
+    # 5) Fast-forward main (or create it on a bizarre empty repo).
+    if base_sha:
+        upd = httpx.patch(f"{api}/repos/{login}/{slug}/git/refs/heads/main",
+                          headers=headers, timeout=20, json={"sha": commit_sha})
+        if upd.status_code >= 400:
+            return gh_fail(upd, "main branch update")
+    else:
+        new_ref = httpx.post(f"{api}/repos/{login}/{slug}/git/refs", headers=headers,
+                             timeout=20, json={"ref": "refs/heads/main", "sha": commit_sha})
+        if new_ref.status_code >= 400:
+            return gh_fail(new_ref, "main branch creation")
+
+    print(f"[publish-github] {len(accepted)} files -> github.com/{login}/{slug} "
+          f"({commit_sha[:7]})")
+
+    # ---- Auto-deploy to Vercel immediately after the push: create project
+    # (linked to the GitHub repo), assign the wildcard subdomain, trigger a
+    # production build. Failure NEVER fails the publish — the user keeps the
+    # GitHub link and a warning explains what didn't happen.
+    live_url: Optional[str] = None
+    deploy_warning: Optional[str] = ""
+    gh_repo = f"{login}/{slug}"
+    if not VERCEL_API_TOKEN:
+        deploy_warning = ("Auto-deploy skipped: VERCEL_API_TOKEN is not "
+                          "configured on the backend.")
+    else:
+        vheaders = {"Authorization": f"Bearer {VERCEL_API_TOKEN}",
+                    "Content-Type": "application/json"}
+        vq = f"?teamId={VERCEL_TEAM_ID}" if VERCEL_TEAM_ID else ""
+        vapi = "https://api.vercel.com"
+        # Monorepo output: the Vite app to host lives in /frontend.
+        root_dir = ("frontend"
+                    if any(f["path"].startswith("frontend/") for f in accepted)
+                    else "")
+        try:
+            # A) Create (or reuse) the project, linked to the GitHub repo.
+            proj_body: dict = {"name": slug, "framework": "vite"}
+            if root_dir:
+                proj_body["rootDirectory"] = root_dir
+            proj_body["gitRepository"] = {"type": "github", "repo": gh_repo}
+            proj = httpx.post(f"{vapi}/v10/projects{vq}", headers=vheaders,
+                              timeout=30, json=proj_body)
+            if proj.status_code >= 400 and proj.status_code != 409:
+                raise RuntimeError(f"project create HTTP {proj.status_code}: "
+                                   f"{proj.text[:200]}")
+
+            # B) Assign the wildcard subdomain (maps to *.craftai.diy DNS).
+            dom = httpx.post(f"{vapi}/v10/projects/{slug}/domains{vq}",
+                             headers=vheaders, timeout=20,
+                             json={"name": f"{slug}.craftai.diy"})
+            if dom.status_code >= 400 and dom.status_code != 409:
+                raise RuntimeError(f"domain assign HTTP {dom.status_code}: "
+                                   f"{dom.text[:200]}")
+
+            # C) Trigger the production build from the pushed main branch.
+            dep = httpx.post(f"{vapi}/v13/deployments{vq}", headers=vheaders,
+                             timeout=30,
+                             json={"name": slug, "target": "production",
+                                   "gitSource": {"type": "github",
+                                                 "repo": gh_repo,
+                                                 "ref": "main"}})
+            if dep.status_code >= 400:
+                raise RuntimeError(f"deployment HTTP {dep.status_code}: "
+                                   f"{dep.text[:200]}")
+            deploy_url = dep.json().get("url", "")
+            live_url = f"https://{slug}.craftai.diy"
+            print(f"[publish-github] vercel deploy building: "
+                  f"{deploy_url} -> {live_url}")
+        except (httpx.HTTPError, RuntimeError, ValueError) as exc:
+            deploy_warning = (f"Auto-deploy to Vercel failed: {exc} — "
+                              f"your code is safe on GitHub.")
+            print(f"[publish-github] {deploy_warning}")
+
+    return {"status": "success", "slug": slug, "repo_url": repo_url,
+            "files_pushed": len(accepted), "commit": commit_sha[:7],
+            "live_url": live_url or None,
+            "deploy_warning": deploy_warning or None}
 
 
 if __name__ == "__main__":

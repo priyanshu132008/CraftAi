@@ -31,6 +31,55 @@ export interface DesignStyle {
   description?: string;
 }
 
+/** Authentic brand colors driving per-card glows/tints in the Connectors
+ *  Hub — cards are never monochrome. Unknown ids fall back to CraftAI
+ *  indigo so every card still reads as a member of the system. */
+export const BRAND_COLORS: Record<string, string> = {
+  // Google
+  gmail: '#EA4335',
+  google_sheets: '#0F9D58',
+  google_drive: '#00AC47',
+  google_calendar: '#4285F4',
+  google_ads: '#34A853',
+  bigquery: '#4285F4',
+  firebase: '#FFA000',
+  // Cloud & data
+  supabase: '#3ECF8E',
+  postgres: '#336791',
+  mongodb: '#47A248',
+  upstash_redis: '#00E599',
+  neon: '#00E599',
+  planetscale: '#8B5CF6',
+  aws: '#FF9900',
+  azure: '#0078D4',
+  // Messaging
+  twilio: '#F22F46',
+  whatsapp_business: '#25D366',
+  brevo: '#2E9BF0',
+  telegram_bot: '#26A5E4',
+  slack: '#36C5F0',
+  microsoft_teams: '#5059C9',
+  mailgun: '#F0533D',
+  discord_webhook: '#5865F2',
+  // AI providers
+  openai_api: '#10A37F',
+  anthropic_claude: '#D97757',
+  google_gemini: '#9B72CB',
+  groq: '#F55036',
+  deepseek: '#4D6BFE',
+  perplexity: '#20808D',
+  // Design, commerce & productivity
+  figma_api: '#A259FF',
+  dev21st_components: '#7C3AED',
+  stripe: '#635BFF',
+  airtable: '#2D7FF9',
+  shopify: '#95BF47',
+  notion: '#D4D4D8',
+  looker: '#4FC3F7'
+};
+
+export const brandColor = (id: string): string => BRAND_COLORS[id] ?? '#6366F1';
+
 const DEFAULT_CONNECTOR_ICON = '🔌';
 
 const resolveCapabilities = (id: string): string[] => {
@@ -101,6 +150,49 @@ const resolveUseCases = (id: string): Array<{ title: string; prompt: string }> =
     { title: 'Smart automation', prompt: 'Create an automated workflow that keeps customer data and actions synchronized.' }
   ];
 };
+
+/** Wire-up instructions per connector, injected into the generation system
+ *  prompt so the AI knows exactly how to code the integration. Any connector
+ *  without an entry here gets a generic built from its catalog metadata. */
+const SYSTEM_CONTEXT: Record<string, string> = {
+  google_sheets: 'Use the googleapis Spreadsheets API from a service account. Read creds from env GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_SHEET_ID.',
+  gmail: 'Use the gmail.googleapis.com API with OAuth2 service-account creds from env GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY.',
+  google_drive: 'Use the Drive v3 API with OAuth2 service-account creds from env GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY.',
+  google_calendar: 'Use the Calendar v3 API with OAuth2 service-account creds from env GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY.',
+  firebase: 'Initialize with firebase-admin: initializeApp({ credential: cert(serviceAccount) }). Read projectId/clientEmail/privateKey from env FIREBASE_*.',
+  supabase: 'Use @supabase/supabase-js. Create client with createClient(SUPABASE_URL, SUPABASE_ANON_KEY). For admin work use the service_role key server-side only.',
+  postgres: 'Use node-postgres (pg) Pool with connection string from env DATABASE_URL. Always parameterize queries.',
+  mongodb: 'Use the mongodb driver: new MongoClient(process.env.MONGODB_URI). Handle async connect once, reuse the client.',
+  slack: 'Use @slack/web-api WebClient with env SLACK_BOT_TOKEN. Post via chat.postMessage(channel, text).',
+  twilio: 'Use twilio SDK with TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM_NUMBER from env.',
+  whatsapp_business: 'Use Meta Graph API v18 webhooks: send messages to graph.facebook.com/v18.0/{phone_number_id}/messages with bearer env WHATSAPP_TOKEN.',
+  openai_api: 'Use the openai SDK: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }). Prefer chat.completions.create for chat flows.',
+  anthropic_claude: 'Use @anthropic-ai/sdk: new Anthropic({ apiKey: env ANTHROPIC_API_KEY }). Call messages.create with model claude-sonnet-4-5.',
+  google_gemini: 'Use @google/generative-ai with env GEMINI_API_KEY, model gemini-2.0-flash on generateContent.',
+  stripe: 'Use stripe-node SDK. Initialize with process.env.STRIPE_SECRET_KEY. Verify webhooks with STRIPE_WEBHOOK_SECRET (constructEvent).',
+  shopify: 'Use Shopify Admin REST via @shopify/shopify-api with SHOPIFY_STORE_DOMAIN / SHOPIFY_ADMIN_ACCESS_TOKEN from env.',
+  notion: 'Use @notionhq/client Client({ auth: process.env.NOTION_TOKEN }). Databases queried via databases.query, pages via pages.create.',
+  airtable: 'Use Airtable REST base https://api.airtable.com/v0/{baseId}/{table} with bearer AIRTABLE_API_KEY from env.',
+  figma_api: 'Use Figma REST API https://api.figma.com/v1 with header X-Figma-Token: FIGMA_API_KEY. Fetch nodes via /files/{key}/nodes.',
+  unsplash_api: 'Use Unsplash API https://api.unsplash.com with bearer UNSPLASH_ACCESS_KEY; search via /search/photos.'
+};
+
+/** Build the connector block for the generation system prompt: the wire-up
+ *  instructions of every enabled connector, plus the generic fallback for
+ *  ids that aren't in the catalog (custom REST connectors). */
+export const getEnabledConnectorsContext = (activeConnectorIds: string[]): string =>
+  activeConnectorIds
+    .map(id => {
+      const meta = CONNECTOR_CATALOG[id];
+      if (!meta) {
+        return `- ${id}: user-defined REST connector — build a typed wrapper around its baseUrl with the configured headers and inspect responses to model the types.`;
+      }
+      const sys =
+        SYSTEM_CONTEXT[id] ??
+        `Use the ${meta.name} API (${meta.docsUrl}). Read credentials from env vars and wrap calls in src/lib/${meta.file}.`;
+      return `- ${meta.name}: ${sys}`;
+    })
+    .join('\n');
 
 export const DESIGN_STYLES: DesignStyle[] = [
   { id: 'minimal', title: 'Minimal', description: 'Clean, quiet, and highly focused' },
@@ -353,7 +445,9 @@ export const CONNECTOR_LIST: ConnectorMeta[] = [
     desc: 'Connect commerce inventory and storefront actions.',
     file: 'lib/shopify.ts',
     docsUrl: 'https://shopify.dev/docs',
-    authType: 'oauth',
+    // Vault tier, not OAuth: generic Shopify OAuth needs a per-shop authorize
+    // domain, so a static /oauth/shopify/authorize endpoint can't exist.
+    authType: 'apikey',
     tags: ['commerce', 'ecommerce'],
     icon: '🛍️',
     popular: false,

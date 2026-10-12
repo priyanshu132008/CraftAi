@@ -137,7 +137,7 @@ export const HeroLaptop3D: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              fontSize: '0.72rem',
+              fontSize: '0.75rem',
               fontFamily: 'var(--font-mono)',
               color: '#A1A1AA',
               boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
@@ -147,7 +147,7 @@ export const HeroLaptop3D: React.FC = () => {
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }} />
             <span style={{ color: '#FFFFFF', fontWeight: 600 }}>CraftAi Studio</span>
             <span style={{ color: '#52525B' }}>•</span>
-            <span>Edge Ready</span>
+            <span>v2.0 • Autonomous Builder</span>
           </motion.div>
         </motion.div>
       </motion.div>

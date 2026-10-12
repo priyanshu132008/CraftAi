@@ -1,4 +1,5 @@
-/* Workspace Mini IDE, AI Assistant & Deploy Modal - Vercel Monochrome Edition */
+/* Workspace Mini IDE, AI Assistant & Deploy Modal — fully tokenized:
+   every surface reads --ide-* so the whole workspace flips with the theme. */
 
 /* Full IDE Container */
 .ide-workspace {
@@ -6,8 +7,8 @@
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background: #000000;
-  color: #EDEDED;
+  background: var(--ide-bg);
+  color: var(--ide-text);
   overflow: hidden;
   font-family: var(--font-body);
 }
@@ -15,8 +16,8 @@
 /* IDE Top Header */
 .ide-header {
   height: 48px;
-  background: #000000;
-  border-bottom: 1px solid #222222;
+  background: var(--ide-bg);
+  border-bottom: 1px solid var(--ide-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -33,25 +34,25 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #0A0A0A;
+  background: var(--ide-sidebar);
   padding: 5px 12px;
   border-radius: 6px;
-  border: 1px solid #27272A;
+  border: 1px solid var(--ide-border);
   font-size: 0.85rem;
   font-family: var(--font-mono);
-  color: #FFFFFF;
+  color: var(--ide-text);
   cursor: pointer;
 }
 .ide-project-selector:hover {
-  background: #141414;
-  border-color: #3F3F46;
+  background: var(--bg-hover);
+  border-color: var(--neutral-border-focus);
 }
 .status-dot-live {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #FFFFFF;
-  box-shadow: 0 0 8px #FFFFFF;
+  background: var(--ide-accent);
+  box-shadow: 0 0 8px var(--ide-accent);
 }
 
 .ide-header-actions {
@@ -63,9 +64,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #0A0A0A;
-  border: 1px solid #27272A;
-  color: #EDEDED;
+  background: var(--ide-sidebar);
+  border: 1px solid var(--ide-border);
+  color: var(--ide-text);
   padding: 6px 14px;
   border-radius: 6px;
   font-size: 0.85rem;
@@ -74,27 +75,27 @@
   transition: all var(--transition-fast);
 }
 .btn-ide-save:hover {
-  background: #171717;
-  color: #FFFFFF;
-  border-color: #3F3F46;
+  background: var(--bg-hover);
+  color: var(--ide-accent);
+  border-color: var(--neutral-border-focus);
 }
 .btn-ide-deploy {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #FFFFFF;
-  border: 1px solid #FFFFFF;
-  color: #000000;
+  background: var(--ide-accent);
+  border: 1px solid var(--ide-accent);
+  color: var(--ide-bg);
   padding: 6px 16px;
   border-radius: 6px;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+  box-shadow: var(--shadow-md);
   transition: all var(--transition-fast);
 }
 .btn-ide-deploy:hover {
-  background: #EDEDED;
+  background: color-mix(in srgb, var(--ide-accent) 88%, var(--text-muted));
   transform: translateY(-1px);
 }
 
@@ -108,8 +109,8 @@
 /* IDE Activity Bar */
 .ide-activity-bar {
   width: 48px;
-  background: #000000;
-  border-right: 1px solid #222222;
+  background: var(--ide-activity);
+  border-right: 1px solid var(--ide-border);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -123,7 +124,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #71717A;
+  color: var(--ide-text-dim);
   border-radius: 6px;
   cursor: pointer;
   background: transparent;
@@ -131,19 +132,19 @@
   transition: all var(--transition-fast);
 }
 .activity-icon-btn:hover {
-  color: #FFFFFF;
+  color: var(--ide-text);
 }
 .activity-icon-btn.active {
-  color: #FFFFFF;
-  background: #121212;
-  border-left: 2px solid #FFFFFF;
+  color: var(--ide-accent);
+  background: var(--ide-tab-active);
+  border-left: 2px solid var(--ide-accent);
 }
 
 /* IDE File Explorer */
 .ide-explorer {
   width: 240px;
-  background: #0A0A0A;
-  border-right: 1px solid #222222;
+  background: var(--ide-sidebar);
+  border-right: 1px solid var(--ide-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -154,9 +155,9 @@
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #71717A;
+  color: var(--ide-text-dim);
   text-transform: uppercase;
-  border-bottom: 1px solid #222222;
+  border-bottom: 1px solid var(--ide-border);
 }
 .explorer-tree {
   padding: 8px 0;
@@ -169,18 +170,18 @@
   gap: 6px;
   padding: 6px 12px;
   font-size: 0.85rem;
-  color: #A1A1AA;
+  color: var(--ide-text-dim);
   cursor: pointer;
   transition: background var(--transition-fast);
   white-space: nowrap;
 }
 .tree-node:hover {
-  background: #141414;
-  color: #FFFFFF;
+  background: var(--bg-hover);
+  color: var(--ide-text);
 }
 .tree-node.active {
-  background: #18181B;
-  color: #FFFFFF;
+  background: var(--accent-indigo-soft);
+  color: var(--ide-text);
 }
 .tree-indent-1 { padding-left: 24px; }
 .tree-indent-2 { padding-left: 38px; }
@@ -191,14 +192,14 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  background: #000000;
+  background: var(--ide-bg);
   overflow: hidden;
-  border-right: 1px solid #222222;
+  border-right: 1px solid var(--ide-border);
 }
 .editor-tabs {
   height: 38px;
-  background: #0A0A0A;
-  border-bottom: 1px solid #222222;
+  background: var(--ide-sidebar);
+  border-bottom: 1px solid var(--ide-border);
   display: flex;
   align-items: flex-end;
   overflow-x: auto;
@@ -210,19 +211,19 @@
   padding: 8px 16px;
   font-size: 0.82rem;
   font-family: var(--font-mono);
-  background: #0A0A0A;
-  color: #71717A;
-  border-right: 1px solid #222222;
+  background: var(--ide-tab-inactive);
+  color: var(--ide-text-dim);
+  border-right: 1px solid var(--ide-border);
   border-top: 2px solid transparent;
   cursor: pointer;
 }
 .editor-tab:hover {
-  color: #FFFFFF;
+  color: var(--ide-text);
 }
 .editor-tab.active {
-  background: #000000;
-  color: #FFFFFF;
-  border-top-color: #FFFFFF;
+  background: var(--ide-tab-active);
+  color: var(--ide-text);
+  border-top-color: var(--accent-indigo-bright);
 }
 .tab-close {
   opacity: 0.5;
@@ -231,7 +232,7 @@
 }
 .tab-close:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--bg-hover);
 }
 
 .editor-content-area {
@@ -242,19 +243,19 @@
   font-size: 0.9rem;
   line-height: 1.6;
   padding: 12px 0;
-  background: #000000;
+  background: var(--ide-bg);
 }
 .editor-line-numbers {
   padding: 0 14px 0 16px;
   text-align: right;
-  color: #444444;
+  color: var(--ide-line-num);
   user-select: none;
   font-size: 0.82rem;
 }
 .editor-code {
   flex: 1;
   padding: 0 16px;
-  color: #EDEDED;
+  color: var(--ide-text);
   outline: none;
   white-space: pre;
   tab-size: 2;
@@ -265,27 +266,27 @@
   overflow: visible;
 }
 
-/* Syntax Token Colors (Vercel Monochrome Dark) */
-.tok-keyword { color: #FFFFFF; font-weight: 600; }
-.tok-import { color: #A1A1AA; }
-.tok-string { color: #D4D4D8; }
-.tok-function { color: #FFFFFF; }
-.tok-component { color: #E4E4E7; }
-.tok-tag { color: #A1A1AA; }
-.tok-comment { color: #52525B; font-style: italic; }
+/* Syntax Token Colors — functional color: indigo keywords, mint strings */
+.tok-keyword { color: var(--accent-indigo-bright); font-weight: 600; }
+.tok-import { color: var(--ide-text-dim); }
+.tok-string { color: var(--agent-debugger); }
+.tok-function { color: var(--ide-text); }
+.tok-component { color: var(--ide-text); }
+.tok-tag { color: var(--agent-architect); }
+.tok-comment { color: var(--ide-text-dim); font-style: italic; }
 
 /* IDE Live Preview Pane */
 .ide-preview-container {
   flex: 1.05;
   display: flex;
   flex-direction: column;
-  background: #000000;
+  background: var(--ide-bg);
   overflow: hidden;
 }
 .preview-header {
   height: 38px;
-  background: #0A0A0A;
-  border-bottom: 1px solid #222222;
+  background: var(--ide-sidebar);
+  border-bottom: 1px solid var(--ide-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -301,21 +302,21 @@
   height: 10px;
   border-radius: 50%;
 }
-.mac-dot.red { background: #333333; }
-.mac-dot.yellow { background: #555555; }
-.mac-dot.green { background: #888888; }
+.mac-dot.red { background: var(--ide-border); }
+.mac-dot.yellow { background: var(--neutral-border-focus); }
+.mac-dot.green { background: var(--text-subtle); }
 
 .preview-url-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #141414;
-  border: 1px solid #222222;
+  background: var(--ide-activity);
+  border: 1px solid var(--ide-border);
   border-radius: 6px;
   padding: 3px 12px;
   font-size: 0.78rem;
   font-family: var(--font-mono);
-  color: #A1A1AA;
+  color: var(--ide-text-dim);
   max-width: 280px;
   width: 100%;
 }
@@ -323,7 +324,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #71717A;
+  color: var(--ide-text-dim);
 }
 .preview-btn {
   background: transparent;
@@ -334,12 +335,12 @@
   align-items: center;
 }
 .preview-btn:hover {
-  color: #FFFFFF;
+  color: var(--ide-text);
 }
 
 .preview-render-frame {
   flex: 1;
-  background: #050505;
+  background: var(--ide-activity);
   overflow-y: auto;
   position: relative;
 }
@@ -347,26 +348,26 @@
 /* IDE Bottom Dock: Terminal & Inline AI Prompt */
 .ide-bottom-dock {
   height: 140px;
-  background: #000000;
-  border-top: 1px solid #222222;
+  background: var(--ide-bg);
+  border-top: 1px solid var(--ide-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
 }
 .dock-header {
   height: 32px;
-  background: #0A0A0A;
-  border-bottom: 1px solid #222222;
+  background: var(--ide-sidebar);
+  border-bottom: 1px solid var(--ide-border);
   display: flex;
   align-items: center;
   padding: 0 14px;
   font-size: 0.75rem;
-  color: #71717A;
+  color: var(--ide-text-dim);
   font-family: var(--font-mono);
   gap: 1rem;
 }
 .dock-tab.active {
-  color: #FFFFFF;
+  color: var(--ide-text);
   font-weight: 600;
 }
 .dock-terminal-body {
@@ -374,30 +375,30 @@
   padding: 8px 16px;
   font-family: var(--font-mono);
   font-size: 0.82rem;
-  color: #FFFFFF;
+  color: var(--ide-text);
   display: flex;
   align-items: center;
 }
 .dock-ai-bar {
   padding: 8px 14px;
-  background: #050505;
-  border-top: 1px solid #222222;
+  background: var(--ide-activity);
+  border-top: 1px solid var(--ide-border);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 .dock-ai-input {
   flex: 1;
-  background: #0A0A0A;
-  border: 1px solid #27272A;
+  background: var(--ide-sidebar);
+  border: 1px solid var(--ide-border);
   border-radius: 6px;
   padding: 8px 14px;
-  color: #FFFFFF;
+  color: var(--ide-text);
   font-size: 0.88rem;
   outline: none;
 }
 .dock-ai-input:focus {
-  border-color: #FFFFFF;
+  border-color: var(--accent-indigo-bright);
 }
 
 /* AI Assistant Dedicated Page (Screen 8) */
@@ -407,16 +408,16 @@
   height: calc(100vh - 40px);
   max-width: 900px;
   margin: 0 auto;
-  background: #0A0A0A;
+  background: var(--ide-sidebar);
   border-radius: 14px;
-  border: 1px solid #222222;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--ide-border);
+  box-shadow: var(--shadow-xl);
   overflow: hidden;
-  color: #FFFFFF;
+  color: var(--ide-text);
 }
 .ai-assistant-header {
   padding: 1.25rem 1.75rem;
-  border-bottom: 1px solid #222222;
+  border-bottom: 1px solid var(--ide-border);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -428,27 +429,27 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  background: #050505;
+  background: var(--ide-activity);
 }
 .chat-bubble-user {
   align-self: flex-end;
-  background: #FFFFFF;
-  color: #000000;
+  background: var(--ide-accent);
+  color: var(--ide-bg);
   padding: 12px 18px;
   border-radius: 14px 14px 2px 14px;
   max-width: 75%;
   font-size: 0.92rem;
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-md);
 }
 .chat-bubble-ai {
   align-self: flex-start;
-  background: #0E0E0E;
-  border: 1px solid #27272A;
+  background: var(--ide-tab-active);
+  border: 1px solid var(--ide-border);
   border-radius: 14px 14px 14px 2px;
   padding: 1.25rem 1.5rem;
   max-width: 85%;
-  color: #FFFFFF;
+  color: var(--ide-text);
 }
 .ai-changes-list {
   margin: 12px 0 16px;
@@ -462,29 +463,29 @@
   align-items: center;
   gap: 8px;
   font-size: 0.88rem;
-  color: #D4D4D8;
+  color: var(--ide-text);
 }
 .ai-chat-input-bar {
   padding: 1.25rem 1.75rem;
-  background: #0A0A0A;
-  border-top: 1px solid #222222;
+  background: var(--ide-sidebar);
+  border-top: 1px solid var(--ide-border);
   display: flex;
   align-items: center;
   gap: 12px;
 }
 .ai-chat-textarea {
   flex: 1;
-  border: 1px solid #27272A;
+  border: 1px solid var(--ide-border);
   border-radius: 8px;
   padding: 12px 16px;
   outline: none;
   font-size: 0.92rem;
-  background: #000000;
-  color: #FFFFFF;
+  background: var(--ide-bg);
+  color: var(--ide-text);
   resize: none;
 }
 .ai-chat-textarea:focus {
-  border-color: #FFFFFF;
+  border-color: var(--accent-indigo-bright);
 }
 
 /* Deploy Modal (Screen 9) */
@@ -494,7 +495,7 @@
 .deploy-tabs {
   display: flex;
   gap: 8px;
-  border-bottom: 1px solid #222222;
+  border-bottom: 1px solid var(--ide-border);
   padding-bottom: 1rem;
   margin-bottom: 1.5rem;
 }
@@ -503,25 +504,25 @@
   border-radius: 6px;
   font-weight: 600;
   font-size: 0.88rem;
-  color: #71717A;
+  color: var(--ide-text-dim);
   background: transparent;
   border: none;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 .deploy-tab.active {
-  background: #171717;
-  color: #FFFFFF;
+  background: var(--bg-hover);
+  color: var(--ide-text);
 }
 .deploy-platform-card {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
   align-items: center;
   gap: 2rem;
-  background: #050505;
+  background: var(--ide-activity);
   border-radius: 12px;
   padding: 1.75rem;
-  border: 1px solid #222222;
+  border: 1px solid var(--ide-border);
   margin-bottom: 1.5rem;
 }
 .deploy-features-list {
@@ -531,7 +532,7 @@
   flex-direction: column;
   gap: 8px;
   font-size: 0.88rem;
-  color: #D4D4D8;
+  color: var(--ide-text);
 }
 .deploy-feature-item {
   display: flex;
@@ -542,8 +543,8 @@
   width: 100%;
   max-width: 160px;
   border-radius: 12px;
-  border: 1px solid #222222;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--ide-border);
+  box-shadow: var(--shadow-lg);
   margin: 0 auto;
   display: block;
 }
@@ -553,5 +554,5 @@
   justify-content: flex-end;
   gap: 12px;
   padding-top: 1.25rem;
-  border-top: 1px solid #222222;
+  border-top: 1px solid var(--ide-border);
 }

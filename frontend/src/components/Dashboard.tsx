@@ -1,407 +1,188 @@
 import React, { useEffect, useState } from 'react';
 import { useApp, ScreenType } from '../context/AppContext';
 import { Sidebar } from './Sidebar';
-import { motion } from 'framer-motion';
-import {
-  Search,
-  Plus,
-  MoreVertical,
-  Layers,
-  Code2,
-  GitBranch,
-  Sparkles,
-  ArrowUpRight
-} from 'lucide-react';
-import { ProjectItem } from '../context/defaultData';
-import { timeAgo } from '../utils/timeAgo';
-import { PromptConsole } from './PromptConsole';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { ChevronRight, Moon, Sun, Terminal } from 'lucide-react';
+import { DashboardHero } from './DashboardHero';
 import { ConnectorsView } from './ConnectorsView';
+import { ProjectsGrid } from './ProjectsGrid';
+import { SettingsView } from './SettingsView';
+import { useTheme } from '../context/ThemeProvider';
 
-export type DashboardView = 'home' | 'search' | 'connectors' | 'projects';
+export type DashboardView = 'home' | 'search' | 'connectors' | 'projects' | 'settings';
 
 interface DashboardProps {
   initialView?: DashboardView;
 }
 
-const SUGGESTIONS = [
-  'A sleek dark SaaS landing page with animated hero, pricing and FAQ',
-  'A modern developer portfolio with a bento-grid projects section',
-  'An internal analytics dashboard with stat cards and a filterable table'
-];
-
+/** 1:1 port of `main components/Workspace/code.html` dashboard shell.
+ *  - Fixed left sidebar (w-64), fixed top header with breadcrumbs + bell + theme + Admin profile
+ *  - Active pill nav inside sidebar; views swap via AnimatePresence
+ *  - State preserved: recents, openProject, user (sidebar), setCurrentScreen
+ */
 export const Dashboard: React.FC<DashboardProps> = ({ initialView = 'home' }) => {
-  const {
-    setPrompt,
-    isGenerating,
-    statusMessage,
-    user,
-    recents,
-    openProject,
-    deleteProject,
-    setCurrentScreen,
-    isGenerated
-  } = useApp();
+  const { user } = useApp();
+  const { theme, toggleTheme } = useTheme();
 
   const [view, setView] = useState<DashboardView>(initialView);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery] = useState('');
 
   useEffect(() => setView(initialView), [initialView]);
 
-  // ------------------------------------------------------------------
-  // Home view: mesh gradient, greeting, multi-mode prompt console
-  // ------------------------------------------------------------------
-  const renderHome = () => (
-    <div
-      className="main-content bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900 via-black to-black"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        maxWidth: 'none',
-        position: 'relative'
-      }}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        style={{ width: '100%', maxWidth: '820px', textAlign: 'center' }}
-      >
-        <h1
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 'clamp(2.2rem, 5vw, 3.4rem)',
-            fontWeight: 800,
-            letterSpacing: '-0.03em',
-            color: '#FFFFFF',
-            lineHeight: 1.1,
-            marginBottom: '0.75rem'
-          }}
-        >
-          Let&apos;s build something,{' '}
-          <span style={{ color: '#818CF8' }}>{user?.name ?? 'friend'}</span>
-        </h1>
-        <p style={{ color: '#A1A1AA', fontSize: '1rem', marginBottom: '2.25rem' }}>
-          Describe your app — the Architect plans it, the Developer codes the full
-          repository, the Debugger polishes it.
-        </p>
+  const reduceMotion = useReducedMotion();
+  const pageVariants = reduceMotion
+    ? undefined
+    : {
+        hidden: { opacity: 0, y: 8 },
+        show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const } },
+        exit: { opacity: 0, y: -8, transition: { duration: 0.15, ease: 'easeOut' as const } }
+      };
 
-        {/* Multi-mode prompt console: Build / Chat / Plan */}
-        <PromptConsole />
-
-        {(statusMessage || isGenerating) && (
-          <p
-            style={{
-              marginTop: '1.1rem',
-              color: isGenerating ? '#A5B4FC' : '#A1A1AA',
-              fontSize: '0.85rem',
-              fontFamily: 'var(--font-mono)'
-            }}
-          >
-            {isGenerating
-              ? 'Agents running… (this takes 1–2 minutes)'
-              : statusMessage}
-          </p>
-        )}
-
-        {/* Suggestion chips */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            marginTop: '2.25rem'
-          }}
-        >
-          {SUGGESTIONS.map(s => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setPrompt(s)}
-              style={{
-                padding: '7px 14px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: 999,
-                fontSize: '0.78rem',
-                color: '#A1A1AA',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        {isGenerated && (
-          <button
-            type="button"
-            className="btn-ghost"
-            onClick={() => setCurrentScreen('workspace')}
-            style={{ marginTop: '1.75rem', padding: '6px 0' }}
-          >
-            Return to workspace
-          </button>
-        )}
-      </motion.div>
-    </div>
-  );
-
-  // ------------------------------------------------------------------
-  // Search view
-  // ------------------------------------------------------------------
-  const renderSearch = () => {
-    const q = searchQuery.toLowerCase();
-    const results = recents
-      .map(r => ({ id: r.id, title: r.name, category: 'recent', timeAgo: timeAgo(r.created_at) }))
-      .filter(r => !q || r.title.toLowerCase().includes(q) || r.category.toLowerCase().includes(q));
-
-    return (
-      <div className="main-content">
-        <h1
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '2.2rem',
-            letterSpacing: '-0.03em',
-            color: '#FFFFFF',
-            marginBottom: '0.4rem'
-          }}
-        >
-          Search
-        </h1>
-        <p style={{ color: '#A1A1AA', marginBottom: '1.5rem' }}>
-          Find your projects and recent generations.
-        </p>
-
-        <div className="search-box" style={{ width: '100%', maxWidth: 520, marginBottom: '2rem', padding: '12px 16px' }}>
-          <Search size={16} />
-          <input
-            type="text"
-            placeholder="Search projects by name or tag…"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{ fontSize: '0.95rem' }}
-            autoFocus
-          />
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 720 }}>
-          {results.length === 0 && (
-            <p style={{ color: '#71717A', fontSize: '0.9rem' }}>
-              No results for “{searchQuery}”.
-            </p>
-          )}
-          {results.map(r => (
-            <div
-              key={r.id}
-              className="sidebar-link"
-              style={{ padding: '12px 16px', border: '1px solid #222222', borderRadius: 10 }}
-              onClick={() => openProject(r.id)}
-            >
-              <Layers size={16} />
-              <span style={{ flex: 1, color: '#FFFFFF', fontSize: '0.9rem' }}>{r.title}</span>
-              <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: '#71717A' }}>
-                {r.category} · {r.timeAgo}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  // ------------------------------------------------------------------
-  // Projects view
-  // ------------------------------------------------------------------
-  const renderProjects = () => {
-    // Same centralized list as the sidebar Recents — the Supabase-backed
-    // project index, mapped onto the card shape.
-    const gridProjects: ProjectItem[] = recents.map(r => ({
-      id: r.id,
-      title: r.name,
-      category: 'recent',
-      timeAgo: timeAgo(r.created_at),
-      previewGradient: 'linear-gradient(135deg, #6366F1 0%, #A855F7 100%)',
-      badge: '',
-      tech: []
-    }));
-    const handleOpenProject = (proj: ProjectItem) => openProject(proj.id);
-
-    return (
-      <div className="main-content">
-        <div className="dashboard-header">
-          <div className="dashboard-title-group">
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.2rem', letterSpacing: '-0.03em' }}>
-              My Projects
-            </h1>
-            <p style={{ color: '#A1A1AA', fontSize: '0.95rem', marginTop: '2px' }}>
-              Your AI-generated repositories, blueprints, and live deployments.
-            </p>
-          </div>
-          <div className="dashboard-controls">
-            <motion.button
-              className="btn-primary"
-              onClick={() => setCurrentScreen('dashboard')}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              <Plus size={16} />
-              <span>New Project</span>
-            </motion.button>
-          </div>
-        </div>
-
-        {gridProjects.length === 0 ? (
-          <div
-            style={{
-              border: '1px dashed #27272A',
-              borderRadius: 14,
-              padding: '3.5rem 2rem',
-              textAlign: 'center',
-              color: '#71717A',
-              background: '#0A0A0A'
-            }}
-          >
-            <Code2 size={28} style={{ marginBottom: '0.75rem' }} />
-            <p style={{ color: '#A1A1AA', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
-              No repositories yet. Generate your first app from the Dashboard prompt console.
-            </p>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => setCurrentScreen('dashboard')}
-              style={{ margin: '0 auto' }}
-            >
-              <Sparkles size={15} />
-              <span>Start building</span>
-            </button>
-          </div>
-        ) : (
-          <div className="projects-grid">
-            {gridProjects.map(proj => (
-              <motion.div
-                key={proj.id}
-                className="project-card"
-                whileHover={{ y: -5, borderColor: '#555555' }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="project-preview" style={{ background: proj.previewGradient }}>
-                  <div
-                    style={{
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#71717A',
-                      gap: '8px'
-                    }}
-                  >
-                    <Layers size={28} />
-                    <span style={{ fontSize: '0.75rem', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>
-                      {proj.title}
-                    </span>
-                  </div>
-                </div>
-                <div className="project-body">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <h3 className="project-title" style={{ fontFamily: 'var(--font-heading)' }}>
-                        {proj.title}
-                      </h3>
-                      <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: '#71717A', letterSpacing: '0.04em' }}>
-                        {proj.category}
-                      </span>
-                    </div>
-                    <button
-                      className="btn-ghost"
-                      style={{ padding: '4px', color: '#71717A' }}
-                      title="Delete project"
-                      onClick={() => {
-                        if (window.confirm(`Delete "${proj.title}"? This cannot be undone.`)) {
-                          deleteProject(proj.id);
-                        }
-                      }}
-                    >
-                      <MoreVertical size={16} />
-                    </button>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#71717A', margin: '0.75rem 0 1.25rem' }}>
-                    <GitBranch size={13} />
-                    <span style={{ fontFamily: 'var(--font-mono)' }}>main</span>
-                    <span>•</span>
-                    <span>{proj.timeAgo}</span>
-                  </div>
-                  <div className="project-footer">
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      {proj.tech.map((t, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            fontSize: '0.72rem',
-                            fontFamily: 'var(--font-mono)',
-                            background: '#141414',
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            color: '#EDEDED',
-                            border: '1px solid #27272A'
-                          }}
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                    <motion.button
-                      className="btn-outline"
-                      onClick={() => handleOpenProject(proj)}
-                      style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.82rem', gap: '6px' }}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <span>Open IDE</span>
-                      <ArrowUpRight size={13} />
-                    </motion.button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+  const VIEW_LABELS: Record<DashboardView, string> = {
+    home: 'Dashboard',
+    search: 'Search',
+    connectors: 'Connectors Hub',
+    projects: 'Projects Manager',
+    settings: 'Settings'
   };
 
   const activeScreen: ScreenType =
-    view === 'home' ? 'dashboard' : view === 'search' ? 'search' : view === 'connectors' ? 'connectors' : 'projects';
+    view === 'home' ? 'dashboard'
+    : view === 'search' ? 'search'
+    : view === 'connectors' ? 'connectors'
+    : view === 'projects' ? 'projects'
+    : 'settings';
+
+  // The hero is the Stitch design's home view.
+  const renderHome = () => <DashboardHero />;
+
+  const renderSearch = () => (
+    <div className="main-content">
+      <h1
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '2.2rem',
+          letterSpacing: '-0.03em',
+          color: 'var(--text-heading)',
+          marginBottom: '0.4rem'
+        }}
+      >
+        Search
+      </h1>
+      <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+        Find your projects and recent generations.
+      </p>
+      <div className="search-box" style={{ width: '100%', maxWidth: 520 }}>
+        <input
+          type="text"
+          placeholder="Search projects…"
+          value={searchQuery}
+          readOnly
+          style={{ fontSize: '0.95rem' }}
+        />
+      </div>
+    </div>
+  );
+
+  const renderProjects = () => <ProjectsGrid />;
+
+  const renderSettings = () => <SettingsView />;
+
+  // Full-width like code.html — `.main-content`'s 1280px cap breaks the
+  // 12-col hub layout, so ConnectorsView renders unwrapped.
+  const renderConnectors = () => <ConnectorsView />;
+
+  // Top breadcrumb pieces derived from the active user (real Supabase).
+  const breadcrumbOrg = user?.name ?? '';
+  const breadcrumbEnv = 'PRODUCTION';
+  const adminRole = user?.name ?? '';
+  const adminInitials = (user?.name ?? '')
+    .split(/\s+/)
+    .map(p => p[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  const adminRegion = 'US-EAST-1';
 
   return (
-    <div className="app-shell">
+    <div className="flex h-screen bg-[#F5F5F7] overflow-hidden text-[#1D1D1F] dark:bg-black dark:text-white">
+      {/* Persistent executive sidebar (fixed) */}
       <Sidebar activeScreen={activeScreen} />
-      {view === 'home' && renderHome()}
-      {view === 'search' && renderSearch()}
-      {view === 'connectors' && (
-        <div className="main-content">
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '2.2rem',
-              letterSpacing: '-0.03em',
-              color: '#FFFFFF',
-              marginBottom: '0.4rem'
-            }}
-          >
-            Connectors
-          </h1>
-          <p style={{ color: '#A1A1AA', marginBottom: '2rem' }}>
-            Services CraftAI can wire into your generated apps.
-          </p>
-          <ConnectorsView />
-        </div>
-      )}
-      {view === 'projects' && renderProjects()}
+
+      {/* Main viewport pl-64 to clear the sidebar */}
+      <div className="pl-64 flex flex-col min-h-screen w-full bg-[#F5F5F7] relative dark:bg-black">
+        {/* Top executive header (fixed, full width minus sidebar) */}
+        <header
+          className="fixed top-0 right-0 h-16 bg-white/90 backdrop-blur-xl z-40 flex items-center justify-between px-8 border-b border-[#d2d2d7] dark:bg-black/90 dark:border-[#27272a]"
+          style={{ left: 256 }}
+        >
+          {/* Breadcrumb cluster */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded bg-zinc-100 border border-[#d2d2d7] flex items-center justify-center dark:bg-black dark:border-[#27272a]">
+                <Terminal size={15} className="text-[#1D1D1F] dark:text-white" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-display text-sm text-[#1D1D1F] font-bold tracking-tight dark:text-white">
+                  CraftAI
+                </span>
+                <span className="text-zinc-400 font-mono text-xs dark:text-zinc-600">/</span>
+                <span className="text-xs font-mono text-zinc-500 dark:text-zinc-300">{breadcrumbOrg}</span>
+                <span className="text-zinc-400 font-mono text-xs dark:text-zinc-600">/</span>
+                <span className="text-[10px] font-mono bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded border border-[#d2d2d7] uppercase font-medium dark:bg-zinc-900 dark:text-zinc-400 dark:border-[#27272a]">
+                  {breadcrumbEnv}
+                </span>
+              </div>
+            </div>
+            <div className="hidden md:flex items-center gap-1 text-zinc-500 font-mono text-[10px]">
+              <ChevronRight size={12} />
+              <span>{VIEW_LABELS[view]}</span>
+            </div>
+          </div>
+
+          {/* Right actions: theme toggle + admin profile */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="p-1.5 rounded-lg border border-[#d2d2d7] text-zinc-500 hover:text-[#1D1D1F] hover:bg-zinc-100 transition-colors dark:border-[#27272a] dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-900"
+              onClick={toggleTheme}
+              title="Theme Mode"
+              aria-label="Theme Mode"
+            >
+              {theme === 'dark' ? <Moon size={15} /> : <Sun size={15} />}
+            </button>
+            <div className="flex items-center gap-2.5 pl-2 border-l border-[#d2d2d7] dark:border-[#27272a]">
+              <div className="text-right hidden sm:flex flex-col">
+                <span className="text-xs text-[#1D1D1F] font-medium dark:text-white">{adminRole}</span>
+                <span className="text-[10px] font-mono text-zinc-500">{adminRegion}</span>
+              </div>
+              <div className="w-8 h-8 rounded-full border border-[#d2d2d7] bg-zinc-100 flex items-center justify-center text-xs font-mono font-medium text-[#1D1D1F] shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-white">
+                {adminInitials}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Content wrapper — pt-16 clears the fixed header */}
+        <main className="w-full pt-16 flex-1 flex flex-col bg-[#F5F5F7] overflow-y-auto dark:bg-black">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              variants={pageVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              style={{ flex: 1, minHeight: 0, display: 'flex' }}
+            >
+              {view === 'home' && renderHome()}
+              {view === 'search' && renderSearch()}
+              {view === 'connectors' && renderConnectors()}
+              {view === 'projects' && renderProjects()}
+              {view === 'settings' && renderSettings()}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
     </div>
   );
 };

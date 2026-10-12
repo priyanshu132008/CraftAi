@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, FileCode, Folder } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { ChevronDown, ChevronRight, FileCode, FileJson, FileType2, FileText, Folder, Globe } from 'lucide-react';
 import { GeneratedFile } from '../services/api';
 
 export interface TreeNode {
@@ -46,17 +47,50 @@ export const buildFileTree = (files: GeneratedFile[]): TreeNode[] => {
   return sortTree(root.children);
 };
 
+/** Language-matched file icon: per-extension glyph + color. */
+const FileIcon = ({ name }: { name: string }) => {
+  const ext = name.slice(name.lastIndexOf('.')).toLowerCase();
+  if (ext === '.json') return <FileJson size={12} style={{ flexShrink: 0, color: '#FACC15', opacity: 0.9 }} />;
+  if (ext === '.tsx' || ext === '.ts') return <FileType2 size={12} style={{ flexShrink: 0, color: 'var(--accent-indigo-bright)', opacity: 0.9 }} />;
+  if (ext === '.css') return <FileCode size={12} style={{ flexShrink: 0, color: '#38BDF8', opacity: 0.9 }} />;
+  if (ext === '.html') return <Globe size={12} style={{ flexShrink: 0, color: '#FB923C', opacity: 0.9 }} />;
+  if (ext === '.md') return <FileText size={12} style={{ flexShrink: 0, color: '#94A3B8', opacity: 0.9 }} />;
+  return <FileCode size={12} style={{ flexShrink: 0, color: '#94A3B8', opacity: 0.8 }} />;
+};
+
 interface FileTreeProps {
   files: GeneratedFile[];
   selectedPath: string | null;
   onSelect: (file: GeneratedFile) => void;
+  /** Bump to collapse every folder (Explorer "collapse all" button). */
+  collapseAllSignal?: number;
 }
 
-/** VS Code-style collapsible file tree over the generated project. */
-export const FileTree: React.FC<FileTreeProps> = ({ files, selectedPath, onSelect }) => {
+/** VS Code-style collapsible file tree (Phase 6: animated folder expand,
+ *  language icons, sliding layoutId active-file indicator). */
+export const FileTree: React.FC<FileTreeProps> = ({ files, selectedPath, onSelect, collapseAllSignal }) => {
   const tree = useMemo(() => buildFileTree(files), [files]);
   // Folders are expanded by default; collapse persists per folder path.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const reduceMotion = useReducedMotion();
+
+  const folderPaths = useMemo(() => {
+    const paths: string[] = [];
+    const walk = (nodes: TreeNode[]) => {
+      nodes.forEach(n => {
+        if (!n.isFile) {
+          paths.push(n.path);
+          walk(n.children);
+        }
+      });
+    };
+    walk(tree);
+    return paths;
+  }, [tree]);
+
+  useEffect(() => {
+    if (collapseAllSignal) setCollapsed(new Set(folderPaths));
+  }, [collapseAllSignal, folderPaths]);
 
   const toggleFolder = (path: string) => {
     setCollapsed(prev => {
@@ -88,9 +122,10 @@ export const FileTree: React.FC<FileTreeProps> = ({ files, selectedPath, onSelec
             width: '100%',
             padding: '4px 10px',
             paddingLeft,
-            background: active ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+            position: 'relative',
+            background: 'transparent',
             border: 'none',
-            color: active ? '#A5B4FC' : '#94A3B8',
+            color: active ? 'var(--accent-indigo-bright)' : 'var(--text-muted)',
             cursor: 'pointer',
             fontSize: '0.78rem',
             fontFamily: 'var(--font-mono)',
@@ -98,8 +133,22 @@ export const FileTree: React.FC<FileTreeProps> = ({ files, selectedPath, onSelec
             whiteSpace: 'nowrap'
           }}
         >
-          <FileCode size={12} style={{ flexShrink: 0, opacity: 0.8 }} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.name}</span>
+          {/* Sliding active-file indicator */}
+          {active && (
+            <motion.span
+              layoutId="filetree-active"
+              transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: 6,
+                background: 'var(--accent-indigo-soft)',
+                borderLeft: '2px solid var(--accent-indigo-bright)'
+              }}
+            />
+          )}
+          <FileIcon name={node.name} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', position: 'relative' }}>{node.name}</span>
         </button>
       );
     }
@@ -119,7 +168,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ files, selectedPath, onSelec
             paddingLeft,
             background: 'transparent',
             border: 'none',
-            color: '#E2E8F0',
+            color: 'var(--text-main)',
             cursor: 'pointer',
             fontSize: '0.78rem',
             fontWeight: 600,
@@ -128,17 +177,31 @@ export const FileTree: React.FC<FileTreeProps> = ({ files, selectedPath, onSelec
           }}
         >
           {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-          <Folder size={12} style={{ flexShrink: 0, color: '#818CF8', opacity: 0.9 }} />
+          <Folder size={12} style={{ flexShrink: 0, color: 'var(--accent-indigo-bright)', opacity: 0.9 }} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.name}</span>
         </button>
-        {!isCollapsed && node.children.map(child => renderNode(child, depth + 1))}
+        {/* Folder expand/collapse: height + opacity morph */}
+        <AnimatePresence initial={false}>
+          {!isCollapsed && (
+            <motion.div
+              key="children"
+              initial={reduceMotion ? undefined : { height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              style={{ overflow: 'hidden' }}
+            >
+              {node.children.map(child => renderNode(child, depth + 1))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   };
 
   if (files.length === 0) {
     return (
-      <p style={{ padding: '12px 14px', color: '#64748B', fontSize: '0.78rem' }}>
+      <p style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
         The generated file tree will appear here.
       </p>
     );

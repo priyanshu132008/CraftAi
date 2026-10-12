@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="web_dashboard" name="shell-type"/>
+<title>CraftAI - Executive Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<style>
+    @layer base {
+      html, body { margin:0; padding:0; background-color: #000000; color: #ffffff; }
+      body { overscroll-behavior: none; }
+    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #000000; }
+    ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+    
+    .dot-grid {
+      background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .subtle-glow {
+      background: radial-gradient(50% 50% at 50% 40%, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0) 80%);
+    }
+    .blueprint-matrix {
+      background-image: linear-gradient(to right, rgba(39, 39, 42, 0.35) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(39, 39, 42, 0.35) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    @keyframes marquee {
+      0% { transform: translateX(0%); }
+      100% { transform: translateX(-50%); }
+    }
+    .animate-marquee-smooth {
+      display: flex;
+      width: max-content;
+      animation: marquee 25s linear infinite;
+    }
+    .animate-marquee-smooth:hover {
+      animation-play-state: paused;
+    }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            surface: "#09090b",
+            "surface-subtle": "#121215",
+            border: "#27272a",
+            "border-subtle": "#1e1e22",
+            muted: "#a1a1aa"
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+            display: ['Space Grotesk', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-black text-white font-sans antialiased min-h-screen selection:bg-white selection:text-black flex">
+<!-- PERSISTENT EXECUTIVE LEFT SIDEBAR -->
+<aside class="fixed left-0 top-0 bottom-0 w-64 bg-[#09090b] z-50 flex flex-col justify-between border-r border-[#27272a]">
+<div class="flex flex-col">
+<!-- Brand Header -->
+<div class="h-16 px-4 flex items-center justify-between border-b border-[#27272a]">
+<div class="flex items-center gap-2.5">
+<div class="w-7 h-7 rounded bg-black border border-[#27272a] flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-base">terminal</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="font-display text-base text-white font-bold tracking-tight">CraftAI</span>
+<span class="font-mono text-[10px] bg-zinc-900 text-zinc-300 px-1.5 py-0.5 rounded border border-[#27272a] tracking-widest uppercase font-medium">EXEC</span>
+</div>
+</div>
+<button class="text-zinc-500 hover:text-white p-1 rounded hover:bg-zinc-900 transition-colors" title="Toggle Sidebar">
+<span class="material-symbols-outlined text-sm">dock_to_left</span>
+</button>
+</div>
+<!-- Workspace Selector -->
+<div class="px-3 py-3">
+<div class="w-full bg-[#121215] border border-[#27272a] rounded-lg p-2.5 flex items-center justify-between cursor-pointer hover:border-zinc-500 transition-colors group">
+<div class="flex flex-col text-left">
+<span class="text-[9px] font-mono text-zinc-500 uppercase tracking-wider font-semibold">Workspace</span>
+<span class="text-xs text-zinc-200 font-medium truncate group-hover:text-white transition-colors">Acme Corp / Production</span>
+</div>
+<span class="material-symbols-outlined text-zinc-500 text-sm group-hover:text-zinc-300">unfold_more</span>
+</div>
+</div>
+<!-- Nav Items with interactive tab switching -->
+<nav class="flex flex-col gap-1 px-3 pt-1">
+<button class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg font-medium text-xs bg-white text-black transition-all shadow-sm w-full text-left" id="nav-dashboard" onclick="switchView('dashboard')">
+<span class="material-symbols-outlined text-base">space_dashboard</span>
+<span class="">Dashboard</span>
+</button>
+<button class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all w-full text-left" id="nav-connectors" onclick="switchView('connectors')">
+<span class="material-symbols-outlined text-base">hub</span>
+<span class="">Connectors Hub</span>
+<span class="ml-auto text-[10px] font-mono px-1.5 py-0.2 rounded border border-[#27272a] text-zinc-400 bg-black">42</span>
+</button>
+<button class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all w-full text-left" id="nav-projects" onclick="switchView('projects')">
+<span class="material-symbols-outlined text-base">folder_data</span>
+<span class="">Projects Manager</span>
+</button>
+<button class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all w-full text-left" id="nav-activity" onclick="switchView('activity')">
+<span class="material-symbols-outlined text-base">reorder</span>
+<span class="">Activity &amp; Logs</span>
+</button>
+<button class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all w-full text-left" id="nav-settings" onclick="switchView('settings')">
+<span class="material-symbols-outlined text-base">tune</span>
+<span class="">Settings</span>
+</button>
+</nav>
+</div>
+<!-- Bottom sidebar -->
+<div class="p-3 flex flex-col gap-2 border-t border-[#27272a] bg-[#09090b]">
+<div class="flex items-center justify-between px-2.5 py-1.5 bg-[#121215] border border-[#27272a] rounded-md">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+<span class="text-[10px] font-mono text-zinc-300 uppercase tracking-wider">Operational</span>
+</div>
+<span class="text-[10px] font-mono text-zinc-500">SOC2 TYPE II</span>
+</div>
+<div class="flex items-center justify-between p-1.5 rounded-md hover:bg-zinc-900 transition-colors cursor-pointer">
+<div class="flex items-center gap-2.5">
+<div class="w-7 h-7 rounded-full bg-zinc-900 border border-[#27272a] flex items-center justify-center">
+<span class="material-symbols-outlined text-zinc-300 text-sm">account_circle</span>
+</div>
+<div class="flex flex-col text-left">
+<span class="text-xs text-white font-medium leading-none">Dev Engine</span>
+<span class="text-[11px] text-zinc-500 font-mono mt-0.5">core@acme.ai</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-zinc-500 text-sm">expand_more</span>
+</div>
+</div>
+</aside>
+<!-- MAIN VIEWPORT CONTAINER -->
+<div class="pl-64 flex flex-col min-h-screen w-full bg-black">
+<!-- TOP EXECUTIVE HEADER -->
+<header class="fixed top-0 left-64 right-0 h-16 bg-black/90 backdrop-blur-xl z-40 flex items-center justify-between px-8 border-b border-[#27272a]">
+<div class="flex items-center gap-4"><div class="flex items-center gap-2.5"><div class="w-7 h-7 rounded bg-black border border-[#27272a] flex items-center justify-center"><span class="material-symbols-outlined text-white text-base">terminal</span></div><div class="flex items-center gap-2"><span class="font-display text-sm text-white font-bold tracking-tight">CraftAI</span><span class="text-zinc-600 font-mono text-xs">/</span><span class="text-xs font-mono text-zinc-300">Acme Corp</span><span class="text-zinc-600 font-mono text-xs">/</span><span class="text-[10px] font-mono bg-zinc-900 text-zinc-400 px-1.5 py-0.5 rounded border border-[#27272a] uppercase font-medium">Production</span></div></div></div>
+<!-- Right Actions -->
+<div class="flex items-center gap-3">
+<button class="relative p-1.5 rounded-lg border border-[#27272a] text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors" title="Notifications">
+<span class="material-symbols-outlined text-base">notifications</span>
+<span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-white"></span>
+</button>
+<button class="p-1.5 rounded-lg border border-[#27272a] text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors" title="Theme Mode">
+<span class="material-symbols-outlined text-base">dark_mode</span>
+</button>
+<div class="flex items-center gap-2.5 pl-2 border-l border-[#27272a]">
+<div class="text-right hidden sm:flex flex-col">
+<span class="text-xs text-white font-medium">Platform Admin</span>
+<span class="text-[10px] font-mono text-zinc-500">US-EAST-1</span>
+</div>
+<div class="w-8 h-8 rounded-full border border-zinc-700 bg-zinc-900 flex items-center justify-center text-xs font-mono font-medium text-white shadow-sm">
+            PA
+          </div>
+</div>
+</div>
+</header>
+<!-- CONTENT WRAPPER -->
+<main class="w-full pt-16 flex-1 flex flex-col bg-black">
+<!-- ======================================================== -->
+<!-- VIEW 1: DASHBOARD (ZERO CLUTTER - PRISTINE PROMPT STAGE) -->
+<!-- ======================================================== -->
+<section class="view-panel w-full flex-1 flex flex-col justify-between dot-grid relative overflow-hidden py-14 px-8" id="view-dashboard">
+<!-- Subtle Radial Glow Behind Hero -->
+<div class="absolute inset-0 subtle-glow pointer-events-none"></div>
+<div class="relative w-full max-w-4xl mx-auto flex flex-col items-center pt-8 z-10">
+<!-- Top Active Pill -->
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#09090b] border border-[#27272a] mb-6 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+<span class="text-[10px] font-mono text-zinc-300 uppercase tracking-widest font-medium">AI ENGINE MESH ACTIVE</span>
+</div>
+<!-- Display Heading & Subtitle -->
+<h1 class="font-display text-4xl sm:text-5xl lg:text-6xl text-white font-bold tracking-tight text-center leading-[1.1] mb-5">
+            Turn Your Ideas Into Real Projects with AI
+          </h1>
+<p class="text-base sm:text-lg text-zinc-400 max-w-2xl text-center leading-relaxed font-sans mb-10">
+            Describe what you want to build — the <span class="text-white font-medium">Architect</span> plans, the <span class="text-white font-medium">Developer</span> codes, and the <span class="text-white font-medium">Debugger</span> polishes.
+          </p>
+<!-- THE PRISTINE PROMPT CONSOLE CARD -->
+<div class="w-full relative group">
+<div class="rounded-2xl bg-[#09090b]/95 border border-[#27272a] shadow-[0_12px_48px_rgba(0,0,0,0.85)] hover:border-zinc-600 transition-all duration-300 backdrop-blur-xl overflow-visible relative">
+<div class="p-6 flex flex-col gap-4">
+<!-- Inner Textarea with Live Typewriter -->
+<div class="relative min-h-[120px] w-full flex items-start">
+<textarea class="w-full h-full bg-transparent resize-none outline-none font-mono text-sm sm:text-base text-white placeholder:text-zinc-600 selection:bg-white selection:text-black z-20" id="prompt-input" rows="4" spellcheck="false"></textarea>
+<div class="absolute inset-0 pointer-events-none flex items-start font-mono text-sm sm:text-base text-zinc-400 z-10 leading-relaxed" id="typewriter-container" style="display: flex;">
+<span class="text-zinc-200" id="typewriter-text">Design a real-time crypto dashboa</span>
+<span class="w-2 h-5 ml-0.5 bg-white inline-block animate-pulse align-middle" id="cursor"></span>
+</div>
+</div>
+<!-- Bottom Action Bar -->
+<div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#27272a]">
+<!-- Left Controls & Pill Dropdowns -->
+<div class="flex flex-wrap items-center gap-2">
+<button class="flex items-center justify-center w-8 h-8 rounded-lg bg-black border border-[#27272a] text-zinc-400 hover:text-white hover:border-zinc-500 transition-colors" title="Attach specifications or repository">
+<span class="material-symbols-outlined text-base">attach_file</span>
+</button>
+<div class="h-4 w-px bg-[#27272a] mx-1"></div>
+<!-- Mode Dropdown Pill -->
+<div class="relative inline-block text-left" id="mode-dropdown-wrapper">
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black border border-[#27272a] text-zinc-200 text-xs font-mono tracking-wider hover:border-zinc-500 transition-colors" onclick="toggleDropdown('mode-menu')">
+<span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+<span class="" id="mode-label">BUILD</span>
+<span class="material-symbols-outlined text-xs text-zinc-400">expand_more</span>
+</button>
+<div class="hidden absolute left-0 bottom-full mb-2 w-44 rounded-xl bg-[#09090b] border border-[#27272a] shadow-2xl p-1.5 z-30 font-mono text-xs" id="mode-menu">
+<div class="px-2.5 py-1.5 rounded hover:bg-zinc-900 cursor-pointer text-white flex items-center justify-between" onclick="selectMode('BUILD')">
+<span class="">• BUILD</span>
+<span class="text-[10px] text-zinc-500">Auto</span>
+</div>
+<div class="px-2.5 py-1.5 rounded hover:bg-zinc-900 cursor-pointer text-zinc-300 flex items-center justify-between" onclick="selectMode('ARCHITECT')">
+<span class="">◇ ARCHITECT</span>
+<span class="text-[10px] text-zinc-500">Spec</span>
+</div>
+<div class="px-2.5 py-1.5 rounded hover:bg-zinc-900 cursor-pointer text-zinc-300 flex items-center justify-between" onclick="selectMode('AUDIT')">
+<span class="">▪ AUDIT</span>
+<span class="text-[10px] text-zinc-500">Sec</span>
+</div>
+</div>
+</div>
+<!-- Scope Dropdown Pill -->
+<div class="relative inline-block text-left" id="scope-dropdown-wrapper">
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black border border-[#27272a] text-zinc-200 text-xs font-mono tracking-wider hover:border-zinc-500 transition-colors" onclick="toggleDropdown('scope-menu')">
+<span class="material-symbols-outlined text-xs text-zinc-400">layers</span>
+<span class="" id="scope-label">FULL-STACK SPEC</span>
+<span class="material-symbols-outlined text-xs text-zinc-400">expand_more</span>
+</button>
+<div class="hidden absolute left-0 bottom-full mb-2 w-48 rounded-xl bg-[#09090b] border border-[#27272a] shadow-2xl p-1.5 z-30 font-mono text-xs" id="scope-menu">
+<div class="px-2.5 py-1.5 rounded hover:bg-zinc-900 cursor-pointer text-white" onclick="selectScope('FULL-STACK SPEC')">Full-Stack Spec</div>
+<div class="px-2.5 py-1.5 rounded hover:bg-zinc-900 cursor-pointer text-zinc-300" onclick="selectScope('MICROSERVICE API')">Microservice API</div>
+<div class="px-2.5 py-1.5 rounded hover:bg-zinc-900 cursor-pointer text-zinc-300" onclick="selectScope('FRONTEND REACT')">Frontend UI</div>
+<div class="px-2.5 py-1.5 rounded hover:bg-zinc-900 cursor-pointer text-zinc-300" onclick="selectScope('DB SCHEMA MESH')">Database &amp; RAG</div>
+</div>
+</div>
+<div class="hidden sm:flex items-center gap-1 text-zinc-500 font-mono text-xs ml-2">
+<kbd class="px-1.5 py-0.5 rounded bg-black border border-[#27272a] text-zinc-400 text-[10px]">⌘</kbd>
+<kbd class="px-1.5 py-0.5 rounded bg-black border border-[#27272a] text-zinc-400 text-[10px]">Enter</kbd>
+</div>
+</div>
+<!-- Right Primary Generate Button -->
+<button class="group/btn relative flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black font-semibold text-xs tracking-wider uppercase shadow-md hover:bg-zinc-200 active:scale-95 transition-all duration-150" id="generate-btn" onclick="executePlan()">
+<span class="" id="btn-text">Generate Plan</span>
+<span class="material-symbols-outlined text-sm group-hover/btn:translate-x-0.5 transition-transform">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Generous, pristine negative space with ambient subtle blueprint grid at bottom -->
+<div class="w-full max-w-4xl mx-auto mt-12 py-10 rounded-xl blueprint-matrix border border-[#27272a]/40 opacity-40 flex items-center justify-center">
+<div class="flex items-center gap-3 text-zinc-500 font-mono text-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-zinc-600"></span>
+<span class="">Mesh Pipeline Standby • Awaiting Execution Prompt</span>
+</div>
+</div>
+</section>
+<!-- ======================================================== -->
+<!-- VIEW 2: CONNECTORS HUB                                   -->
+<!-- ======================================================== -->
+<section class="view-panel hidden w-full flex-1 p-8" id="view-connectors">
+<div class="max-w-7xl mx-auto flex flex-col gap-6">
+<!-- Hub Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#27272a]">
+<div>
+<div class="flex items-center gap-2.5">
+<h1 class="text-2xl font-bold font-display text-white tracking-tight">Connectors Hub</h1>
+<span class="font-mono text-[10px] bg-zinc-900 text-zinc-300 border border-[#27272a] px-2 py-0.5 rounded uppercase">42 Active</span>
+</div>
+<p class="text-xs text-zinc-400 mt-1">Manage API keys, vector indices, model mesh endpoints, and webhook bridges.</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative">
+<input class="bg-[#09090b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-zinc-500 w-64 focus:outline-none focus:border-zinc-500 font-mono" placeholder="Search connectors (ESC to clear)..." type="text"/>
+</div>
+<button class="px-3.5 py-1.5 rounded-lg bg-white text-black font-semibold text-xs hover:bg-zinc-200 transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm">add</span>
+<span class="">Add Custom Connector</span>
+</button>
+</div>
+</div>
+<!-- FLOATING GLASSMORPHIC LOGO TICKER (TRUE FLOATING EFFECT, VIBRANT BRAND MARKS ONLY) -->
+<div class="relative w-full rounded-2xl p-4 backdrop-blur-xl bg-black/40 border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.8)] overflow-hidden my-6" style="mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);">
+<div class="animate-marquee-smooth items-center gap-14 py-2">
+<!-- Sequence 1 -->
+<!-- OpenAI (White) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="OpenAI">
+<svg class="w-8 h-8 fill-white" viewbox="0 0 24 24"><path d="M22.28 9.87a6.05 6.05 0 0 0-.5-4.49 6.2 6.2 0 0 0-5.32-3.23 6.13 6.13 0 0 0-4.54 1.94A6.08 6.08 0 0 0 4.19 5.8 6.2 6.2 0 0 0 1.28 10a6.11 6.11 0 0 0 1.44 6.22 6.06 6.06 0 0 0 .5 4.49 6.2 6.2 0 0 0 5.32 3.23 6.13 6.13 0 0 0 4.54-1.94 6.08 6.08 0 0 0 7.73-1.71 6.2 6.2 0 0 0 2.91-4.2 6.11 6.11 0 0 0-1.44-6.22zM12 21.6a4.67 4.67 0 0 1-3.32-1.39l.18-.1 4.14-2.39a.8.8 0 0 0 .4-.69v-5.83l1.75 1.01a.1.1 0 0 1 .05.07v4.75a4.7 4.7 0 0 1-3.2 4.58zM3.4 17.5a4.68 4.68 0 0 1-.36-3.6 4.75 4.75 0 0 1 2.06-2.85l.18.1 4.14 2.39a.8.8 0 0 0 .8 0l5.05-2.92v2.02a.1.1 0 0 1-.04.08l-4.11 2.38a4.7 4.7 0 0 1-5.58-.2l-.14-.08a4.8 4.8 0 0 1-2-1.32zm-.7-7.98a4.68 4.68 0 0 1 2.96-2.2 4.74 4.74 0 0 1 3.52.48l-.18.1-4.14 2.39a.8.8 0 0 0-.4.69v5.84l-1.75-1.01a.1.1 0 0 1-.05-.07V11a4.72 4.72 0 0 1 .04-1.48zm16.5 4.68l-5.05-2.92v-2.02a.1.1 0 0 1 .04-.08l4.11-2.38a4.7 4.7 0 0 1 5.72 1.52 4.68 4.68 0 0 1 .36 3.6 4.75 4.75 0 0 1-2.06 2.85l-.18-.1-4.14-2.39a.8.8 0 0 0-.8 0zm2.2-5.78a4.68 4.68 0 0 1-2.96 2.2 4.74 4.74 0 0 1-3.52-.48l.18-.1 4.14-2.39a.8.8 0 0 0 .4-.69V4.02l1.75 1.01a.1.1 0 0 1 .05.07v4.75a4.72 4.72 0 0 1-.04 1.48zM10.25 13.73l-1.75-1.01a.1.1 0 0 1-.05-.07V7.9a4.7 4.7 0 0 1 7.72-3.19l-.18.1-4.14 2.39a.8.8 0 0 0-.4.69v5.84z"></path></svg>
+</div>
+<!-- Anthropic (#D97757 / #CC785C) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Anthropic">
+<span class="font-serif text-[#D97757] font-bold text-2xl leading-none tracking-tight select-none">A\</span>
+</div>
+<!-- Supabase (#3ECF8E) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Supabase">
+<svg class="w-8 h-8 text-[#3ECF8E] fill-current" viewbox="0 0 24 24"><path d="M21.362 9.354H12V.343a.343.343 0 0 0-.585-.243L.432 11.082a.686.686 0 0 0 .485 1.171H12v9.011a.343.343 0 0 0 .585.243l10.983-10.982a.686.686 0 0 0-.206-1.171z"></path></svg>
+</div>
+<!-- Stripe (#635BFF) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Stripe">
+<svg class="w-8 h-8 fill-[#635BFF]" viewbox="0 0 24 24"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.97 15.707.5 12.607.5 7.159.5 3.326 3.42 3.326 8.358c0 5.485 5.093 6.94 8.796 8.32 2.684.978 3.593 1.644 3.593 2.695 0 .953-.872 1.547-2.31 1.547-2.617 0-5.59-1.258-7.398-2.264l-.916 5.617c1.782.934 4.79 1.727 8.136 1.727 5.753 0 9.773-2.732 9.773-8.083 0-5.385-4.824-7.01-9.024-8.767z"></path></svg>
+</div>
+<!-- GitHub (#FFFFFF) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="GitHub">
+<svg class="w-8 h-8 fill-white" viewbox="0 0 24 24"><path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path></svg>
+</div>
+<!-- AWS (#FF9900) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="AWS Bedrock">
+<svg class="w-8 h-8 fill-[#FF9900]" viewbox="0 0 24 24"><path d="M18.77 15.65c-2.31 1.73-5.69 2.65-8.58 2.65-4.05 0-7.7-1.53-10.19-4.08-.2-.2-.04-.51.22-.38 2.68 1.37 5.92 2.2 9.24 2.2 2.56 0 5.41-.67 7.99-2.07.39-.21.74.26.32.68zM19.46 14.56c-.29-.38-1.94-.18-2.68-.09-.23.03-.26-.16-.06-.31 1.32-.93 3.48-.66 3.73-.34.25.32-.07 2.5-1.32 3.54-.19.16-.37.07-.28-.14.28-.68.9-2.28.61-2.66zm-5.72-7.8c0-.79.3-1.42.89-1.9.59-.47 1.38-.71 2.37-.71.74 0 1.36.12 1.87.37.51.25.92.6 1.22 1.05.3.45.45.98.45 1.59 0 .42-.08.82-.24 1.2-.16.38-.41.72-.74 1.02-.33.3-.77.58-1.32.84-.46.22-1.07.41-1.84.58v.41c0 .48.16.85.47 1.11.31.26.75.39 1.32.39.42 0 .86-.07 1.31-.22.45-.15.89-.37 1.32-.67.14-.1.29-.07.35.08l.38.74c.05.11.02.24-.09.33-.47.37-1 .66-1.59.86-.59.2-1.22.3-1.89.3-1.04 0-1.84-.3-2.4-.9-.56-.6-.84-1.45-.84-2.55v-2.9zm1.88-.17c-.45 0-.8.12-1.05.35-.25.23-.37.56-.37.99 0 .44.12.78.36 1.02.24.24.58.36 1.03.36.46 0 .81-.13 1.06-.38.25-.25.38-.59.38-1.01 0-.44-.13-.77-.38-.99-.25-.23-.6-.34-1.03-.34z"></path></svg>
+</div>
+<!-- Vercel (White) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Vercel">
+<svg class="w-7 h-7 fill-white" viewbox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z"></path></svg>
+</div>
+<!-- Cloudflare (#F38020) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Cloudflare">
+<svg class="w-8 h-8 fill-[#F38020]" viewbox="0 0 24 24"><path d="M18.3 11.2a5.5 5.5 0 0 0-10.4-1.8A4.2 4.2 0 0 0 4.2 13a4.2 4.2 0 0 0 .3 1.6 3.5 3.5 0 0 0 1.9 4.7 3.5 3.5 0 0 0 1.6.4h10.3a3.7 3.7 0 0 0 3.7-3.7 3.7 3.7 0 0 0-3.7-4.8z"></path></svg>
+</div>
+<!-- Linear (#5E6AD2) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Linear">
+<svg class="w-7 h-7 fill-[#5E6AD2]" viewbox="0 0 24 24"><path d="M2.5 12c0-5.247 4.253-9.5 9.5-9.5 3.498 0 6.55 1.888 8.196 4.697L3.197 20.196A9.458 9.458 0 0 1 2.5 12zm3.303 8.196L18.803 7.197A9.467 9.467 0 0 1 21.5 12c0 5.247-4.253 9.5-9.5 9.5-2.316 0-4.444-.828-6.197-2.304z"></path></svg>
+</div>
+<!-- Figma (Multi-Color) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Figma">
+<svg class="w-6 h-8" fill="none" viewbox="0 0 38 57"><path d="M19 28.5C19 23.2533 23.2533 19 28.5 19C33.7467 19 38 23.2533 38 28.5C38 33.7467 33.7467 38 28.5 38C23.2533 38 19 33.7467 19 28.5Z" fill="#1ABCFE"></path><path d="M0 47.5C0 42.2533 4.25329 38 9.5 38H19V47.5C19 52.7467 14.7467 57 9.5 57C4.25329 57 0 52.7467 0 47.5Z" fill="#0ACF83"></path><path d="M19 0V19H28.5C33.7467 19 38 14.7467 38 9.5C38 4.25329 33.7467 0 28.5 0H19Z" fill="#FF7262"></path><path d="M0 9.5C0 14.7467 4.25329 19 9.5 19H19V0H9.5C4.25329 0 0 4.25329 0 9.5Z" fill="#F24E1E"></path><path d="M0 28.5C0 33.7467 4.25329 38 9.5 38H19V19H9.5C4.25329 19 0 23.2533 0 28.5Z" fill="#A259FF"></path></svg>
+</div>
+<!-- Slack (Multi-Color) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Slack">
+<svg class="w-7 h-7" viewbox="0 0 24 24"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52z" fill="#E01E5A"></path><path d="M6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A"></path><path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834z" fill="#36C5F0"></path><path d="M8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0"></path><path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834z" fill="#2EB67D"></path><path d="M17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z" fill="#2EB67D"></path><path d="M15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.527 2.527 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52z" fill="#ECB22E"></path><path d="M15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="#ECB22E"></path></svg>
+</div>
+<!-- Notion (White) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Notion">
+<svg class="w-7 h-7 fill-white" viewbox="0 0 24 24"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.093-.373L18.47 2.39c-.56-.42-1.307-.7-2.334-.606L3.992 2.764c-.466.046-.56.326-.373.513l.84 .931zm.933 3.824v12.453c0 .84.42 1.12 1.307 1.026l14.195-.84c.887-.046.98-.606.98-1.26V6.96c0-.653-.28-.98-.84-.933l-14.802.886c-.653.047-.84.373-.84 1.119zm13.122 1.072c.093.42 0 .84-.42.887l-.746.14c-.373.047-.56.233-.56.56v7.323c0 .327-.14.56-.513.56l-1.073.093c-.373.047-.653-.093-.84-.42l-4.57-6.903v6.343c.28.14.7.28.7.653 0 .42-.327.466-.653.466l-2.752.187c-.093-.234 0-.653.373-.746l.793-.187c.373-.093.466-.327.466-.653V9.565c0-.42-.187-.606-.606-.653l-.84-.093c-.093-.373.14-.653.606-.7l3.126-.187 4.71 7.043v-5.69c-.28-.14-.7-.187-.7-.56 0-.373.327-.42.653-.42l2.427-.14z"></path></svg>
+</div>
+<!-- Sequence 2 (Duplicate for Seamless Infinite Marquee) -->
+<!-- OpenAI (White) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="OpenAI">
+<svg class="w-8 h-8 fill-white" viewbox="0 0 24 24"><path d="M22.28 9.87a6.05 6.05 0 0 0-.5-4.49 6.2 6.2 0 0 0-5.32-3.23 6.13 6.13 0 0 0-4.54 1.94A6.08 6.08 0 0 0 4.19 5.8 6.2 6.2 0 0 0 1.28 10a6.11 6.11 0 0 0 1.44 6.22 6.06 6.06 0 0 0 .5 4.49 6.2 6.2 0 0 0 5.32 3.23 6.13 6.13 0 0 0 4.54-1.94 6.08 6.08 0 0 0 7.73-1.71 6.2 6.2 0 0 0 2.91-4.2 6.11 6.11 0 0 0-1.44-6.22zM12 21.6a4.67 4.67 0 0 1-3.32-1.39l.18-.1 4.14-2.39a.8.8 0 0 0 .4-.69v-5.83l1.75 1.01a.1.1 0 0 1 .05.07v4.75a4.7 4.7 0 0 1-3.2 4.58zM3.4 17.5a4.68 4.68 0 0 1-.36-3.6 4.75 4.75 0 0 1 2.06-2.85l.18.1 4.14 2.39a.8.8 0 0 0 .8 0l5.05-2.92v2.02a.1.1 0 0 1-.04.08l-4.11 2.38a4.7 4.7 0 0 1-5.58-.2l-.14-.08a4.8 4.8 0 0 1-2-1.32zm-.7-7.98a4.68 4.68 0 0 1 2.96-2.2 4.74 4.74 0 0 1 3.52.48l-.18.1-4.14 2.39a.8.8 0 0 0-.4.69v5.84l-1.75-1.01a.1.1 0 0 1-.05-.07V11a4.72 4.72 0 0 1 .04-1.48zm16.5 4.68l-5.05-2.92v-2.02a.1.1 0 0 1 .04-.08l4.11-2.38a4.7 4.7 0 0 1 5.72 1.52 4.68 4.68 0 0 1 .36 3.6 4.75 4.75 0 0 1-2.06 2.85l-.18-.1-4.14-2.39a.8.8 0 0 0-.8 0zm2.2-5.78a4.68 4.68 0 0 1-2.96 2.2 4.74 4.74 0 0 1-3.52-.48l.18-.1 4.14-2.39a.8.8 0 0 0 .4-.69V4.02l1.75 1.01a.1.1 0 0 1 .05.07v4.75a4.72 4.72 0 0 1-.04 1.48zM10.25 13.73l-1.75-1.01a.1.1 0 0 1-.05-.07V7.9a4.7 4.7 0 0 1 7.72-3.19l-.18.1-4.14 2.39a.8.8 0 0 0-.4.69v5.84z"></path></svg>
+</div>
+<!-- Anthropic (#D97757 / #CC785C) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Anthropic">
+<span class="font-serif text-[#D97757] font-bold text-2xl leading-none tracking-tight select-none">A\</span>
+</div>
+<!-- Supabase (#3ECF8E) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Supabase">
+<svg class="w-8 h-8 text-[#3ECF8E] fill-current" viewbox="0 0 24 24"><path d="M21.362 9.354H12V.343a.343.343 0 0 0-.585-.243L.432 11.082a.686.686 0 0 0 .485 1.171H12v9.011a.343.343 0 0 0 .585.243l10.983-10.982a.686.686 0 0 0-.206-1.171z"></path></svg>
+</div>
+<!-- Stripe (#635BFF) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Stripe">
+<svg class="w-8 h-8 fill-[#635BFF]" viewbox="0 0 24 24"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.97 15.707.5 12.607.5 7.159.5 3.326 3.42 3.326 8.358c0 5.485 5.093 6.94 8.796 8.32 2.684.978 3.593 1.644 3.593 2.695 0 .953-.872 1.547-2.31 1.547-2.617 0-5.59-1.258-7.398-2.264l-.916 5.617c1.782.934 4.79 1.727 8.136 1.727 5.753 0 9.773-2.732 9.773-8.083 0-5.385-4.824-7.01-9.024-8.767z"></path></svg>
+</div>
+<!-- GitHub (#FFFFFF) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="GitHub">
+<svg class="w-8 h-8 fill-white" viewbox="0 0 24 24"><path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path></svg>
+</div>
+<!-- AWS (#FF9900) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="AWS Bedrock">
+<svg class="w-8 h-8 fill-[#FF9900]" viewbox="0 0 24 24"><path d="M18.77 15.65c-2.31 1.73-5.69 2.65-8.58 2.65-4.05 0-7.7-1.53-10.19-4.08-.2-.2-.04-.51.22-.38 2.68 1.37 5.92 2.2 9.24 2.2 2.56 0 5.41-.67 7.99-2.07.39-.21.74.26.32.68zM19.46 14.56c-.29-.38-1.94-.18-2.68-.09-.23.03-.26-.16-.06-.31 1.32-.93 3.48-.66 3.73-.34.25.32-.07 2.5-1.32 3.54-.19.16-.37.07-.28-.14.28-.68.9-2.28.61-2.66zm-5.72-7.8c0-.79.3-1.42.89-1.9.59-.47 1.38-.71 2.37-.71.74 0 1.36.12 1.87.37.51.25.92.6 1.22 1.05.3.45.45.98.45 1.59 0 .42-.08.82-.24 1.2-.16.38-.41.72-.74 1.02-.33.3-.77.58-1.32.84-.46.22-1.07.41-1.84.58v.41c0 .48.16.85.47 1.11.31.26.75.39 1.32.39.42 0 .86-.07 1.31-.22.45-.15.89-.37 1.32-.67.14-.1.29-.07.35.08l.38.74c.05.11.02.24-.09.33-.47.37-1 .66-1.59.86-.59.2-1.22.3-1.89.3-1.04 0-1.84-.3-2.4-.9-.56-.6-.84-1.45-.84-2.55v-2.9zm1.88-.17c-.45 0-.8.12-1.05.35-.25.23-.37.56-.37.99 0 .44.12.78.36 1.02.24.24.58.36 1.03.36.46 0 .81-.13 1.06-.38.25-.25.38-.59.38-1.01 0-.44-.13-.77-.38-.99-.25-.23-.6-.34-1.03-.34z"></path></svg>
+</div>
+<!-- Vercel (White) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Vercel">
+<svg class="w-7 h-7 fill-white" viewbox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z"></path></svg>
+</div>
+<!-- Cloudflare (#F38020) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Cloudflare">
+<svg class="w-8 h-8 fill-[#F38020]" viewbox="0 0 24 24"><path d="M18.3 11.2a5.5 5.5 0 0 0-10.4-1.8A4.2 4.2 0 0 0 4.2 13a4.2 4.2 0 0 0 .3 1.6 3.5 3.5 0 0 0 1.9 4.7 3.5 3.5 0 0 0 1.6.4h10.3a3.7 3.7 0 0 0 3.7-3.7 3.7 3.7 0 0 0-3.7-4.8z"></path></svg>
+</div>
+<!-- Linear (#5E6AD2) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Linear">
+<svg class="w-7 h-7 fill-[#5E6AD2]" viewbox="0 0 24 24"><path d="M2.5 12c0-5.247 4.253-9.5 9.5-9.5 3.498 0 6.55 1.888 8.196 4.697L3.197 20.196A9.458 9.458 0 0 1 2.5 12zm3.303 8.196L18.803 7.197A9.467 9.467 0 0 1 21.5 12c0 5.247-4.253 9.5-9.5 9.5-2.316 0-4.444-.828-6.197-2.304z"></path></svg>
+</div>
+<!-- Figma (Multi-Color) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Figma">
+<svg class="w-6 h-8" fill="none" viewbox="0 0 38 57"><path d="M19 28.5C19 23.2533 23.2533 19 28.5 19C33.7467 19 38 23.2533 38 28.5C38 33.7467 33.7467 38 28.5 38C23.2533 38 19 33.7467 19 28.5Z" fill="#1ABCFE"></path><path d="M0 47.5C0 42.2533 4.25329 38 9.5 38H19V47.5C19 52.7467 14.7467 57 9.5 57C4.25329 57 0 52.7467 0 47.5Z" fill="#0ACF83"></path><path d="M19 0V19H28.5C33.7467 19 38 14.7467 38 9.5C38 4.25329 33.7467 0 28.5 0H19Z" fill="#FF7262"></path><path d="M0 9.5C0 14.7467 4.25329 19 9.5 19H19V0H9.5C4.25329 0 0 4.25329 0 9.5Z" fill="#F24E1E"></path><path d="M0 28.5C0 33.7467 4.25329 38 9.5 38H19V19H9.5C4.25329 19 0 23.2533 0 28.5Z" fill="#A259FF"></path></svg>
+</div>
+<!-- Slack (Multi-Color) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Slack">
+<svg class="w-7 h-7" viewbox="0 0 24 24"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52z" fill="#E01E5A"></path><path d="M6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A"></path><path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834z" fill="#36C5F0"></path><path d="M8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0"></path><path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834z" fill="#2EB67D"></path><path d="M17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z" fill="#2EB67D"></path><path d="M15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.527 2.527 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52z" fill="#ECB22E"></path><path d="M15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="#ECB22E"></path></svg>
+</div>
+<!-- Notion (White) -->
+<div class="flex items-center justify-center shrink-0 hover:scale-110 transition-transform cursor-pointer" title="Notion">
+<svg class="w-7 h-7 fill-white" viewbox="0 0 24 24"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.093-.373L18.47 2.39c-.56-.42-1.307-.7-2.334-.606L3.992 2.764c-.466.046-.56.326-.373.513l.84 .931zm.933 3.824v12.453c0 .84.42 1.12 1.307 1.026l14.195-.84c.887-.046.98-.606.98-1.26V6.96c0-.653-.28-.98-.84-.933l-14.802.886c-.653.047-.84.373-.84 1.119zm13.122 1.072c.093.42 0 .84-.42.887l-.746.14c-.373.047-.56.233-.56.56v7.323c0 .327-.14.56-.513.56l-1.073.093c-.373.047-.653-.093-.84-.42l-4.57-6.903v6.343c.28.14.7.28.7.653 0 .42-.327.466-.653.466l-2.752.187c-.093-.234 0-.653.373-.746l.793-.187c.373-.093.466-.327.466-.653V9.565c0-.42-.187-.606-.606-.653l-.84-.093c-.093-.373.14-.653.606-.7l3.126-.187 4.71 7.043v-5.69c-.28-.14-.7-.187-.7-.56 0-.373.327-.42.653-.42l2.427-.14z"></path></svg>
+</div>
+</div>
+</div>
+<!-- Main Hub Layout: Categories + Connectors Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Left Category Sidebar -->
+<div class="lg:col-span-3 flex flex-col gap-2">
+<div class="p-3 bg-[#09090b] border border-[#27272a] rounded-xl flex flex-col gap-1">
+<button class="flex items-center justify-between px-3 py-2 rounded-lg bg-white text-black text-xs font-semibold text-left">
+<span class="">All Connectors</span>
+<span class="font-mono text-[10px]">42</span>
+</button>
+<button class="flex items-center justify-between px-3 py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 text-xs font-medium text-left transition-colors">
+<span class="">AI &amp; Foundation Models</span>
+<span class="font-mono text-[10px] text-zinc-500">12</span>
+</button>
+<button class="flex items-center justify-between px-3 py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 text-xs font-medium text-left transition-colors">
+<span class="">Databases &amp; Vector</span>
+<span class="font-mono text-[10px] text-zinc-500">9</span>
+</button>
+<button class="flex items-center justify-between px-3 py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 text-xs font-medium text-left transition-colors">
+<span class="">Cloud Infrastructure</span>
+<span class="font-mono text-[10px] text-zinc-500">8</span>
+</button>
+<button class="flex items-center justify-between px-3 py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 text-xs font-medium text-left transition-colors">
+<span class="">Payments &amp; Billing</span>
+<span class="font-mono text-[10px] text-zinc-500">6</span>
+</button>
+<button class="flex items-center justify-between px-3 py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 text-xs font-medium text-left transition-colors">
+<span class="">Developer Tools</span>
+<span class="font-mono text-[10px] text-zinc-500">7</span>
+</button>
+</div>
+<!-- Vault Status Card -->
+<div class="p-4 bg-[#09090b] border border-[#27272a] rounded-xl flex flex-col gap-2">
+<div class="flex items-center gap-2 text-white font-medium text-xs">
+<span class="material-symbols-outlined text-sm text-white">lock</span>
+<span class="">Secret Vault Active</span>
+</div>
+<p class="text-[11px] text-zinc-400">All credentials encrypted via AES-256-GCM hardware security modules (HSM).</p>
+<div class="text-[10px] font-mono text-zinc-500 pt-1 border-t border-[#27272a]">KMS: us-east-1-key-08f</div>
+</div>
+</div>
+<!-- Connectors Grid -->
+<div class="lg:col-span-9 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+<!-- OpenAI -->
+<div class="p-4 rounded-xl bg-[#09090b] border border-[#27272a] hover:border-zinc-500 transition-colors flex flex-col justify-between">
+<div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded bg-black border border-[#27272a] flex items-center justify-center font-bold text-white">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24"><path d="M22.28 9.87a6.05 6.05 0 0 0-.5-4.49 6.2 6.2 0 0 0-5.32-3.23 6.13 6.13 0 0 0-4.54 1.94A6.08 6.08 0 0 0 4.19 5.8 6.2 6.2 0 0 0 1.28 10a6.11 6.11 0 0 0 1.44 6.22 6.06 6.06 0 0 0 .5 4.49 6.2 6.2 0 0 0 5.32 3.23 6.13 6.13 0 0 0 4.54-1.94 6.08 6.08 0 0 0 7.73-1.71 6.2 6.2 0 0 0 2.91-4.2 6.11 6.11 0 0 0-1.44-6.22zM12 21.6a4.67 4.67 0 0 1-3.32-1.39l.18-.1 4.14-2.39a.8.8 0 0 0 .4-.69v-5.83l1.75 1.01a.1.1 0 0 1 .05.07v4.75a4.7 4.7 0 0 1-3.2 4.58zM3.4 17.5a4.68 4.68 0 0 1-.36-3.6 4.75 4.75 0 0 1 2.06-2.85l.18.1 4.14 2.39a.8.8 0 0 0 .8 0l5.05-2.92v2.02a.1.1 0 0 1-.04.08l-4.11 2.38a4.7 4.7 0 0 1-5.58-.2l-.14-.08a4.8 4.8 0 0 1-2-1.32zm-.7-7.98a4.68 4.68 0 0 1 2.96-2.2 4.74 4.74 0 0 1 3.52.48l-.18.1-4.14 2.39a.8.8 0 0 0-.4.69v5.84l-1.75-1.01a.1.1 0 0 1-.05-.07V11a4.72 4.72 0 0 1 .04-1.48zm16.5 4.68l-5.05-2.92v-2.02a.1.1 0 0 1 .04-.08l4.11-2.38a4.7 4.7 0 0 1 5.72 1.52 4.68 4.68 0 0 1 .36 3.6 4.75 4.75 0 0 1-2.06 2.85l-.18-.1-4.14-2.39a.8.8 0 0 0-.8 0zm2.2-5.78a4.68 4.68 0 0 1-2.96 2.2 4.74 4.74 0 0 1-3.52-.48l.18-.1 4.14-2.39a.8.8 0 0 0 .4-.69V4.02l1.75 1.01a.1.1 0 0 1 .05.07v4.75a4.72 4.72 0 0 1-.04 1.48zM10.25 13.73l-1.75-1.01a.1.1 0 0 1-.05-.07V7.9a4.7 4.7 0 0 1 7.72-3.19l-.18.1-4.14 2.39a.8.8 0 0 0-.4.69v5.84z"></path></svg>
+</div>
+<div>
+<div class="text-xs text-white font-semibold">OpenAI</div>
+<div class="text-[10px] font-mono text-zinc-500">gpt-4o / o1-preview</div>
+</div>
+</div>
+<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-white">CONNECTED</span>
+</div>
+<p class="text-xs text-zinc-400 mt-2.5">High-throughput token bridge with fallback routing to European endpoint.</p>
+</div>
+<div class="flex items-center justify-between pt-3 mt-3 border-t border-[#27272a]">
+<span class="font-mono text-[10px] text-zinc-500">RTT: 142ms</span>
+<button class="px-2.5 py-1 rounded bg-black border border-[#27272a] hover:border-zinc-500 text-xs text-white transition-colors">Configure</button>
+</div>
+</div>
+<!-- Anthropic -->
+<div class="p-4 rounded-xl bg-[#09090b] border border-[#27272a] hover:border-zinc-500 transition-colors flex flex-col justify-between">
+<div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded bg-black border border-[#27272a] flex items-center justify-center font-serif text-[#D97757] font-bold text-sm">
+                        A\
+                      </div>
+<div>
+<div class="text-xs text-white font-semibold">Anthropic</div>
+<div class="text-[10px] font-mono text-zinc-500">Claude 3.5 Sonnet</div>
+</div>
+</div>
+<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-white">CONNECTED</span>
+</div>
+<p class="text-xs text-zinc-400 mt-2.5">Long-context code orchestration with 200k context window active.</p>
+</div>
+<div class="flex items-center justify-between pt-3 mt-3 border-t border-[#27272a]">
+<span class="font-mono text-[10px] text-zinc-500">RTT: 189ms</span>
+<button class="px-2.5 py-1 rounded bg-black border border-[#27272a] hover:border-zinc-500 text-xs text-white transition-colors">Configure</button>
+</div>
+</div>
+<!-- Supabase -->
+<div class="p-4 rounded-xl bg-[#09090b] border border-[#27272a] hover:border-zinc-500 transition-colors flex flex-col justify-between">
+<div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded bg-black border border-[#27272a] flex items-center justify-center">
+<span class="material-symbols-outlined text-[#3ECF8E] text-base">database</span>
+</div>
+<div>
+<div class="text-xs text-white font-semibold">Supabase pgvector</div>
+<div class="text-[10px] font-mono text-zinc-500">PostgreSQL 16</div>
+</div>
+</div>
+<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-white">CONNECTED</span>
+</div>
+<p class="text-xs text-zinc-400 mt-2.5">HNSW indexing enabled. 1.8M vector records synchronized.</p>
+</div>
+<div class="flex items-center justify-between pt-3 mt-3 border-t border-[#27272a]">
+<span class="font-mono text-[10px] text-zinc-500">Pool: 24/40</span>
+<button class="px-2.5 py-1 rounded bg-black border border-[#27272a] hover:border-zinc-500 text-xs text-white transition-colors">Configure</button>
+</div>
+</div>
+<!-- Stripe -->
+<div class="p-4 rounded-xl bg-[#09090b] border border-[#27272a] hover:border-zinc-500 transition-colors flex flex-col justify-between">
+<div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded bg-black border border-[#27272a] flex items-center justify-center font-bold text-[#635BFF] font-mono text-sm">
+                        S
+                      </div>
+<div>
+<div class="text-xs text-white font-semibold">Stripe Billing</div>
+<div class="text-[10px] font-mono text-zinc-500">api.stripe.com/v1</div>
+</div>
+</div>
+<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-white">CONNECTED</span>
+</div>
+<p class="text-xs text-zinc-400 mt-2.5">Subscription hooks &amp; invoice reconciliation with zero-lag webhooks.</p>
+</div>
+<div class="flex items-center justify-between pt-3 mt-3 border-t border-[#27272a]">
+<span class="font-mono text-[10px] text-zinc-500">Live Mode</span>
+<button class="px-2.5 py-1 rounded bg-black border border-[#27272a] hover:border-zinc-500 text-xs text-white transition-colors">Configure</button>
+</div>
+</div>
+<!-- GitHub -->
+<div class="p-4 rounded-xl bg-[#09090b] border border-[#27272a] hover:border-zinc-500 transition-colors flex flex-col justify-between">
+<div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded bg-black border border-[#27272a] flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-base">code</span>
+</div>
+<div>
+<div class="text-xs text-white font-semibold">GitHub CI/CD</div>
+<div class="text-[10px] font-mono text-zinc-500">AcmeCorp-Org</div>
+</div>
+</div>
+<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-white">CONNECTED</span>
+</div>
+<p class="text-xs text-zinc-400 mt-2.5">Automated branch preview generation and bot pull request approvals.</p>
+</div>
+<div class="flex items-center justify-between pt-3 mt-3 border-t border-[#27272a]">
+<span class="font-mono text-[10px] text-zinc-500">OAuth Verified</span>
+<button class="px-2.5 py-1 rounded bg-black border border-[#27272a] hover:border-zinc-500 text-xs text-white transition-colors">Configure</button>
+</div>
+</div>
+<!-- Pinecone -->
+<div class="p-4 rounded-xl bg-[#09090b] border border-[#27272a] hover:border-zinc-500 transition-colors flex flex-col justify-between">
+<div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded bg-black border border-[#27272a] flex items-center justify-center font-bold text-emerald-400 font-mono text-xs">
+                        PC
+                      </div>
+<div>
+<div class="text-xs text-white font-semibold">Pinecone Vector</div>
+<div class="text-[10px] font-mono text-zinc-500">Serverless Index</div>
+</div>
+</div>
+<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black border border-[#27272a] text-zinc-500">STANDBY</span>
+</div>
+<p class="text-xs text-zinc-400 mt-2.5">Secondary semantic cache for enterprise cold-start lookups.</p>
+</div>
+<div class="flex items-center justify-between pt-3 mt-3 border-t border-[#27272a]">
+<span class="font-mono text-[10px] text-zinc-500">0.0 QPS</span>
+<button class="px-2.5 py-1 rounded bg-white text-black hover:bg-zinc-200 text-xs font-semibold transition-colors">Enable</button>
+</div>
+</div>
+<!-- AWS Bedrock -->
+<div class="p-4 rounded-xl bg-[#09090b] border border-[#27272a] hover:border-zinc-500 transition-colors flex flex-col justify-between">
+<div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded bg-black border border-[#27272a] flex items-center justify-center font-bold text-[#FF9900] font-mono text-xs">AWS</div>
+<div>
+<div class="text-xs text-white font-semibold">AWS Bedrock</div>
+<div class="text-[10px] font-mono text-zinc-500">Titan / Claude Mesh</div>
+</div>
+</div>
+<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-white">CONNECTED</span>
+</div>
+<p class="text-xs text-zinc-400 mt-2.5">Serverless multi-region inferencing pipeline across isolated VPC subnets.</p>
+</div>
+<div class="flex items-center justify-between pt-3 mt-3 border-t border-[#27272a]">
+<span class="font-mono text-[10px] text-zinc-500">RTT: 118ms</span>
+<button class="px-2.5 py-1 rounded bg-black border border-[#27272a] hover:border-zinc-500 text-xs text-white transition-colors">Configure</button>
+</div>
+</div>
+<!-- Resend -->
+<div class="p-4 rounded-xl bg-[#09090b] border border-[#27272a] hover:border-zinc-500 transition-colors flex flex-col justify-between">
+<div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded bg-black border border-[#27272a] flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-base">mail</span>
+</div>
+<div>
+<div class="text-xs text-white font-semibold">Resend</div>
+<div class="text-[10px] font-mono text-zinc-500">Transactional API</div>
+</div>
+</div>
+<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-white">CONNECTED</span>
+</div>
+<p class="text-xs text-zinc-400 mt-2.5">Transactional system emails, alerts, and team onboarding invitations.</p>
+</div>
+<div class="flex items-center justify-between pt-3 mt-3 border-t border-[#27272a]">
+<span class="font-mono text-[10px] text-zinc-500">Deliverability: 99.8%</span>
+<button class="px-2.5 py-1 rounded bg-black border border-[#27272a] hover:border-zinc-500 text-xs text-white transition-colors">Configure</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ======================================================== -->
+<!-- VIEW 3: PROJECTS MANAGER                                 -->
+<!-- ======================================================== -->
+<section class="view-panel hidden w-full flex-1 p-8" id="view-projects">
+<div class="max-w-7xl mx-auto flex flex-col gap-6">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#27272a]">
+<div>
+<h1 class="text-2xl font-bold font-display text-white tracking-tight">Projects Manager</h1>
+<p class="text-xs text-zinc-400 mt-1">Full-stack applications managed across multi-cloud clusters and staging branches.</p>
+</div>
+<button class="px-4 py-2 rounded-xl bg-white text-black font-semibold text-xs hover:bg-zinc-200 transition-colors flex items-center gap-1.5 self-start sm:self-auto">
+<span class="material-symbols-outlined text-sm">add</span>
+<span class="">New Project</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+<!-- Project 1 -->
+<div class="rounded-xl bg-[#09090b] border border-[#27272a] hover:border-zinc-500 transition-all p-5 flex flex-col justify-between">
+<div>
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-black border border-[#27272a] flex items-center justify-center">
+<span class="material-symbols-outlined text-white">layers</span>
+</div>
+<span class="font-mono text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-white">HEALTHY</span>
+</div>
+<h3 class="text-base font-semibold text-white mt-3.5">synapse-rag-engine</h3>
+<p class="text-xs text-zinc-400 mt-1">Multi-tenant vector search indexing pipeline with pgvector &amp; Redis Pub/Sub.</p>
+<div class="mt-4 pt-3 border-t border-[#27272a] flex flex-col gap-2 font-mono text-[11px] text-zinc-400">
+<div class="flex items-center justify-between">
+<span class="">Branch: <span class="text-white">main</span></span>
+<span class="">Commit: <span class="text-zinc-300">8f19da2</span></span>
+</div>
+<div class="w-full bg-black rounded-full h-1.5 border border-[#27272a] overflow-hidden">
+<div class="bg-white h-full" style="width: 100%"></div>
+</div>
+</div>
+</div>
+<div class="mt-5 pt-3 border-t border-[#27272a] flex items-center justify-between">
+<span class="text-[10px] font-mono text-zinc-500">Updated 4m ago</span>
+<button class="text-xs font-semibold text-white hover:underline flex items-center gap-1">Open IDE →</button>
+</div>
+</div>
+<!-- Project 2 -->
+<div class="rounded-xl bg-[#09090b] border border-[#27272a] hover:border-zinc-500 transition-all p-5 flex flex-col justify-between">
+<div>
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-black border border-[#27272a] flex items-center justify-center">
+<span class="material-symbols-outlined text-white">shopping_cart</span>
+</div>
+<span class="font-mono text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-white">HEALTHY</span>
+</div>
+<h3 class="text-base font-semibold text-white mt-3.5">craft-ecommerce-checkout</h3>
+<p class="text-xs text-zinc-400 mt-1">High-concurrency cart state machine with Stripe webhook automated settlement.</p>
+<div class="mt-4 pt-3 border-t border-[#27272a] flex flex-col gap-2 font-mono text-[11px] text-zinc-400">
+<div class="flex items-center justify-between">
+<span class="">Branch: <span class="text-white">feature/v3-ui</span></span>
+<span class="">Commit: <span class="text-zinc-300">9c0a11b</span></span>
+</div>
+<div class="w-full bg-black rounded-full h-1.5 border border-[#27272a] overflow-hidden">
+<div class="bg-white h-full" style="width: 82%"></div>
+</div>
+</div>
+</div>
+<div class="mt-5 pt-3 border-t border-[#27272a] flex items-center justify-between">
+<span class="text-[10px] font-mono text-zinc-500">Updated 23m ago</span>
+<button class="text-xs font-semibold text-white hover:underline flex items-center gap-1">Open IDE →</button>
+</div>
+</div>
+<!-- Project 3 -->
+<div class="rounded-xl bg-[#09090b] border border-[#27272a] hover:border-zinc-500 transition-all p-5 flex flex-col justify-between">
+<div>
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-black border border-[#27272a] flex items-center justify-center">
+<span class="material-symbols-outlined text-white">security</span>
+</div>
+<span class="font-mono text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-white">BUILDING</span>
+</div>
+<h3 class="text-base font-semibold text-white mt-3.5">hyperion-auth-service</h3>
+<p class="text-xs text-zinc-400 mt-1">Zero-trust Cedar engine auth proxy handling token revocation across distributed clusters.</p>
+<div class="mt-4 pt-3 border-t border-[#27272a] flex flex-col gap-2 font-mono text-[11px] text-zinc-400">
+<div class="flex items-center justify-between">
+<span class="">Branch: <span class="text-white">canary</span></span>
+<span class="">Commit: <span class="text-zinc-300">2e7f60a</span></span>
+</div>
+<div class="w-full bg-black rounded-full h-1.5 border border-[#27272a] overflow-hidden">
+<div class="bg-white h-full animate-pulse" style="width: 45%"></div>
+</div>
+</div>
+</div>
+<div class="mt-5 pt-3 border-t border-[#27272a] flex items-center justify-between">
+<span class="text-[10px] font-mono text-zinc-500">Running step 4 of 9</span>
+<button class="text-xs font-semibold text-white hover:underline flex items-center gap-1">Open IDE →</button>
+</div>
+</div>
+</div>
+<!-- Template invite banner -->
+<div class="rounded-xl border border-dashed border-[#27272a] p-8 flex flex-col items-center justify-center text-center mt-2">
+<span class="material-symbols-outlined text-zinc-500 text-3xl mb-2">add_circle_outline</span>
+<div class="text-sm font-semibold text-white">Create your next cloud workspace</div>
+<p class="text-xs text-zinc-500 max-w-md mt-1">Provision Next.js, FastAPI, Rust Tokio, or Go microservices directly connected to the mesh network.</p>
+</div>
+</div>
+</section>
+<!-- ======================================================== -->
+<!-- VIEW 4: ACTIVITY & LOGS                                  -->
+<!-- ======================================================== -->
+<section class="view-panel hidden w-full flex-1 p-8" id="view-activity">
+<div class="max-w-7xl mx-auto flex flex-col gap-6">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#27272a]">
+<div>
+<h1 class="text-2xl font-bold font-display text-white tracking-tight">Activity &amp; Telemetry Logs</h1>
+<p class="text-xs text-zinc-400 mt-1">Streaming real-time audit trails, canary deploys, and mesh events.</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+<span class="font-mono text-xs text-zinc-400">Live stream: 24.2 evt/s</span>
+</div>
+</div>
+<!-- Log stream table / terminal -->
+<div class="rounded-xl bg-[#09090b] border border-[#27272a] overflow-hidden">
+<div class="px-4 py-3 bg-[#121215] border-b border-[#27272a] flex items-center justify-between">
+<span class="font-mono text-xs text-zinc-300">SYSTEM TELEMETRY TRACE</span>
+<div class="flex items-center gap-2">
+<button class="px-2 py-1 rounded bg-black border border-[#27272a] text-[10px] font-mono text-zinc-400 hover:text-white">Filter Errors (0)</button>
+<button class="px-2 py-1 rounded bg-black border border-[#27272a] text-[10px] font-mono text-zinc-400 hover:text-white">Export JSON</button>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-3 font-mono text-xs text-zinc-300 leading-relaxed">
+<div class="flex items-start gap-4 pb-2 border-b border-[#27272a]/50">
+<span class="text-zinc-500 shrink-0">14:02:18.092</span>
+<span class="px-1.5 py-0.2 rounded bg-zinc-900 border border-[#27272a] text-[10px] text-white">DEPLOY</span>
+<span class="text-zinc-300">Canary deployment <code class="text-white">payment-svc:v2.1</code> achieved 100% traffic shift in us-east-1. Zero error budget delta.</span>
+<span class="ml-auto text-zinc-500 text-[11px] shrink-0">commit 8f19da2</span>
+</div>
+<div class="flex items-start gap-4 pb-2 border-b border-[#27272a]/50">
+<span class="text-zinc-500 shrink-0">13:48:02.411</span>
+<span class="px-1.5 py-0.2 rounded bg-zinc-900 border border-[#27272a] text-[10px] text-zinc-400">ROUTER</span>
+<span class="text-zinc-300">Mesh ingress TLS certificates renewed via Let's Encrypt for 14 custom edge endpoints.</span>
+<span class="ml-auto text-zinc-500 text-[11px] shrink-0">router-core-3</span>
+</div>
+<div class="flex items-start gap-4 pb-2 border-b border-[#27272a]/50">
+<span class="text-zinc-500 shrink-0">13:19:55.772</span>
+<span class="px-1.5 py-0.2 rounded bg-zinc-900 border border-[#27272a] text-[10px] text-white">SPEC</span>
+<span class="text-zinc-300">Generated Spec: Auth0 to Zitadel migration plan parsed with 8 endpoints validated against RFC 7519.</span>
+<span class="ml-auto text-zinc-500 text-[11px] shrink-0">PR #108</span>
+</div>
+<div class="flex items-start gap-4 pb-2 border-b border-[#27272a]/50">
+<span class="text-zinc-500 shrink-0">12:04:10.009</span>
+<span class="px-1.5 py-0.2 rounded bg-zinc-900 border border-[#27272a] text-[10px] text-zinc-400">VECTOR</span>
+<span class="text-zinc-300">HNSW pgvector index optimized across 1.4M embeddings. Query p99 latency dropped to 14ms.</span>
+<span class="ml-auto text-zinc-500 text-[11px] shrink-0">idx-pg-01</span>
+</div>
+<div class="flex items-start gap-4">
+<span class="text-zinc-500 shrink-0">11:30:00.120</span>
+<span class="px-1.5 py-0.2 rounded bg-zinc-900 border border-[#27272a] text-[10px] text-zinc-400">HEALTH</span>
+<span class="text-zinc-300">Periodic cluster health check: 14/14 nodes healthy. Total memory consumption: 42.1%.</span>
+<span class="ml-auto text-zinc-500 text-[11px] shrink-0">soc2-audit-ok</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ======================================================== -->
+<!-- VIEW 5: SETTINGS                                         -->
+<!-- ======================================================== -->
+<section class="view-panel hidden w-full flex-1 p-8" id="view-settings">
+<div class="max-w-4xl mx-auto flex flex-col gap-6">
+<div class="pb-4 border-b border-[#27272a]">
+<h1 class="text-2xl font-bold font-display text-white tracking-tight">Organization &amp; Cluster Settings</h1>
+<p class="text-xs text-zinc-400 mt-1">Configure workspace parameters, security keys, and SOC2 compliance controls.</p>
+</div>
+<div class="space-y-6">
+<!-- Organization Profile -->
+<div class="p-6 rounded-xl bg-[#09090b] border border-[#27272a] flex flex-col gap-4">
+<h2 class="text-sm font-semibold text-white font-display">Workspace Details</h2>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div class="flex flex-col gap-1.5">
+<label class="text-[11px] font-mono text-zinc-400">Workspace Identifier</label>
+<input class="bg-black border border-[#27272a] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500 font-sans" readonly="" type="text" value="Acme Corp / Production"/>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[11px] font-mono text-zinc-400">Cluster Region</label>
+<input class="bg-black border border-[#27272a] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500 font-sans" readonly="" type="text" value="us-east-1 (N. Virginia)"/>
+</div>
+</div>
+</div>
+<!-- API Keys -->
+<div class="p-6 rounded-xl bg-[#09090b] border border-[#27272a] flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div>
+<h2 class="text-sm font-semibold text-white font-display">Mesh Secret Key</h2>
+<p class="text-xs text-zinc-400 mt-0.5">Use this token to authenticate CI/CD builders and CLI commands.</p>
+</div>
+<button class="px-3 py-1.5 rounded-lg bg-black border border-[#27272a] text-xs text-white hover:border-zinc-500 transition-colors font-mono">Roll Key</button>
+</div>
+<div class="flex items-center gap-2">
+<input class="bg-black border border-[#27272a] rounded-lg px-3 py-2 text-xs text-zinc-300 font-mono flex-1" readonly="" type="password" value="crft_live_9921049281a0e88bc19472"/>
+<button class="px-3 py-2 rounded-lg bg-white text-black font-semibold text-xs hover:bg-zinc-200 transition-colors" onclick="navigator.clipboard.writeText('crft_live_9921049281a0e88bc19472')">Copy</button>
+</div>
+</div>
+<!-- SOC2 & Compliance -->
+<div class="p-6 rounded-xl bg-[#09090b] border border-[#27272a] flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div>
+<h2 class="text-sm font-semibold text-white font-display">SOC2 Type II Audit Checkpoints</h2>
+<p class="text-xs text-zinc-400 mt-0.5">Automated continuous verification on IAM roles and KMS key rotation.</p>
+</div>
+<span class="text-xs font-mono px-2 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-white">PASSED (100%)</span>
+</div>
+<button class="self-start px-3.5 py-1.5 rounded-lg bg-black border border-[#27272a] hover:border-zinc-500 text-xs text-white transition-colors flex items-center gap-1.5 font-mono">
+<span class="material-symbols-outlined text-sm">download</span>
+<span class="">Download Audit Report (PDF)</span>
+</button>
+</div>
+<div class="p-6 rounded-xl bg-[#09090b] border border-[#27272a] flex flex-col gap-4"><div class="flex items-center justify-between"><div><h2 class="text-sm font-semibold text-white font-display">Notification Preferences</h2><p class="text-xs text-zinc-400 mt-0.5">Manage operational alerts, deployment status summaries, and audit security events.</p></div><span class="text-xs font-mono px-2 py-0.5 rounded bg-zinc-900 border border-[#27272a] text-zinc-300">ALL CHANNELS</span></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"><div class="flex items-center justify-between p-3 rounded-lg bg-black border border-[#27272a]"><div class="flex flex-col"><span class="text-xs text-white font-medium">Deployment Webhooks</span><span class="text-[10px] font-mono text-zinc-500">Instant push notifications</span></div><span class="w-2 h-2 rounded-full bg-white"></span></div><div class="flex items-center justify-between p-3 rounded-lg bg-black border border-[#27272a]"><div class="flex flex-col"><span class="text-xs text-white font-medium">Security &amp; Audit Logs</span><span class="text-[10px] font-mono text-zinc-500">Daily digest &amp; threshold alerts</span></div><span class="w-2 h-2 rounded-full bg-white"></span></div></div></div><div class="p-6 rounded-xl bg-[#09090b] border border-[#27272a] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"><div class="flex flex-col gap-1"><h2 class="text-sm font-semibold text-white font-display">Session Management</h2><p class="text-xs text-zinc-400">End active session on this workstation. Token invalidation will cascade across active cluster connections.</p></div><button class="px-4 py-2 rounded-lg bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 hover:border-zinc-600 text-xs font-medium text-white transition-colors flex items-center gap-2"><span class="material-symbols-outlined text-sm text-zinc-400 group-hover:text-white">logout</span><span class="">Log Out Session</span></button></div></div>
+</div>
+</section>
+</main>
+</div>
+<!-- INTERACTIVE LOGIC: VIEW SWITCHING & TYPEWRITER -->
+<script>
+    // Tab / View Switching
+    function switchView(viewName) {
+      // Hide all panels
+      const panels = document.querySelectorAll('.view-panel');
+      panels.forEach(p => p.classList.add('hidden'));
+
+      // Deactivate all nav items
+      const navItems = document.querySelectorAll('.nav-item');
+      navItems.forEach(item => {
+        item.classList.remove('bg-white', 'text-black', 'shadow-sm');
+        item.classList.add('text-zinc-400', 'hover:text-white', 'hover:bg-zinc-900');
+      });
+
+      // Show selected panel
+      const targetPanel = document.getElementById(`view-${viewName}`);
+      if (targetPanel) {
+        targetPanel.classList.remove('hidden');
+      }
+
+      // Highlight active nav item
+      const activeNav = document.getElementById(`nav-${viewName}`);
+      if (activeNav) {
+        activeNav.classList.remove('text-zinc-400', 'hover:text-white', 'hover:bg-zinc-900');
+        activeNav.classList.add('bg-white', 'text-black', 'shadow-sm');
+      }
+    }
+
+    // Dynamic interactive typewriter text cycling smoothly
+    const phrases = [
+      "Build a sleek SaaS landing page with Stripe billing...",
+      "Design a real-time crypto dashboard with WebSockets...",
+      "Create a multi-tenant vector RAG mesh on Supabase...",
+      "Architect a SOC2 compliant microservices pipeline..."
+    ];
+
+    let phraseIndex = 0;
+    let charIndex = 0;
+    let isDeleting = false;
+    let typingSpeed = 48;
+    const typewriterElement = document.getElementById("typewriter-text");
+    const promptInput = document.getElementById("prompt-input");
+
+    function typeLoop() {
+      // If user is actively typing in the textarea, hide placeholder
+      if (promptInput.value.length > 0) {
+        document.getElementById("typewriter-container").style.display = "none";
+        return;
+      } else {
+        document.getElementById("typewriter-container").style.display = "flex";
+      }
+
+      const currentPhrase = phrases[phraseIndex];
+
+      if (isDeleting) {
+        typewriterElement.textContent = currentPhrase.substring(0, charIndex - 1);
+        charIndex--;
+        typingSpeed = 22;
+      } else {
+        typewriterElement.textContent = currentPhrase.substring(0, charIndex + 1);
+        charIndex++;
+        typingSpeed = 50;
+      }
+
+      if (!isDeleting && charIndex === currentPhrase.length) {
+        isDeleting = true;
+        typingSpeed = 1800; // Hold full phrase
+      } else if (isDeleting && charIndex === 0) {
+        isDeleting = false;
+        phraseIndex = (phraseIndex + 1) % phrases.length;
+        typingSpeed = 350; // Pause before typing next
+      }
+
+      setTimeout(typeLoop, typingSpeed);
+    }
+
+    promptInput.addEventListener("input", () => {
+      const container = document.getElementById("typewriter-container");
+      if (promptInput.value.length > 0) {
+        container.style.opacity = "0";
+      } else {
+        container.style.opacity = "1";
+      }
+    });
+
+    // Start typewriter
+    typeLoop();
+
+    // Dropdowns toggle
+    function toggleDropdown(id) {
+      const menu = document.getElementById(id);
+      menu.classList.toggle('hidden');
+    }
+
+    function selectMode(mode) {
+      document.getElementById('mode-label').textContent = mode;
+      document.getElementById('mode-menu').classList.add('hidden');
+    }
+
+    function selectScope(scope) {
+      document.getElementById('scope-label').textContent = scope;
+      document.getElementById('scope-menu').classList.add('hidden');
+    }
+
+    // Close dropdowns if clicked outside
+    window.addEventListener('click', function(e) {
+      if (!e.target.closest('#mode-dropdown-wrapper')) {
+        const m = document.getElementById('mode-menu');
+        if (m) m.classList.add('hidden');
+      }
+      if (!e.target.closest('#scope-dropdown-wrapper')) {
+        const s = document.getElementById('scope-menu');
+        if (s) s.classList.add('hidden');
+      }
+    });
+
+    // Plan execution handler
+    function executePlan() {
+      const btn = document.getElementById("generate-btn");
+      const btnText = document.getElementById("btn-text");
+      const originalText = btnText.innerText;
+      btnText.innerText = "Synthesizing...";
+      btn.classList.add("opacity-80");
+
+      setTimeout(() => {
+        btnText.innerText = "Plan Compiled ✓";
+        setTimeout(() => {
+          btnText.innerText = originalText;
+          btn.classList.remove("opacity-80");
+          switchView('projects');
+        }, 800);
+      }, 900);
+    }
+
+    // ⌘+Enter shortcut
+    window.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        executePlan();
+      }
+    });
+  </script>
+</body></html>

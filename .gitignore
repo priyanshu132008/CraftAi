@@ -60,3 +60,6 @@ frontend/src/generated/project/
 *.swo
 .DS_Store
 Thumbs.db
+# Local assistant tooling state (machine-specific)
+.claude/
+.impeccable/

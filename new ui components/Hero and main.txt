@@ -1,0 +1,1017 @@
+<!DOCTYPE html><html class="dark scroll-smooth" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<meta content="web_standard" name="shell-type">
+<title>CraftAI · Autonomous Project Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            background: "#000000",
+            surface: "#09090b",
+            card: "#0d0d0d",
+            zinc: {
+              850: "#141417",
+              900: "#0d0d0d",
+              950: "#000000"
+            }
+          },
+          fontFamily: {
+            sans: ["Inter", "sans-serif"],
+            mono: ["JetBrains Mono", "monospace"],
+            display: ["Space Grotesk", "sans-serif"],
+          }
+        }
+      }
+    }
+</script>
+<style>
+  @layer base {
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #000000;
+      color: #f4f4f5;
+    }
+  }
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  .dot-grid {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .mono-card {
+    position: relative;
+    background: #09090b;
+    border: 1px solid #27272a;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .mono-card:hover,
+  .mono-card:focus-within {
+    border-color: #52525b;
+    box-shadow: 0 0 30px -10px rgba(255, 255, 255, 0.07);
+  }
+
+  /* Motion & Animations */
+  @keyframes stageFadeIn {
+    0% {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .stage-animate {
+    animation: stageFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes gentleFloat {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+  .float-node-1 {
+    animation: gentleFloat 4s ease-in-out infinite;
+  }
+  .float-node-2 {
+    animation: gentleFloat 4.2s ease-in-out infinite 0.7s;
+  }
+  .float-node-3 {
+    animation: gentleFloat 4.5s ease-in-out infinite 1.4s;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5);
+    }
+    50% {
+      opacity: 0.4;
+      box-shadow: 0 0 8px 1px rgba(255, 255, 255, 0.8);
+    }
+  }
+  .dot-pulse-glow {
+    animation: pulseGlow 2.2s infinite ease-in-out;
+  }
+
+  /* Architectural Integrity Cards - Scroll Reveal & Lift */
+  .arch-reveal-card {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s ease, border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, opacity;
+  }
+  .arch-reveal-card.revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .arch-reveal-card.revealed:hover {
+    transform: translateY(-8px);
+    border-color: #52525b;
+    box-shadow: 0 20px 30px -10px rgba(255, 255, 255, 0.03), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+  }
+</style>
+</head>
+<body class="bg-black text-zinc-100 font-sans antialiased selection:bg-white selection:text-black min-h-screen flex flex-col justify-between relative overflow-x-hidden">
+<!-- Ambient Background & Monochrome Dot Grid -->
+<div class="fixed inset-0 dot-grid pointer-events-none z-0 opacity-40"></div>
+<canvas class="fixed inset-0 pointer-events-none z-0 opacity-20" id="ambientWaveCanvas"></canvas>
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 left-0 w-full z-50 bg-black/85 backdrop-blur-md border-b border-[#27272a]">
+<div class="h-16 max-w-7xl mx-auto px-6 flex items-center justify-between">
+<!-- Logo -->
+<a class="flex items-center gap-2.5 group" href="#home">
+<div class="w-8 h-8 rounded-lg bg-[#0d0d0d] border border-[#27272a] flex items-center justify-center group-hover:border-zinc-400 transition-colors">
+<svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+</svg>
+</div>
+<span class="font-display font-semibold text-lg tracking-tight text-white">CraftAI</span>
+</a>
+<!-- Center Links -->
+<nav class="hidden md:flex items-center gap-1 p-1 rounded-full bg-[#0d0d0d] border border-[#27272a]">
+<a class="px-4 py-1.5 rounded-full text-xs font-medium text-white bg-zinc-800 transition-colors" href="#home">Home</a>
+<a class="px-4 py-1.5 rounded-full text-xs font-medium text-zinc-400 hover:text-white transition-colors" href="#features">Features</a>
+<a class="px-4 py-1.5 rounded-full text-xs font-medium text-zinc-400 hover:text-white transition-colors" href="#architecture">Architecture</a>
+<a class="px-4 py-1.5 rounded-full text-xs font-medium text-zinc-400 hover:text-white transition-colors" href="#docs">Docs</a>
+<a class="px-4 py-1.5 rounded-full text-xs font-medium text-zinc-400 hover:text-white transition-colors" href="#about">About</a>
+</nav>
+<!-- Right Actions -->
+<div class="flex items-center gap-3">
+<button aria-label="Toggle Theme" class="w-9 h-9 rounded-xl bg-[#0d0d0d] border border-[#27272a] flex items-center justify-center text-zinc-400 hover:text-white hover:border-zinc-500 transition-all" id="themeToggleBtn" type="button">
+<span class="material-symbols-outlined text-[18px]">dark_mode</span>
+</button>
+<a class="inline-flex items-center px-4 py-2 rounded-xl text-xs font-medium bg-white hover:bg-zinc-200 text-black transition-all active:scale-[0.98] shadow-sm font-sans" href="#features">
+        Launch Workspace
+      </a>
+</div>
+</div>
+</header>
+<!-- Main Container -->
+<main class="w-full relative z-10 flex flex-col items-center">
+<!-- ==================== 1. HERO SECTION & PROMPT CONSOLE ==================== -->
+<section class="w-full pt-32 pb-24 px-4 flex flex-col items-center justify-center text-center" id="home">
+<div class="w-full max-w-4xl mx-auto flex flex-col items-center">
+<!-- Main Heading -->
+<h1 class="font-display text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-white leading-[1.1] max-w-3xl mb-4">
+        Turn Your Ideas Into Real Projects with AI
+      </h1>
+<!-- Minimal Subtitle -->
+<p class="font-sans text-sm sm:text-base text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+        Describe what you want to build — the Architect plans, the Developer codes, and the Debugger polishes.
+      </p>
+<!-- Upgraded Prompt Console Card with Crisp Monochrome Contrast -->
+<div class="w-full max-w-3xl mono-card backdrop-blur-xl rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.9)] flex flex-col text-left transition-all">
+<!-- Input Textarea with Active Typewriter Simulation -->
+<textarea class="w-full bg-transparent text-white placeholder:text-zinc-500 font-sans text-base resize-none focus:outline-none p-2 leading-relaxed h-28" id="promptInput" placeholder="Build a sleek SaaS landing page..."></textarea>
+<!-- Bottom Controls Inside Console -->
+<div class="flex flex-wrap items-center justify-between gap-3 pt-3 mt-1 border-t border-[#27272a]">
+<div class="flex items-center gap-2 relative">
+<!-- File Attachment Button with Tooltip & Upload Simulation -->
+<div class="relative group">
+<input accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.json,.md" class="hidden" id="specFileUpload" type="file">
+<button aria-label="Attach spec or mockup" class="h-8 w-8 rounded-lg bg-[#0d0d0d] hover:bg-zinc-800 border border-[#27272a] hover:border-zinc-500 flex items-center justify-center text-zinc-400 hover:text-white transition-colors" id="fileUploadBtn" type="button">
+<span class="material-symbols-outlined text-[16px]">attach_file</span>
+</button>
+<!-- Tooltip -->
+<div class="absolute bottom-full mb-2 left-0 hidden group-hover:flex items-center whitespace-nowrap px-2.5 py-1 rounded bg-[#0d0d0d] border border-[#27272a] text-[11px] font-mono text-zinc-300 shadow-xl pointer-events-none z-40">
+                Attach spec, PDF, or mockup
+              </div>
+</div>
+<!-- Upload indicator badge -->
+<div class="hidden items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0d0d0d] border border-zinc-600 text-zinc-200 font-mono text-[11px]" id="fileUploadIndicator">
+<span class="material-symbols-outlined text-[13px]">description</span>
+<span class="max-w-[100px] truncate" id="uploadedFileName">spec.pdf</span>
+<button class="hover:text-white ml-0.5" id="removeFileBtn" type="button">×</button>
+</div>
+<!-- Mode Dropdown Pill: Build / Plan / Chat -->
+<div class="relative">
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0d0d0d] hover:bg-zinc-800 border border-[#27272a] text-zinc-300 font-mono text-xs transition-colors" id="modeSelectBtn" type="button">
+<span id="selectedMode">Build</span>
+<span class="material-symbols-outlined text-[14px] text-zinc-500">expand_more</span>
+</button>
+<div class="hidden absolute left-0 bottom-full mb-2 w-32 rounded-xl bg-[#0d0d0d] border border-[#27272a] shadow-xl p-1 z-30 font-mono text-xs" id="modeMenu">
+<button class="mode-item w-full text-left px-3 py-1.5 rounded-lg text-white hover:bg-zinc-800 transition-colors" data-value="Build">Build</button>
+<button class="mode-item w-full text-left px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" data-value="Plan">Plan</button>
+<button class="mode-item w-full text-left px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" data-value="Chat">Chat</button>
+</div>
+</div>
+<!-- Spec Dropdown Pill: Full-Stack Spec / Frontend Only / API Server -->
+<div class="relative">
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0d0d0d] hover:bg-zinc-800 border border-[#27272a] text-zinc-300 font-mono text-xs transition-colors" id="specSelectBtn" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+<span id="selectedSpec">Full-Stack Spec</span>
+<span class="material-symbols-outlined text-[14px] text-zinc-500">expand_more</span>
+</button>
+<div class="hidden absolute left-0 bottom-full mb-2 w-44 rounded-xl bg-[#0d0d0d] border border-[#27272a] shadow-xl p-1 z-30 font-mono text-xs" id="specMenu">
+<button class="spec-item w-full text-left px-3 py-1.5 rounded-lg text-white hover:bg-zinc-800 transition-colors" data-value="Full-Stack Spec">Full-Stack Spec</button>
+<button class="spec-item w-full text-left px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" data-value="Frontend Only">Frontend Only</button>
+<button class="spec-item w-full text-left px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" data-value="API Server">API Server</button>
+</div>
+</div>
+</div>
+<!-- Primary CTA Button (High-contrast pure white) -->
+<button class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium text-sm text-black bg-white hover:bg-zinc-200 active:scale-95 shadow-md transition-all" id="generateBtn" type="button">
+<span id="btnText">Generate Plan →</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== 2. FEATURES SECTION: TWO-COLUMN SHOWCASE (TABS / STAGE) ==================== -->
+<section class="w-full py-24 px-6 border-t border-[#27272a] relative" id="features">
+<div class="max-w-7xl mx-auto">
+<!-- Section Header -->
+<div class="flex flex-col items-center text-center mb-16">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0d0d0d] border border-[#27272a] mb-4">
+<span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+<span class="font-mono text-[11px] uppercase tracking-wider text-zinc-300">Capabilities</span>
+</div>
+<h2 class="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">
+          Engineered for Production
+        </h2>
+<p class="font-sans text-sm sm:text-base text-zinc-400 max-w-2xl leading-relaxed">
+          A deterministic multi-agent pipeline designed to deliver verified, production-ready full-stack software.
+        </p>
+</div>
+<!-- Interactive Two-Column Showcase (Left Selector Tabs / Right Stage) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+<!-- Left Column: Feature Selector Navigation (5 cols) -->
+<div class="lg:col-span-5 flex flex-col gap-3 justify-center" id="featureTabsContainer">
+<!-- Tab 1: 3-Agent Pipeline -->
+<button class="feature-tab active group w-full text-left p-5 rounded-2xl border transition-all duration-300 ease-out relative overflow-hidden bg-[#0d0d0d] border-white/80" data-feature="pipeline" type="button">
+<div class="feature-indicator absolute left-0 top-0 bottom-0 w-1 bg-white transition-all duration-300 ease-out opacity-100 scale-y-100"></div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-mono text-[11px] uppercase tracking-widest text-zinc-400 group-hover:text-zinc-200 transition-colors">Phase 01</span>
+<span class="font-mono text-[10px] text-zinc-500 border border-zinc-800 px-2 py-0.5 rounded">Deterministic</span>
+</div>
+<h3 class="feature-title font-display text-lg font-semibold text-white mb-1 transition-colors">3-Agent Pipeline</h3>
+<p class="feature-desc text-xs text-zinc-400 leading-relaxed transition-colors">
+            Deterministic orchestration across Architect, Developer, and Debugger agents.
+          </p>
+</button>
+<!-- Tab 2: Monaco IDE & Instant HMR -->
+<button class="feature-tab group w-full text-left p-5 rounded-2xl border transition-all duration-300 ease-out relative overflow-hidden bg-[#09090b] border-[#27272a] hover:border-zinc-600" data-feature="monaco" type="button">
+<div class="feature-indicator absolute left-0 top-0 bottom-0 w-1 bg-white transition-all duration-300 ease-out opacity-0 scale-y-50"></div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-mono text-[11px] uppercase tracking-widest text-zinc-400 group-hover:text-zinc-200 transition-colors">Phase 02</span>
+<span class="font-mono text-[10px] text-zinc-500 border border-zinc-800 px-2 py-0.5 rounded">0.4s Sync</span>
+</div>
+<h3 class="feature-title font-display text-lg font-semibold text-zinc-400 group-hover:text-white mb-1 transition-colors">Monaco IDE &amp; Instant HMR</h3>
+<p class="feature-desc text-xs text-zinc-500 group-hover:text-zinc-400 leading-relaxed transition-colors">
+            Real-time in-browser code editor with instant AST compilation and visual hot reloads.
+          </p>
+</button>
+<!-- Tab 3: 40+ Vault Connectors -->
+<button class="feature-tab group w-full text-left p-5 rounded-2xl border transition-all duration-300 ease-out relative overflow-hidden bg-[#09090b] border-[#27272a] hover:border-zinc-600" data-feature="vault" type="button">
+<div class="feature-indicator absolute left-0 top-0 bottom-0 w-1 bg-white transition-all duration-300 ease-out opacity-0 scale-y-50"></div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-mono text-[11px] uppercase tracking-widest text-zinc-400 group-hover:text-zinc-200 transition-colors">Phase 03</span>
+<span class="font-mono text-[10px] text-zinc-500 border border-zinc-800 px-2 py-0.5 rounded">Zero-Key</span>
+</div>
+<h3 class="feature-title font-display text-lg font-semibold text-zinc-400 group-hover:text-white mb-1 transition-colors">40+ Vault Connectors</h3>
+<p class="feature-desc text-xs text-zinc-500 group-hover:text-zinc-400 leading-relaxed transition-colors">
+            Direct secure bindings into external backends, databases, and microservices.
+          </p>
+</button>
+<!-- Tab 4: Autonomous Self-Healing -->
+<button class="feature-tab group w-full text-left p-5 rounded-2xl border transition-all duration-300 ease-out relative overflow-hidden bg-[#09090b] border-[#27272a] hover:border-zinc-600" data-feature="healing" type="button">
+<div class="feature-indicator absolute left-0 top-0 bottom-0 w-1 bg-white transition-all duration-300 ease-out opacity-0 scale-y-50"></div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="font-mono text-[11px] uppercase tracking-widest text-zinc-400 group-hover:text-zinc-200 transition-colors">Phase 04</span>
+<span class="font-mono text-[10px] text-zinc-500 border border-zinc-800 px-2 py-0.5 rounded">Daemon Active</span>
+</div>
+<h3 class="feature-title font-display text-lg font-semibold text-zinc-400 group-hover:text-white mb-1 transition-colors">Autonomous Self-Healing</h3>
+<p class="feature-desc text-xs text-zinc-500 group-hover:text-zinc-400 leading-relaxed transition-colors">
+            Automatic runtime error capture, AST syntax tree reconstruction, and patch verification.
+          </p>
+</button>
+</div>
+<!-- Right Column: The Stage (7 cols) -->
+<div class="lg:col-span-7 rounded-2xl border border-[#27272a] bg-[#09090b] p-6 sm:p-8 flex flex-col justify-between min-h-[460px] relative overflow-hidden">
+<!-- Corner Hairline accents -->
+<div class="absolute top-3 right-3 text-[10px] font-mono text-zinc-500">STAGE // LIVE</div>
+<!-- Panel 1: 3-Agent Pipeline -->
+<div class="stage-panel stage-animate flex flex-col justify-between h-full" id="stage-pipeline">
+<div>
+<div class="flex items-center justify-between pb-4 mb-6 border-b border-[#27272a]">
+<div>
+<span class="text-xs font-mono uppercase tracking-wider text-zinc-400">Architecture Pipeline</span>
+<h4 class="font-display text-xl font-semibold text-white mt-1">Multi-Agent State Orchestrator</h4>
+</div>
+<div class="flex items-center gap-2 px-3 py-1 rounded-full bg-[#000000] border border-[#27272a] font-mono text-xs text-zinc-300">
+<span class="w-2 h-2 rounded-full bg-white dot-pulse-glow"></span>
+<span>Synchronized</span>
+</div>
+</div>
+<p class="text-xs text-zinc-400 mb-6 leading-relaxed">
+            Continuous verification handoffs. Each node is isolated, executing type checks and assertions before transitioning state.
+          </p>
+<!-- Minimalist Monochrome Node Flow -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 relative">
+<!-- Node 1: Architect -->
+<div class="float-node-1 p-4 rounded-xl bg-black border border-[#27272a] flex flex-col justify-between h-36 transition-colors hover:border-zinc-600">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-white">
+<span class="material-symbols-outlined text-[17px]">architecture</span>
+<span class="font-display font-semibold text-xs tracking-wide">Architect</span>
+</div>
+<span class="w-1.5 h-1.5 rounded-full bg-white dot-pulse-glow"></span>
+</div>
+<div>
+<div class="text-[11px] font-mono text-zinc-400 mb-1">Planning Architecture</div>
+<div class="text-[10px] font-mono text-zinc-300 bg-zinc-900/90 px-2 py-1 rounded border border-zinc-800">
+                    AST Spec · Valid
+                  </div>
+</div>
+</div>
+<!-- Node 2: Developer -->
+<div class="float-node-2 p-4 rounded-xl bg-black border border-[#27272a] flex flex-col justify-between h-36 transition-colors hover:border-zinc-600">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-white">
+<span class="material-symbols-outlined text-[17px]">code_blocks</span>
+<span class="font-display font-semibold text-xs tracking-wide">Developer</span>
+</div>
+<span class="w-1.5 h-1.5 rounded-full bg-white dot-pulse-glow"></span>
+</div>
+<div>
+<div class="text-[11px] font-mono text-zinc-400 mb-1">Generating Source</div>
+<div class="text-[10px] font-mono text-zinc-300 bg-zinc-900/90 px-2 py-1 rounded border border-zinc-800">
+                    TypeScript · Strict
+                  </div>
+</div>
+</div>
+<!-- Node 3: Debugger -->
+<div class="float-node-3 p-4 rounded-xl bg-black border border-[#27272a] flex flex-col justify-between h-36 transition-colors hover:border-zinc-600">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-white">
+<span class="material-symbols-outlined text-[17px]">verified</span>
+<span class="font-display font-semibold text-xs tracking-wide">Debugger</span>
+</div>
+<span class="w-1.5 h-1.5 rounded-full bg-white dot-pulse-glow"></span>
+</div>
+<div>
+<div class="text-[11px] font-mono text-zinc-400 mb-1">Test Assertions</div>
+<div class="text-[10px] font-mono text-white bg-zinc-900/90 px-2 py-1 rounded border border-zinc-700 font-semibold">
+                    48/48 Passing
+                  </div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-6 mt-6 border-t border-[#27272a] flex items-center justify-between text-xs font-mono text-zinc-400">
+<span>Deterministic state loop</span>
+<span class="text-white">Zero prompt leakage · &lt; 850ms latency</span>
+</div>
+</div>
+<!-- Panel 2: Monaco IDE & Instant HMR -->
+<div class="stage-panel hidden flex-col justify-between h-full" id="stage-monaco">
+<div>
+<div class="flex items-center justify-between pb-4 mb-6 border-b border-[#27272a]">
+<div>
+<span class="text-xs font-mono uppercase tracking-wider text-zinc-400">Dev Environment</span>
+<h4 class="font-display text-xl font-semibold text-white mt-1">Monaco Browser IDE</h4>
+</div>
+<div class="flex items-center gap-2 px-3 py-1 rounded-full bg-[#000000] border border-[#27272a] font-mono text-xs text-zinc-300">
+<span class="w-2 h-2 rounded-full bg-white dot-pulse-glow"></span>
+<span>HMR Synchronized</span>
+</div>
+</div>
+<!-- Grayscale Code Window Mockup -->
+<div class="rounded-xl bg-black border border-[#27272a] overflow-hidden font-mono text-xs">
+<div class="flex items-center justify-between px-3.5 py-2.5 bg-[#0d0d0d] border-b border-[#27272a]">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-zinc-700"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-zinc-700"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-zinc-700"></span>
+<span class="text-zinc-400 ml-2 text-[11px]">App.tsx</span>
+</div>
+<span class="text-[10px] text-zinc-400 uppercase tracking-widest">TSX · Vite 5.2</span>
+</div>
+<div class="p-4 text-zinc-300 space-y-1.5 overflow-x-auto text-[12px] leading-relaxed">
+<div><span class="text-zinc-500">1</span> <span class="text-white font-semibold">import</span> { useState } <span class="text-white font-semibold">from</span> <span class="text-zinc-400">"react"</span>;</div>
+<div><span class="text-zinc-500">2</span> <span class="text-white font-semibold">import</span> { usePipeline } <span class="text-white font-semibold">from</span> <span class="text-zinc-400">"@craftai/runtime"</span>;</div>
+<div><span class="text-zinc-500">3</span></div>
+<div><span class="text-zinc-500">4</span> <span class="text-white font-semibold">export default function</span> <span class="text-white underline decoration-zinc-600">Workspace</span>() {</div>
+<div><span class="text-zinc-500">5</span> <span class="text-white font-semibold">const</span> { state, dispatch } = usePipeline();</div>
+<div><span class="text-zinc-500">6</span> <span class="text-white font-semibold">return</span> (</div>
+<div><span class="text-zinc-500">7</span>      &lt;<span class="text-white font-medium">LiveProvider</span> engine=<span class="text-zinc-300">"craft-v2"</span> deterministic&gt;</div>
+<div><span class="text-zinc-500">8</span>        &lt;<span class="text-white font-medium">StreamViewport</span> tree={state.ast} /&gt;</div>
+<div><span class="text-zinc-500">9</span>      &lt;/<span class="text-white font-medium">LiveProvider</span>&gt;</div>
+<div><span class="text-zinc-500">10</span>   );</div>
+<div><span class="text-zinc-500">11</span> }</div>
+</div>
+</div>
+</div>
+<div class="pt-6 mt-6 border-t border-[#27272a] flex items-center justify-between text-xs font-mono text-zinc-400">
+<span>Sub-millisecond AST parser</span>
+<span class="text-white">WebAssembly Runtime Ready</span>
+</div>
+</div>
+<!-- Panel 3: 40+ Vault Connectors -->
+<div class="stage-panel hidden flex-col justify-between h-full" id="stage-vault">
+<div>
+<div class="flex items-center justify-between pb-4 mb-6 border-b border-[#27272a]">
+<div>
+<span class="text-xs font-mono uppercase tracking-wider text-zinc-400">Ecosystem</span>
+<h4 class="font-display text-xl font-semibold text-white mt-1">Encrypted Vault Integrations</h4>
+</div>
+<div class="flex items-center gap-2 px-3 py-1 rounded-full bg-[#000000] border border-[#27272a] font-mono text-xs text-zinc-300">
+<span class="w-2 h-2 rounded-full bg-white dot-pulse-glow"></span>
+<span>Zero-Key Isolation</span>
+</div>
+</div>
+<p class="text-xs text-zinc-400 mb-6 leading-relaxed">
+            Direct cryptographic bindings into external services. Credentials never touch prompt contexts or leave your secure enclave.
+          </p>
+<!-- Minimalist Grayscale Connectors Grid -->
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+<div class="p-3.5 rounded-xl bg-black border border-[#27272a] hover:border-zinc-400 transition-colors flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<span class="w-2 h-2 rounded-full bg-white"></span>
+<span class="font-mono text-xs text-zinc-200">Supabase</span>
+</div>
+<span class="font-mono text-[10px] text-zinc-500">Postgres</span>
+</div>
+<div class="p-3.5 rounded-xl bg-black border border-[#27272a] hover:border-zinc-400 transition-colors flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<span class="w-2 h-2 rounded-full bg-white"></span>
+<span class="font-mono text-xs text-zinc-200">Stripe</span>
+</div>
+<span class="font-mono text-[10px] text-zinc-500">Billing</span>
+</div>
+<div class="p-3.5 rounded-xl bg-black border border-[#27272a] hover:border-zinc-400 transition-colors flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<span class="w-2 h-2 rounded-full bg-white"></span>
+<span class="font-mono text-xs text-zinc-200">GitHub</span>
+</div>
+<span class="font-mono text-[10px] text-zinc-500">v3 API</span>
+</div>
+<div class="p-3.5 rounded-xl bg-black border border-[#27272a] hover:border-zinc-400 transition-colors flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<span class="w-2 h-2 rounded-full bg-white"></span>
+<span class="font-mono text-xs text-zinc-200">AWS SDK</span>
+</div>
+<span class="font-mono text-[10px] text-zinc-500">S3 / IAM</span>
+</div>
+<div class="p-3.5 rounded-xl bg-black border border-[#27272a] hover:border-zinc-400 transition-colors flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<span class="w-2 h-2 rounded-full bg-white"></span>
+<span class="font-mono text-xs text-zinc-200">OpenAI</span>
+</div>
+<span class="font-mono text-[10px] text-zinc-500">Embeddings</span>
+</div>
+<div class="p-3.5 rounded-xl bg-black border border-[#27272a] hover:border-zinc-400 transition-colors flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<span class="w-2 h-2 rounded-full bg-white"></span>
+<span class="font-mono text-xs text-zinc-200">Anthropic</span>
+</div>
+<span class="font-mono text-[10px] text-zinc-500">Claude-3.5</span>
+</div>
+</div>
+</div>
+<div class="pt-6 mt-6 border-t border-[#27272a] flex items-center justify-between text-xs font-mono text-zinc-400">
+<span>AES-256 Enclave Encryption</span>
+<span class="text-white">SOC2 Compliant Sandboxing</span>
+</div>
+</div>
+<!-- Panel 4: Autonomous Self-Healing -->
+<div class="stage-panel hidden flex-col justify-between h-full" id="stage-healing">
+<div>
+<div class="flex items-center justify-between pb-4 mb-6 border-b border-[#27272a]">
+<div>
+<span class="text-xs font-mono uppercase tracking-wider text-zinc-400">Autonomous Runtime</span>
+<h4 class="font-display text-xl font-semibold text-white mt-1">Abstract AST Patch Inspection</h4>
+</div>
+<div class="flex items-center gap-2 px-3 py-1 rounded-full bg-[#000000] border border-[#27272a] font-mono text-xs text-zinc-300">
+<span class="w-2 h-2 rounded-full bg-white dot-pulse-glow"></span>
+<span>Daemon Listening</span>
+</div>
+</div>
+<!-- Clean Grayscale Diff / Patch View -->
+<div class="rounded-xl bg-black border border-[#27272a] p-4 font-mono text-xs space-y-2">
+<div class="flex items-center justify-between pb-2 border-b border-zinc-800 text-zinc-500 text-[11px]">
+<span>DIFF // AST_REPAIR_CONTEXT.PATCH</span>
+<span>STATUS: VERIFIED</span>
+</div>
+<div class="text-zinc-400 leading-relaxed space-y-1 text-[11px]">
+<div class="text-zinc-500">@@ -14,5 +14,8 @@ src/lib/auth-guard.ts</div>
+<div class="text-zinc-400 bg-zinc-900/60 px-2 py-0.5 rounded line-through opacity-60">- interface SessionPayload { userId: string }</div>
+<div class="text-white bg-zinc-800/80 px-2 py-0.5 rounded font-medium">+ interface SessionPayload { userId: string; organizationId: string }</div>
+<div class="text-white bg-zinc-800/80 px-2 py-0.5 rounded font-medium">+ export function assertSession(val: unknown): asserts val is SessionPayload</div>
+<div class="text-zinc-500 pt-1">--- Validation run: 12 unit assertions passed. 0 regression flags.</div>
+</div>
+</div>
+</div>
+<div class="pt-6 mt-6 border-t border-[#27272a] flex items-center justify-between text-xs font-mono text-zinc-400">
+<span>Automatic syntax reconciliation</span>
+<span class="text-white">Auto-Healed in 180ms</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== 3. ABOUT & ARCHITECTURE ("Architectural Integrity") ==================== -->
+<section class="w-full py-24 px-6 border-t border-[#27272a] relative" id="architecture">
+<div class="max-w-7xl mx-auto">
+<!-- Section Header -->
+<div class="flex flex-col items-center text-center mb-16">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0d0d0d] border border-[#27272a] mb-4">
+<span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+<span class="font-mono text-[11px] uppercase tracking-wider text-zinc-300">Specification</span>
+</div>
+<h2 class="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">
+          Architectural Integrity
+        </h2>
+<p class="font-sans text-sm sm:text-base text-zinc-400 max-w-2xl leading-relaxed">
+          Zero black-box abstractions. What you inspect is what you ship.
+        </p>
+</div>
+<!-- 3-Column Executive Architectural Cards (Monochrome Refined) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="archCardsGrid">
+<!-- Card 1 -->
+<div class="arch-reveal-card mono-card group rounded-2xl p-6 sm:p-7 flex flex-col justify-between cursor-pointer" data-delay="100">
+<div>
+<div class="w-10 h-10 rounded-xl bg-[#09090b] border border-[#27272a] flex items-center justify-center text-white mb-5 transition-all duration-300 ease-out group-hover:scale-110 group-hover:bg-[#27272a] group-hover:border-zinc-500">
+<span class="material-symbols-outlined text-[20px] transition-colors duration-300 text-zinc-300 group-hover:text-white">account_tree</span>
+</div>
+<h3 class="font-display text-lg font-semibold text-white mb-2 transition-colors">100% Deterministic Codebase</h3>
+<p class="text-xs text-zinc-400 leading-relaxed mb-6">
+              Clean standard Vite and Next.js structure. Zero proprietary lock-in or obscure runtime wrappers.
+            </p>
+</div>
+<div class="space-y-2.5 pt-4 border-t border-[#27272a] text-xs font-mono text-zinc-300">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white text-[16px]">check_circle</span>
+<span>Strict TypeScript interfaces</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white text-[16px]">check_circle</span>
+<span>Vanilla Tailwind CSS styling</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white text-[16px]">check_circle</span>
+<span>Portable Git repo export</span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="arch-reveal-card mono-card group rounded-2xl p-6 sm:p-7 flex flex-col justify-between cursor-pointer" data-delay="200">
+<div>
+<div class="w-10 h-10 rounded-xl bg-[#09090b] border border-[#27272a] flex items-center justify-center text-white mb-5 transition-all duration-300 ease-out group-hover:scale-110 group-hover:bg-[#27272a] group-hover:border-zinc-500">
+<span class="material-symbols-outlined text-[20px] transition-colors duration-300 text-zinc-300 group-hover:text-white">bolt</span>
+</div>
+<h3 class="font-display text-lg font-semibold text-white mb-2 transition-colors">0.4s Instant Hot Reload</h3>
+<p class="text-xs text-zinc-400 leading-relaxed mb-6">
+              Local WebContainers run directly in the browser with sub-second feedback loops and no cloud round-trips.
+            </p>
+</div>
+<div class="space-y-2.5 pt-4 border-t border-[#27272a] text-xs font-mono text-zinc-300">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white text-[16px]">check_circle</span>
+<span>Browser WebAssembly node</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white text-[16px]">check_circle</span>
+<span>Zero server latency on UI edits</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white text-[16px]">check_circle</span>
+<span>Stateful hot-module replacement</span>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="arch-reveal-card mono-card group rounded-2xl p-6 sm:p-7 flex flex-col justify-between cursor-pointer" data-delay="300">
+<div>
+<div class="w-10 h-10 rounded-xl bg-[#09090b] border border-[#27272a] flex items-center justify-center text-white mb-5 transition-all duration-300 ease-out group-hover:scale-110 group-hover:bg-[#27272a] group-hover:border-zinc-500">
+<span class="material-symbols-outlined text-[20px] transition-colors duration-300 text-zinc-300 group-hover:text-white">security</span>
+</div>
+<h3 class="font-display text-lg font-semibold text-white mb-2 transition-colors">Isolated Multi-Tenant Security</h3>
+<p class="text-xs text-zinc-400 leading-relaxed mb-6">
+              Enterprise sandboxing, SOC2 Type II readiness, and row-level security guardrails baked in by default.
+            </p>
+</div>
+<div class="space-y-2.5 pt-4 border-t border-[#27272a] text-xs font-mono text-zinc-300">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white text-[16px]">check_circle</span>
+<span>SOC2 Type II compliant readiness</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white text-[16px]">check_circle</span>
+<span>Row Level Security (RLS) enforcement</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white text-[16px]">check_circle</span>
+<span>Sandboxed micro-worker execution</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== 4. PRE-FOOTER CTA (TRUE MONOCHROME) ==================== -->
+<section class="w-full py-28 px-6 border-t border-[#27272a] relative overflow-hidden flex flex-col items-center justify-center text-center">
+<div class="relative z-10 max-w-3xl mx-auto flex flex-col items-center">
+<h2 class="font-display text-4xl sm:text-5xl font-bold tracking-tight text-white mb-4">
+    Stop planning. Start building.
+  </h2>
+<p class="font-sans text-base text-zinc-400 max-w-xl mx-auto mb-9 leading-relaxed">
+    Generate, deploy, and scale autonomous full-stack software directly from natural language.
+  </p>
+<!-- Centered stark high-contrast pure white CTA -->
+<a class="inline-flex items-center justify-center px-8 py-3.5 rounded-xl font-medium text-sm text-black bg-white hover:bg-zinc-200 active:scale-95 transition-all shadow-lg" href="#home">
+<span>Launch Your First AI Project →</span>
+</a>
+</div>
+</section>
+</main>
+<!-- ==================== 5. ENTERPRISE FOOTER & GLOBAL STATUS ==================== -->
+<footer class="w-full relative z-10 border-t border-[#27272a] bg-black">
+<!-- Global Status Bar -->
+<div class="max-w-7xl mx-auto px-6 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-zinc-400 border-b border-[#27272a]/60">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-white dot-pulse-glow"></span>
+<span class="text-zinc-200 font-medium">All systems nominal</span>
+<span class="text-zinc-700 hidden sm:inline">|</span>
+<span class="text-zinc-400 hidden sm:inline">SOC2 Type II Ready · Instant Deployment · Git Synchronized</span>
+</div>
+<div class="text-zinc-500 text-[11px]">
+      Engine v2.0.4
+    </div>
+</div>
+<!-- Enterprise 4-Column Directory Grid -->
+<div class="max-w-7xl mx-auto px-6 py-12 grid grid-cols-2 md:grid-cols-5 gap-8 border-b border-[#27272a]/60">
+<!-- Brand Column -->
+<div class="col-span-2 md:col-span-1 space-y-3">
+<a class="flex items-center gap-2" href="#home">
+<div class="w-7 h-7 rounded-lg bg-[#0d0d0d] border border-[#27272a] flex items-center justify-center">
+<svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24">
+<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+</svg>
+</div>
+<span class="font-display font-semibold text-base text-white">CraftAI</span>
+</a>
+<p class="text-xs text-zinc-400 leading-relaxed max-w-xs">
+      Autonomous multi-agent project engine engineering verified production applications from prompt to ship.
+    </p>
+</div>
+<!-- Column 1: Product -->
+<div>
+<h4 class="font-mono text-xs uppercase tracking-wider text-zinc-200 mb-3 font-semibold">Product</h4>
+<ul class="space-y-2 text-xs text-zinc-400">
+<li><a class="hover:text-white transition-colors" href="#features">3-Agent Pipeline</a></li>
+<li><a class="hover:text-white transition-colors" href="#features">Monaco Web IDE</a></li>
+<li><a class="hover:text-white transition-colors" href="#features">Self-Healing Runtime</a></li>
+<li><a class="hover:text-white transition-colors" href="#features">Vault Connectors</a></li>
+</ul>
+</div>
+<!-- Column 2: Resources -->
+<div>
+<h4 class="font-mono text-xs uppercase tracking-wider text-zinc-200 mb-3 font-semibold">Resources</h4>
+<ul class="space-y-2 text-xs text-zinc-400">
+<li><a class="hover:text-white transition-colors" href="#">Documentation</a></li>
+<li><a class="hover:text-white transition-colors" href="#">API Reference</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Starter Templates</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Integrations</a></li>
+</ul>
+</div>
+<!-- Column 3: Company -->
+<div>
+<h4 class="font-mono text-xs uppercase tracking-wider text-zinc-200 mb-3 font-semibold">Company</h4>
+<ul class="space-y-2 text-xs text-zinc-400">
+<li><a class="hover:text-white transition-colors" href="#">About Us</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Changelog</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Careers</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Security</a></li>
+</ul>
+</div>
+<!-- Column 4: Legal -->
+<div>
+<h4 class="font-mono text-xs uppercase tracking-wider text-zinc-200 mb-3 font-semibold">Legal</h4>
+<ul class="space-y-2 text-xs text-zinc-400">
+<li><a class="hover:text-white transition-colors" href="#">Privacy Policy</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Terms of Service</a></li>
+<li><a class="hover:text-white transition-colors" href="#">SOC2 Compliance</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Subprocessors</a></li>
+</ul>
+</div>
+</div>
+<!-- Minimalist Copyright & Social Icons -->
+<div class="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
+<div>
+    © 2025 CraftAI Inc. All rights reserved. Built for autonomous software engineering.
+  </div>
+<div class="flex items-center gap-5 text-zinc-400">
+<!-- X (Twitter) -->
+<a aria-label="X Twitter" class="hover:text-white transition-colors" href="#">
+<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
+</a>
+<!-- GitHub -->
+<a aria-label="GitHub" class="hover:text-white transition-colors" href="#">
+<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"></path></svg>
+</a>
+<!-- Discord -->
+<a aria-label="Discord" class="hover:text-white transition-colors" href="#">
+<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"></path></svg>
+</a>
+</div>
+</div>
+</footer>
+<!-- Interactive Scripts -->
+<script>
+  (function() {
+    // 1. Two-Column Features Interactive Stage Switching with Smooth Motion
+    const tabs = document.querySelectorAll('.feature-tab');
+    const panels = {
+      pipeline: document.getElementById('stage-pipeline'),
+      monaco: document.getElementById('stage-monaco'),
+      vault: document.getElementById('stage-vault'),
+      healing: document.getElementById('stage-healing')
+    };
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.getAttribute('data-feature');
+
+        // Reset all tabs
+        tabs.forEach(t => {
+          t.classList.remove('active', 'bg-[#0d0d0d]', 'border-white/80');
+          t.classList.add('bg-[#09090b]', 'border-[#27272a]');
+          const ind = t.querySelector('.feature-indicator');
+          if (ind) {
+            ind.classList.remove('opacity-100', 'scale-y-100');
+            ind.classList.add('opacity-0', 'scale-y-50');
+          }
+          const title = t.querySelector('.feature-title');
+          if (title) {
+            title.classList.remove('text-white');
+            title.classList.add('text-zinc-400');
+          }
+          const desc = t.querySelector('.feature-desc');
+          if (desc) {
+            desc.classList.remove('text-zinc-400');
+            desc.classList.add('text-zinc-500');
+          }
+        });
+
+        // Set active tab styling
+        tab.classList.add('active', 'bg-[#0d0d0d]', 'border-white/80');
+        tab.classList.remove('bg-[#09090b]', 'border-[#27272a]');
+        const activeInd = tab.querySelector('.feature-indicator');
+        if (activeInd) {
+          activeInd.classList.remove('opacity-0', 'scale-y-50');
+          activeInd.classList.add('opacity-100', 'scale-y-100');
+        }
+        const activeTitle = tab.querySelector('.feature-title');
+        if (activeTitle) {
+          activeTitle.classList.remove('text-zinc-400');
+          activeTitle.classList.add('text-white');
+        }
+        const activeDesc = tab.querySelector('.feature-desc');
+        if (activeDesc) {
+          activeDesc.classList.remove('text-zinc-500');
+          activeDesc.classList.add('text-zinc-400');
+        }
+
+        // Switch Stage Panel with smooth crossfade & slide animation
+        Object.keys(panels).forEach(key => {
+          const panel = panels[key];
+          if (panel) {
+            if (key === target) {
+              panel.classList.remove('hidden');
+              panel.classList.add('flex');
+              // trigger smooth entry animation
+              panel.classList.remove('stage-animate');
+              void panel.offsetWidth; // trigger reflow
+              panel.classList.add('stage-animate');
+            } else {
+              panel.classList.add('hidden');
+              panel.classList.remove('flex', 'stage-animate');
+            }
+          }
+        });
+      });
+    });
+
+    // 2. Dynamic Typewriter Placeholder Animation cycling exact requested phrases
+    const promptInput = document.getElementById('promptInput');
+    const typewriterPhrases = [
+      "Build a sleek SaaS landing page...",
+      "Design a real-time crypto dashboard...",
+      "Create a Stripe e-commerce store..."
+    ];
+    let phraseIndex = 0;
+    let charIndex = 0;
+    let isDeleting = false;
+    let typewriterDelay = 70;
+
+    function runTypewriter() {
+      if (document.activeElement === promptInput || (promptInput && promptInput.value.length > 0)) {
+        setTimeout(runTypewriter, 1000);
+        return;
+      }
+
+      const currentPhrase = typewriterPhrases[phraseIndex];
+
+      if (!isDeleting) {
+        promptInput.setAttribute('placeholder', currentPhrase.substring(0, charIndex + 1));
+        charIndex++;
+
+        if (charIndex === currentPhrase.length) {
+          isDeleting = true;
+          typewriterDelay = 2200;
+        } else {
+          typewriterDelay = 65;
+        }
+      } else {
+        promptInput.setAttribute('placeholder', currentPhrase.substring(0, charIndex - 1));
+        charIndex--;
+
+        if (charIndex === 0) {
+          isDeleting = false;
+          phraseIndex = (phraseIndex + 1) % typewriterPhrases.length;
+          typewriterDelay = 400;
+        } else {
+          typewriterDelay = 30;
+        }
+      }
+
+      setTimeout(runTypewriter, typewriterDelay);
+    }
+    runTypewriter();
+
+    // 3. Mode Dropdown Pill
+    const modeBtn = document.getElementById('modeSelectBtn');
+    const modeMenu = document.getElementById('modeMenu');
+    const selectedMode = document.getElementById('selectedMode');
+    const modeItems = document.querySelectorAll('.mode-item');
+
+    if (modeBtn && modeMenu) {
+      modeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        modeMenu.classList.toggle('hidden');
+        if (specMenu) specMenu.classList.add('hidden');
+      });
+    }
+
+    modeItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const val = item.getAttribute('data-value');
+        if (selectedMode) selectedMode.textContent = val;
+        modeMenu.classList.add('hidden');
+      });
+    });
+
+    // 4. Spec Dropdown Pill
+    const specBtn = document.getElementById('specSelectBtn');
+    const specMenu = document.getElementById('specMenu');
+    const selectedSpec = document.getElementById('selectedSpec');
+    const specItems = document.querySelectorAll('.spec-item');
+
+    if (specBtn && specMenu) {
+      specBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        specMenu.classList.toggle('hidden');
+        if (modeMenu) modeMenu.classList.add('hidden');
+      });
+    }
+
+    specItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const val = item.getAttribute('data-value');
+        if (selectedSpec) selectedSpec.textContent = val;
+        specMenu.classList.add('hidden');
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (modeMenu && !modeMenu.contains(e.target) && e.target !== modeBtn) {
+        modeMenu.classList.add('hidden');
+      }
+      if (specMenu && !specMenu.contains(e.target) && e.target !== specBtn) {
+        specMenu.classList.add('hidden');
+      }
+    });
+
+    // 5. File Attachment Simulation
+    const fileUploadBtn = document.getElementById('fileUploadBtn');
+    const specFileInput = document.getElementById('specFileUpload');
+    const fileUploadIndicator = document.getElementById('fileUploadIndicator');
+    const uploadedFileName = document.getElementById('uploadedFileName');
+    const removeFileBtn = document.getElementById('removeFileBtn');
+
+    if (fileUploadBtn && specFileInput) {
+      fileUploadBtn.addEventListener('click', () => {
+        specFileInput.click();
+      });
+
+      specFileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          uploadedFileName.textContent = e.target.files[0].name;
+          fileUploadIndicator.classList.remove('hidden');
+          fileUploadIndicator.classList.add('inline-flex');
+        }
+      });
+    }
+
+    if (removeFileBtn) {
+      removeFileBtn.addEventListener('click', () => {
+        specFileInput.value = '';
+        fileUploadIndicator.classList.add('hidden');
+        fileUploadIndicator.classList.remove('inline-flex');
+      });
+    }
+
+    // 6. Generate Button Loading State
+    const generateBtn = document.getElementById('generateBtn');
+    const btnText = document.getElementById('btnText');
+    if (generateBtn && btnText) {
+      generateBtn.addEventListener('click', () => {
+        const original = btnText.textContent;
+        btnText.textContent = "Orchestrating Agents...";
+        generateBtn.disabled = true;
+        setTimeout(() => {
+          btnText.textContent = "Plan Generated ✓";
+          setTimeout(() => {
+            btnText.textContent = original;
+            generateBtn.disabled = false;
+          }, 1600);
+        }, 1100);
+      });
+    }
+
+    // 7. Architectural Cards Scroll Entrance / Reveal Observer
+    const archCards = document.querySelectorAll('.arch-reveal-card');
+    if ('IntersectionObserver' in window && archCards.length > 0) {
+      const archObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const card = entry.target;
+            const delay = parseInt(card.getAttribute('data-delay') || '0', 10);
+            setTimeout(() => {
+              card.classList.add('revealed');
+            }, delay);
+            observer.unobserve(card);
+          }
+        });
+      }, {
+        threshold: 0.15,
+        rootMargin: '0px 0px -40px 0px'
+      });
+
+      archCards.forEach(card => archObserver.observe(card));
+    } else {
+      archCards.forEach(card => card.classList.add('revealed'));
+    }
+
+    // 8. Ambient Monochrome Wave Canvas
+    const canvas = document.getElementById('ambientWaveCanvas');
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      let width, height, t = 0;
+
+      function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      function draw() {
+        t += 0.005;
+        ctx.clearRect(0, 0, width, height);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+
+        for (let j = 0; j < 3; j++) {
+          ctx.beginPath();
+          const offset = j * 45;
+          for (let x = 0; x < width; x += 30) {
+            const y = height * 0.35 + Math.sin(x * 0.003 + t + j) * 40 + Math.cos(x * 0.001 - t) * 25 + offset;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        requestAnimationFrame(draw);
+      }
+      draw();
+    }
+  })();
+</script>
+</body></html>

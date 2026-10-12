@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+
+<html class="dark h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CraftAI Executive Studio</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            surface: "#09090b",
+            "surface-dim": "#050507",
+            "surface-container-lowest": "#000000",
+            "surface-container-low": "#0d0d11",
+            "surface-container": "#121216",
+            "surface-container-high": "#1a1a20",
+            "surface-container-highest": "#24242c",
+            "on-surface": "#f4f4f5",
+            "on-surface-variant": "#a1a1aa",
+            outline: "#27272a",
+            "outline-variant": "#1f1f23",
+            primary: "#ffffff",
+            "primary-container": "#4f46e5",
+            "on-primary": "#000000",
+            secondary: "#a1a1aa",
+            tertiary: "#6366f1",
+            error: "#f87171"
+          },
+          fontFamily: {
+            headline: ["'Space Grotesk'", "sans-serif"],
+            body: ["'Inter'", "sans-serif"],
+            mono: ["'JetBrains Mono'", "monospace"]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #27272a;
+      border-radius: 2px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #3f3f46;
+    }
+  </style>
+</head>
+<body class="bg-black text-[#f4f4f5] h-screen w-screen overflow-hidden flex flex-col font-body selection:bg-indigo-500/30 selection:text-white antialiased">
+<!-- TOP PRODUCTION HEADER -->
+<header class="h-12 shrink-0 bg-[#09090b] border-b border-[#1f1f23] flex items-center justify-between px-4 z-40">
+<div class="flex items-center gap-3">
+<div class="size-6 rounded bg-white text-black flex items-center justify-center font-headline font-bold text-xs tracking-tighter">
+        C·A
+      </div>
+<div class="flex items-center gap-2">
+<span class="text-xs font-semibold tracking-wide text-white font-headline uppercase">CraftAI Studio</span>
+<span class="text-[11px] text-zinc-500 font-mono">v3.8-rc2</span>
+</div>
+<div class="h-3.5 w-px bg-zinc-800 mx-1"></div>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-zinc-900/80 border border-zinc-800 text-[11px] font-mono text-zinc-400">
+<span class="material-symbols-outlined text-[13px] text-zinc-400" data-icon="alt_route">alt_route</span>
+<span class="text-zinc-200">synapse-mesh-v2</span>
+<span class="text-zinc-600">/</span>
+<span class="text-zinc-400">feat/streaming-rpc</span>
+</div>
+</div>
+<!-- Center System Status -->
+<div class="hidden md:flex items-center gap-2 text-xs font-mono text-zinc-400">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+</span>
+<span class="text-zinc-300">Telemetry: Sub-12ms Active</span>
+<span class="text-zinc-700">|</span>
+<span class="text-zinc-500">Auto-save: Armed</span>
+</div>
+<!-- Right Global Actions -->
+<div class="flex items-center gap-2">
+<div class="flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5">
+<button class="px-2 py-1 text-xs font-mono text-zinc-400 hover:text-white flex items-center gap-1 transition">
+<span class="material-symbols-outlined text-sm" data-icon="terminal">terminal</span>
+          Logs
+        </button>
+<button class="px-2 py-1 text-xs font-mono text-zinc-400 hover:text-white flex items-center gap-1 transition">
+<span class="material-symbols-outlined text-sm" data-icon="history">history</span>
+          Diffs
+        </button>
+</div>
+<button class="h-8 px-3 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-white text-xs font-medium tracking-wide transition flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm" data-icon="cloud_upload">cloud_upload</span>
+        Deploy
+      </button>
+<button class="h-8 px-3.5 rounded bg-white hover:bg-zinc-200 text-black text-xs font-semibold tracking-wide transition flex items-center gap-1">
+<span>Publish</span>
+<span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<button class="size-8 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition border border-transparent hover:border-zinc-700">
+<span class="material-symbols-outlined text-base" data-icon="settings">settings</span>
+</button>
+</div>
+</header>
+<!-- WORKSPACE VIEWPORT: 3 PANELS -->
+<main class="flex-1 flex w-full overflow-hidden bg-black">
+<!-- PANEL 1: EXPLORER & PROJECT REPO (~280px) -->
+<section class="w-72 shrink-0 bg-[#09090b] border-r border-[#1f1f23] flex flex-col justify-between select-none">
+<div class="flex flex-col flex-1 overflow-hidden">
+<!-- Explorer Header -->
+<div class="h-9 px-3 border-b border-[#1f1f23] flex items-center justify-between text-zinc-400">
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-mono font-semibold tracking-wider text-zinc-300">EXPLORER</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-1 hover:text-white hover:bg-zinc-800/80 rounded transition" title="New File">
+<span class="material-symbols-outlined text-[15px]" data-icon="note_add">note_add</span>
+</button>
+<button class="p-1 hover:text-white hover:bg-zinc-800/80 rounded transition" title="New Folder">
+<span class="material-symbols-outlined text-[15px]" data-icon="create_new_folder">create_new_folder</span>
+</button>
+<button class="p-1 hover:text-white hover:bg-zinc-800/80 rounded transition" title="Collapse All">
+<span class="material-symbols-outlined text-[15px]" data-icon="unfold_less">unfold_less</span>
+</button>
+<button class="p-1 hover:text-white hover:bg-zinc-800/80 rounded transition" title="Search">
+<span class="material-symbols-outlined text-[15px]" data-icon="search">search</span>
+</button>
+</div>
+</div>
+<!-- Project Tree Content -->
+<div class="flex-1 overflow-y-auto custom-scrollbar py-2 text-xs font-mono">
+<!-- Root Workspace Item -->
+<div class="px-3 py-1 flex items-center gap-1.5 text-zinc-400 font-medium">
+<span class="material-symbols-outlined text-[14px]" data-icon="expand_more">expand_more</span>
+<span class="material-symbols-outlined text-zinc-500 text-[15px]" data-icon="deployed_code">deployed_code</span>
+<span class="text-zinc-200">synapse-mesh-v2</span>
+</div>
+<!-- Tree List -->
+<div class="pl-4">
+<!-- folder: app -->
+<div class="px-2 py-0.5 flex items-center gap-1.5 text-zinc-300 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[13px] text-zinc-500" data-icon="expand_more">expand_more</span>
+<span class="material-symbols-outlined text-[14px] text-zinc-400" data-icon="folder_open">folder_open</span>
+<span>app</span>
+</div>
+<div class="pl-4 border-l border-zinc-900 ml-3">
+<!-- folder: (auth) -->
+<div class="px-2 py-0.5 flex items-center gap-1.5 text-zinc-400 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[13px] text-zinc-600" data-icon="chevron_right">chevron_right</span>
+<span class="material-symbols-outlined text-[14px] text-zinc-500" data-icon="folder">folder</span>
+<span>(auth)</span>
+</div>
+<!-- folder: api -->
+<div class="px-2 py-0.5 flex items-center gap-1.5 text-zinc-400 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[13px] text-zinc-600" data-icon="chevron_right">chevron_right</span>
+<span class="material-symbols-outlined text-[14px] text-zinc-500" data-icon="folder">folder</span>
+<span>api</span>
+</div>
+<!-- folder: components -->
+<div class="px-2 py-0.5 flex items-center gap-1.5 text-zinc-300 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[13px] text-zinc-500" data-icon="expand_more">expand_more</span>
+<span class="material-symbols-outlined text-[14px] text-zinc-400" data-icon="folder_open">folder_open</span>
+<span>components</span>
+</div>
+<div class="pl-4 border-l border-zinc-900 ml-3">
+<!-- active file: mesh-viewport.tsx -->
+<div class="px-2 py-1 flex items-center justify-between text-white bg-zinc-800/80 border-l-2 border-indigo-500 -ml-[1px] rounded-r cursor-pointer font-medium">
+<div class="flex items-center gap-1.5 truncate">
+<span class="material-symbols-outlined text-[14px] text-indigo-400" data-icon="code_blocks">code_blocks</span>
+<span class="truncate">mesh-viewport.tsx</span>
+</div>
+<span class="size-1.5 rounded-full bg-emerald-400"></span>
+</div>
+<!-- terminal-log.tsx -->
+<div class="px-2 py-1 flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[14px] text-zinc-500" data-icon="javascript">javascript</span>
+<span>terminal-log.tsx</span>
+</div>
+<!-- agent-flow.tsx -->
+<div class="px-2 py-1 flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[14px] text-zinc-500" data-icon="javascript">javascript</span>
+<span>agent-flow.tsx</span>
+</div>
+</div>
+<!-- layout & page -->
+<div class="px-2 py-0.5 flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[14px] text-zinc-500" data-icon="code">code</span>
+<span>layout.tsx</span>
+</div>
+<div class="px-2 py-0.5 flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[14px] text-zinc-500" data-icon="code">code</span>
+<span>page.tsx</span>
+</div>
+</div>
+<!-- folder: lib -->
+<div class="px-2 py-0.5 flex items-center gap-1.5 text-zinc-400 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[13px] text-zinc-600" data-icon="chevron_right">chevron_right</span>
+<span class="material-symbols-outlined text-[14px] text-zinc-500" data-icon="folder">folder</span>
+<span>lib</span>
+</div>
+<!-- root configs -->
+<div class="px-2 py-0.5 flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[14px] text-zinc-600" data-icon="settings_ethernet">settings_ethernet</span>
+<span>tailwind.config.js</span>
+</div>
+<div class="px-2 py-0.5 flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[14px] text-zinc-600" data-icon="data_object">data_object</span>
+<span>package.json</span>
+</div>
+<div class="px-2 py-0.5 flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/60 rounded cursor-pointer">
+<span class="material-symbols-outlined text-[14px] text-zinc-600" data-icon="integration_instructions">integration_instructions</span>
+<span>tsconfig.json</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Explorer Bottom: DEPENDENCIES -->
+<div class="border-t border-[#1f1f23] p-3 bg-black/40">
+<div class="flex items-center justify-between text-[11px] font-mono text-zinc-400 mb-2">
+<span class="uppercase font-semibold tracking-wider">Active Dependencies</span>
+<span class="text-zinc-600">4 sync</span>
+</div>
+<div class="space-y-1 text-xs font-mono">
+<div class="flex items-center justify-between text-zinc-400 hover:text-zinc-200">
+<span class="flex items-center gap-1.5 truncate">
+<span class="size-1.5 rounded-full bg-zinc-600"></span>
+              three
+            </span>
+<span class="text-zinc-600 text-[11px]">^0.160.0</span>
+</div>
+<div class="flex items-center justify-between text-zinc-400 hover:text-zinc-200">
+<span class="flex items-center gap-1.5 truncate">
+<span class="size-1.5 rounded-full bg-zinc-600"></span>
+              lucide-react
+            </span>
+<span class="text-zinc-600 text-[11px]">^0.312.0</span>
+</div>
+<div class="flex items-center justify-between text-zinc-400 hover:text-zinc-200">
+<span class="flex items-center gap-1.5 truncate">
+<span class="size-1.5 rounded-full bg-zinc-600"></span>
+              framer-motion
+            </span>
+<span class="text-zinc-600 text-[11px]">^11.0.3</span>
+</div>
+<div class="flex items-center justify-between text-indigo-300 hover:text-indigo-200 font-medium">
+<span class="flex items-center gap-1.5 truncate">
+<span class="size-1.5 rounded-full bg-indigo-500"></span>
+              @craft/ai
+            </span>
+<span class="text-indigo-400/80 text-[11px]">v3.8.0</span>
+</div>
+</div>
+</div>
+</section>
+<!-- PANEL 2: EDIT WITH AI DRAWER (~380px) -->
+<section class="w-96 shrink-0 bg-[#09090b] border-r border-[#1f1f23] flex flex-col justify-between">
+<!-- AI Header -->
+<div class="h-9 px-4 border-b border-[#1f1f23] flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-indigo-400 text-base" data-icon="auto_awesome">auto_awesome</span>
+<span class="text-xs font-semibold text-white font-headline tracking-wide">Edit with AI</span>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-950/40 border border-indigo-900/60 text-[10px] font-mono text-indigo-300">
+<span class="size-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+          Claude 3.5 Sonnet
+        </div>
+</div>
+<!-- Conversational Stream -->
+<div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+<!-- User Bubble -->
+<div class="flex flex-col items-end">
+<div class="max-w-[90%] bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl rounded-tr-sm p-3 font-body shadow-sm leading-relaxed">
+            Refactor the generation pipeline into an interactive WebGL particle mesh with live telemetry and agent step status.
+          </div>
+<span class="text-[10px] font-mono text-zinc-500 mt-1 mr-1">You · 14:21:49</span>
+</div>
+<!-- System Pipeline Indicator -->
+<div class="flex items-center justify-center my-2">
+<div class="px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800/90 text-[11px] font-mono text-zinc-400 flex items-center gap-2">
+<span class="text-indigo-400">⚡</span>
+<span>3 files analyzed</span>
+<span class="text-zinc-600">·</span>
+<span class="text-white font-medium">142 lines synthesized</span>
+</div>
+</div>
+<!-- AI Assistant Bubble -->
+<div class="flex flex-col items-start space-y-2">
+<div class="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400">
+<span class="size-4 rounded bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">C</span>
+<span>CraftAI Assistant</span>
+</div>
+<div class="bg-zinc-950 border border-zinc-800/80 rounded-xl rounded-tl-sm p-3.5 text-xs text-zinc-300 space-y-3 leading-relaxed">
+<p>
+              I have re-architected <code class="text-indigo-300 bg-indigo-950/40 px-1 py-0.5 rounded font-mono text-[11px]">mesh-viewport.tsx</code> to mount the ambient WebGL wireframe geometry and bound the streaming agent pipeline. The orchestrator now cascades through <span class="text-white font-semibold">Architect ➔ Developer ➔ Debugger</span> with sub-second feedback.
+            </p>
+<!-- Collapsible File Diff Pill -->
+<button class="w-full flex items-center justify-between p-2 rounded-lg bg-zinc-900 hover:bg-zinc-800/80 border border-zinc-800 text-[11px] font-mono text-zinc-300 transition group">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-zinc-400" data-icon="description">description</span>
+<span>mesh-viewport.tsx</span>
+<span class="text-emerald-400 font-semibold">+64</span>
+<span class="text-rose-400 font-semibold">-12</span>
+</div>
+<span class="text-zinc-500 group-hover:text-zinc-300 transition">View Diff →</span>
+</button>
+</div>
+</div>
+<!-- Quick Suggestion Chips -->
+<div class="pt-2">
+<div class="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-2">Suggested Next Steps</div>
+<div class="flex flex-wrap gap-1.5">
+<button class="px-2.5 py-1 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-mono text-zinc-300 hover:text-white transition">
+              + Add latency graph
+            </button>
+<button class="px-2.5 py-1 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-mono text-zinc-300 hover:text-white transition">
+              + Inspect WebGL canvas
+            </button>
+<button class="px-2.5 py-1 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-mono text-zinc-300 hover:text-white transition">
+              + Simulate debug error
+            </button>
+</div>
+</div>
+</div>
+<!-- Bottom Command Input Dock -->
+<div class="p-3 border-t border-[#1f1f23] bg-zinc-950">
+<div class="relative rounded-xl bg-zinc-900/90 border border-zinc-800 focus-within:border-zinc-700 transition flex flex-col p-2.5 shadow-lg">
+<textarea class="w-full bg-transparent resize-none border-0 p-0 text-xs text-zinc-100 placeholder-zinc-500 focus:ring-0 focus:outline-none custom-scrollbar" placeholder="Ask CraftAI to edit code, add features, or explain..." rows="2"></textarea>
+<div class="flex items-center justify-between pt-2 border-t border-zinc-800/60 mt-1">
+<div class="flex items-center gap-1.5">
+<button class="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition" title="Attach file">
+<span class="material-symbols-outlined text-base" data-icon="attach_file">attach_file</span>
+</button>
+<button class="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700/80 text-[10px] font-mono text-zinc-300 transition flex items-center gap-1">
+<span>@ Context</span>
+</button>
+<div class="flex items-center text-[10px] font-mono text-zinc-400 bg-zinc-800/50 px-2 py-0.5 rounded">
+<span>Sonnet 3.5</span>
+<span class="material-symbols-outlined text-xs ml-0.5" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<button class="size-7 rounded bg-white hover:bg-zinc-200 text-black flex items-center justify-center transition shadow font-bold">
+<span class="material-symbols-outlined text-base" data-icon="arrow_upward">arrow_upward</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- PANEL 3: MAIN RIGHT STAGE (LIVE PREVIEW & GENERATION LOADING) -->
+<section class="flex-1 flex flex-col h-full overflow-hidden bg-black relative">
+<!-- Top Stage Toolbar -->
+<div class="h-10 px-4 border-b border-[#1f1f23] bg-[#09090b] flex items-center justify-between shrink-0 z-30">
+<!-- Tabs -->
+<div class="flex items-center gap-4 h-full">
+<button class="h-full border-b-2 border-white text-white font-medium text-xs flex items-center gap-1.5 px-1 font-headline">
+<span class="material-symbols-outlined text-sm" data-icon="visibility">visibility</span>
+            Live Preview
+          </button>
+<button class="h-full border-b-2 border-transparent text-zinc-400 hover:text-white font-medium text-xs flex items-center gap-1.5 px-1 font-headline transition">
+<span class="material-symbols-outlined text-sm" data-icon="code">code</span>
+            Code View
+          </button>
+</div>
+<!-- Responsive Switcher & Address Pill -->
+<div class="flex items-center gap-3">
+<!-- Viewport sizes -->
+<div class="flex items-center bg-zinc-900 border border-zinc-800 rounded p-0.5 text-zinc-400">
+<button class="px-2 py-0.5 rounded text-white bg-zinc-800 text-xs transition" title="Desktop 1920x1080">
+<span class="material-symbols-outlined text-sm" data-icon="desktop_windows">desktop_windows</span>
+</button>
+<button class="px-2 py-0.5 rounded hover:text-white text-xs transition" title="Tablet 768px">
+<span class="material-symbols-outlined text-sm" data-icon="tablet_mac">tablet_mac</span>
+</button>
+<button class="px-2 py-0.5 rounded hover:text-white text-xs transition" title="Mobile 390px">
+<span class="material-symbols-outlined text-sm" data-icon="smartphone">smartphone</span>
+</button>
+</div>
+<!-- URL pill -->
+<div class="flex items-center gap-2 px-2.5 py-1 rounded bg-zinc-900/80 border border-zinc-800 text-xs font-mono text-zinc-400">
+<span class="size-1.5 rounded-full bg-emerald-400"></span>
+<span class="text-zinc-300">localhost:3000/preview</span>
+<button class="hover:text-white transition">
+<span class="material-symbols-outlined text-xs" data-icon="refresh">refresh</span>
+</button>
+<button class="hover:text-white transition">
+<span class="material-symbols-outlined text-xs" data-icon="open_in_new">open_in_new</span>
+</button>
+</div>
+</div>
+<!-- Fast Stage Status -->
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-mono text-zinc-500">Scale: 100%</span>
+</div>
+</div>
+<!-- Stage Canvas Container with Ambient Three.js & Centered Loading Glass Card -->
+<div class="flex-1 relative w-full h-full flex items-center justify-center overflow-hidden bg-black">
+<!-- Ambient Interactive Three.js Mesh Scene -->
+<threejs-scene class="absolute inset-0 w-full h-full bg-transparent" src="{{DATA:ANIMATION:ANIMATION_50}}"></threejs-scene>
+<!-- Subtle Hairline Grid Layer for Obsidian Engineering Feel -->
+<div class="absolute inset-0 bg-[radial-gradient(#1f1f23_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none"></div>
+<!-- Central Floating Glass Modal Card -->
+<div class="w-[490px] p-7 rounded-2xl bg-[#09090b]/85 backdrop-blur-2xl border border-zinc-800 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] text-center relative overflow-hidden z-20">
+<!-- Top hairline highlight -->
+<div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>
+<!-- Status badge -->
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/40 border border-indigo-500/30 text-[10px] font-mono font-medium text-indigo-300 tracking-wider uppercase mb-4">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-400"></span>
+</span>
+            SYNTHESIZING WORKSPACE
+          </div>
+<!-- Heading & Description -->
+<h2 class="text-xl font-bold font-headline text-white tracking-tight">Building Next-Gen Mesh Runtime</h2>
+<p class="text-xs font-body text-zinc-400 mt-1.5 leading-relaxed max-w-sm mx-auto">
+            CraftAI Engine v3.8 compiling TypeScript AST, bundling Tailwind tokens, and establishing WebSocket RPC...
+          </p>
+<!-- Live Agent Step Progression Timeline -->
+<div class="mt-6 pt-5 border-t border-zinc-800/80">
+<div class="flex items-center justify-between px-2 relative">
+<!-- Connecting Line -->
+<div class="absolute left-7 right-7 top-3 h-0.5 bg-zinc-800 -z-0"></div>
+<!-- Step 1: Architect (Completed) -->
+<div class="flex flex-col items-center gap-1.5 z-10">
+<div class="size-6 rounded-full bg-white text-black flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-sm font-bold" data-icon="check">check</span>
+</div>
+<span class="text-[11px] font-mono font-medium text-zinc-300">Architect</span>
+</div>
+<!-- Step 2: Developer (Compiling / Active) -->
+<div class="flex flex-col items-center gap-1.5 z-10">
+<div class="size-6 rounded-full bg-indigo-600 text-white flex items-center justify-center ring-4 ring-indigo-500/20 animate-pulse">
+<span class="material-symbols-outlined text-xs animate-spin" data-icon="progress_activity">progress_activity</span>
+</div>
+<span class="text-[11px] font-mono font-semibold text-white">Developer <span class="text-indigo-400 font-normal">(Compiling)</span></span>
+</div>
+<!-- Step 3: Debugger (Pending) -->
+<div class="flex flex-col items-center gap-1.5 z-10">
+<div class="size-6 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-500 flex items-center justify-center">
+<span class="size-1.5 rounded-full bg-zinc-600"></span>
+</div>
+<span class="text-[11px] font-mono text-zinc-500">Debugger</span>
+</div>
+</div>
+</div>
+<!-- Monospace Minimalist Terminal Stream -->
+<div class="bg-black/90 border border-zinc-800/80 rounded-lg p-3 text-left font-mono text-[11px] text-zinc-400 mt-5 space-y-1">
+<div class="text-zinc-500 flex items-center justify-between pb-1 mb-1 border-b border-zinc-900">
+<span class="text-[10px] tracking-wider uppercase">Live Stream · /rpc/compile</span>
+<span class="size-1.5 rounded-full bg-emerald-400"></span>
+</div>
+<div class="truncate text-zinc-400"><span class="text-zinc-600">[14:22:01.04]</span> → AST tree constructed (18 modules)</div>
+<div class="truncate text-zinc-400"><span class="text-zinc-600">[14:22:01.42]</span> → Tailwind JIT compiled in 38ms</div>
+<div class="truncate text-indigo-300 font-medium"><span class="text-zinc-600">[14:22:01.89]</span> ⚡ WebGL wireframe shader linked</div>
+<div class="truncate text-emerald-400"><span class="text-zinc-600">[14:22:02.12]</span> 🟢 HMR socket connected to localhost:3000</div>
+</div>
+<!-- Card Actions Footer -->
+<div class="mt-5 flex items-center justify-between pt-3 border-t border-zinc-800/60 text-xs">
+<button class="text-zinc-500 hover:text-rose-400 font-mono transition text-[11px]">
+              Cancel Build
+            </button>
+<a class="text-zinc-400 hover:text-white font-mono transition text-[11px] flex items-center gap-1" href="#">
+<span>View Verbose Logs</span>
+<span class="material-symbols-outlined text-xs" data-icon="chevron_right">chevron_right</span>
+</a>
+</div>
+</div>
+<!-- Floating Stage Bottom Telemetry Overlay -->
+<div class="absolute bottom-4 right-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#09090b]/80 border border-zinc-800/80 backdrop-blur font-mono text-[11px] text-zinc-400">
+<span class="text-zinc-500">FPS:</span> <span class="text-white font-medium">60.0</span>
+<span class="text-zinc-700">|</span>
+<span class="text-zinc-500">GPU:</span> <span class="text-indigo-400 font-medium">WebGL 2.0</span>
+<span class="text-zinc-700">|</span>
+<span class="text-zinc-500">Memory:</span> <span class="text-zinc-300">42MB</span>
+</div>
+</div>
+</section>
+</main>
+</body></html>

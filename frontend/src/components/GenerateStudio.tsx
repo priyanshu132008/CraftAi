@@ -1,37 +1,53 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp, ChatMessage } from '../context/AppContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   ArrowLeft,
+  ArrowRight,
+  ArrowUp,
   Bot,
+  Check,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsLeft,
+  ChevronsRight,
   Code2,
   Compass,
   Copy,
   ExternalLink,
   Eye,
+  FileText,
   FolderGit2,
+  GitBranch,
   Globe,
   Loader2,
   Monitor,
+  Paperclip,
   RefreshCw,
   Rocket,
-  Send,
   ShieldCheck,
   Smartphone,
   Sparkles,
+  Square,
   Tablet,
-  User
+  Wand2,
+  Zap
 } from 'lucide-react';
+import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { FileTree } from './FileTree';
 import CodeViewer from './CodeViewer';
+import ThemeToggle from './ThemeToggle';
+import TerminalDrawer from './TerminalDrawer';
+import StageWireframe from './StageWireframe';
+import PublishModal from './PublishModal';
 import { PromptConsole } from './PromptConsole';
-import { GeneratedFile, TraceStep } from '../services/api';
+import { TraceStep } from '../services/api';
+import '../styles/studio.css';
 
 const PREVIEW_URL = 'http://localhost:3000/preview';
 const DEPLOY_API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000') + '/api/deploy';
-const DEPLOY_DOMAIN = 'craftai.app';
 
 const VIEWPORT_SIZES = {
   desktop: { width: '100%', height: '100%', radius: 0 },
@@ -41,13 +57,45 @@ const VIEWPORT_SIZES = {
 type ViewportMode = keyof typeof VIEWPORT_SIZES;
 
 // ---------------------------------------------------------------------------
+// 3-agent pipeline steps for the synthesis-modal timeline (mirrors the SSE
+// step prefixes used by AgentPipeline: architect:* / developer:* / debugger:*).
+// ---------------------------------------------------------------------------
+type SynthPhase = 'pending' | 'active' | 'done';
+const AGENT_STEPS = [
+  { prefix: 'architect', name: 'Architect', Icon: Compass },
+  { prefix: 'developer', name: 'Developer', Icon: Code2 },
+  { prefix: 'debugger', name: 'Debugger', Icon: ShieldCheck }
+] as const;
+
+const derivePhases = (trace: TraceStep[]): SynthPhase[] => {
+  const phases = AGENT_STEPS.map(a => {
+    const steps = trace.filter(t => t.step.startsWith(a.prefix));
+    if (steps.some(t => t.step.endsWith(':completed'))) return 'done' as SynthPhase;
+    if (steps.length > 0) return 'active' as SynthPhase;
+    return 'pending' as SynthPhase;
+  });
+  // Everything before the first seen agent belongs to earlier agents.
+  const firstActive = phases.findIndex(p => p !== 'pending');
+  if (firstActive > 0) {
+    for (let i = 0; i < firstActive; i++) phases[i] = 'done';
+  }
+  // Final write phase — all agents have finished their pass.
+  if (trace.some(t => t.step === 'writing:files' || t.step === 'done')) {
+    for (let i = 0; i < phases.length; i++) {
+      if (phases[i] === 'active') phases[i] = 'done';
+    }
+  }
+  return phases;
+};
+
+// ---------------------------------------------------------------------------
 // Markdown-lite renderer for chat/plan replies (headings, bullets, bold,
 // fenced code blocks) — no external markdown dependency.
 // ---------------------------------------------------------------------------
 const renderInline = (text: string, keyPrefix: string): React.ReactNode[] =>
   text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**') ? (
-      <strong key={`${keyPrefix}-${i}`} style={{ color: '#F1F5F9' }}>
+      <strong key={`${keyPrefix}-${i}`} style={{ color: 'var(--text-heading)' }}>
         {part.slice(2, -2)}
       </strong>
     ) : (
@@ -63,15 +111,15 @@ const renderRichText = (text: string): React.ReactNode =>
         <pre
           key={`code-${i}`}
           style={{
-            background: '#0A0A0A',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 8,
             padding: '8px 10px',
             margin: '6px 0',
             overflowX: 'auto',
-            fontSize: '0.72rem',
+            fontSize: '0.75rem',
             fontFamily: 'var(--font-mono)',
-            color: '#A5B4FC',
+            color: 'var(--accent-indigo-bright)',
             whiteSpace: 'pre'
           }}
         >
@@ -89,9 +137,9 @@ const renderRichText = (text: string): React.ReactNode =>
           <div
             key={key}
             style={{
-              fontWeight: level <= 2 ? 800 : 700,
+              fontWeight: level <= 2 ? 700 : 600,
               fontSize: level <= 2 ? '0.95rem' : '0.85rem',
-              color: '#F1F5F9',
+              color: 'var(--text-heading)',
               margin: `${level <= 2 ? '10' : '6'}px 0 4px`
             }}
           >
@@ -109,17 +157,17 @@ const renderRichText = (text: string): React.ReactNode =>
               gap: 6,
               paddingLeft: 8,
               fontSize: '0.82rem',
-              color: '#94A3B8',
+              color: 'var(--text-muted)',
               margin: '2px 0'
             }}
           >
-            <span style={{ color: '#818CF8' }}>•</span>
+            <span style={{ color: 'var(--accent-indigo-bright)' }}>•</span>
             <span>{renderInline(bulletMatch[1], key)}</span>
           </div>
         );
       }
       return (
-        <p key={key} style={{ fontSize: '0.82rem', color: '#CBD5E1', margin: '3px 0' }}>
+        <p key={key} style={{ fontSize: '0.82rem', color: 'var(--text-main)', margin: '3px 0' }}>
           {renderInline(line, key)}
         </p>
       );
@@ -138,10 +186,10 @@ const stepIcon = (step: string) => {
 };
 
 const stepColor = (step: string) => {
-  if (step.startsWith('architect')) return '#F0ABFC';
-  if (step.startsWith('developer')) return '#818CF8';
-  if (step.startsWith('debugger')) return '#6EE7B7';
-  return '#A1A1AA';
+  if (step.startsWith('architect')) return 'var(--agent-architect)';
+  if (step.startsWith('developer')) return 'var(--agent-developer)';
+  if (step.startsWith('debugger')) return 'var(--agent-debugger)';
+  return 'var(--text-muted)';
 };
 
 const TraceCard: React.FC<{ steps: TraceStep[]; isGenerating: boolean }> = ({
@@ -156,21 +204,21 @@ const TraceCard: React.FC<{ steps: TraceStep[]; isGenerating: boolean }> = ({
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [steps.length, isGenerating]);
 
-  if (steps.length === 0) {
+    if (steps.length === 0) {
     // Generation just started — show the first phase immediately instead of
     // a silent empty panel until the first SSE event lands.
     if (!isGenerating) return null;
     return (
       <div
         style={{
-          border: '1px solid rgba(129, 140, 248, 0.25)',
-          background: 'rgba(99, 102, 248, 0.06)',
+          border: '1px solid color-mix(in srgb, var(--accent-indigo-bright) 25%, transparent)',
+          background: 'var(--accent-indigo-soft)',
           borderRadius: 10,
           padding: '10px 12px',
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          color: '#A5B4FC',
+          color: 'var(--accent-indigo-bright)',
           fontSize: '0.78rem',
           fontWeight: 700,
           flexShrink: 0
@@ -185,8 +233,8 @@ const TraceCard: React.FC<{ steps: TraceStep[]; isGenerating: boolean }> = ({
   return (
     <div
       style={{
-        border: '1px solid rgba(129, 140, 248, 0.25)',
-        background: 'rgba(99, 102, 241, 0.06)',
+        border: '1px solid color-mix(in srgb, var(--accent-indigo-bright) 25%, transparent)',
+        background: 'var(--accent-indigo-soft)',
         borderRadius: 10,
         overflow: 'hidden',
         flexShrink: 0
@@ -203,7 +251,7 @@ const TraceCard: React.FC<{ steps: TraceStep[]; isGenerating: boolean }> = ({
           padding: '8px 12px',
           background: 'transparent',
           border: 'none',
-          color: '#A5B4FC',
+          color: 'var(--accent-indigo-bright)',
           cursor: 'pointer',
           fontSize: '0.78rem',
           fontWeight: 700,
@@ -213,10 +261,10 @@ const TraceCard: React.FC<{ steps: TraceStep[]; isGenerating: boolean }> = ({
         {isGenerating ? (
           <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
         ) : (
-          <CheckCircle2 size={13} color="#6EE7B7" />
+          <CheckCircle2 size={13} color="var(--agent-debugger)" />
         )}
         Agent Execution Trace
-        <span style={{ color: '#64748B', fontWeight: 400 }}>
+        <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
           · {steps.length} steps
         </span>
         <ChevronDown
@@ -251,7 +299,7 @@ const TraceCard: React.FC<{ steps: TraceStep[]; isGenerating: boolean }> = ({
                 <div style={{ minWidth: 0 }}>
                   <div
                     style={{
-                      fontSize: '0.72rem',
+                      fontSize: '0.75rem',
                       fontFamily: 'var(--font-mono)',
                       color: stepColor(step.step),
                       letterSpacing: '0.04em'
@@ -259,14 +307,14 @@ const TraceCard: React.FC<{ steps: TraceStep[]; isGenerating: boolean }> = ({
                   >
                     {step.step}
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: '#CBD5E1', lineHeight: 1.4 }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-main)', lineHeight: 1.4 }}>
                     {step.message}
                   </div>
                   {step.detail && (
                     <div
                       style={{
-                        fontSize: '0.68rem',
-                        color: '#64748B',
+                        fontSize: '0.75rem',
+                        color: 'var(--text-muted)',
                         fontFamily: 'var(--font-mono)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -288,8 +336,9 @@ const TraceCard: React.FC<{ steps: TraceStep[]; isGenerating: boolean }> = ({
 };
 
 // ---------------------------------------------------------------------------
-// Chat bubble: plain text / markdown + changes + files + suggestions +
-// design-direction decision cards.
+// Chat bubble: user pill / assistant card with metric pill, created-file
+// cards, suggestions and design-direction decision cards — all rendered from
+// the real AppContext chat message payloads.
 // ---------------------------------------------------------------------------
 interface ChatBubbleProps {
   msg: ChatMessage;
@@ -303,51 +352,39 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   onOpenFile,
   onSuggestion,
   onSelectDirection
-}) => (
-  <div
-    style={{
-      display: 'flex',
-      gap: '8px',
-      flexDirection: msg.sender === 'user' ? 'row-reverse' : 'row'
-    }}
-  >
-    <div
-      style={{
-        flexShrink: 0,
-        width: 26,
-        height: 26,
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: msg.sender === 'user' ? 'rgba(99,102,241,0.25)' : 'rgba(16,185,129,0.2)'
-      }}
-    >
-      {msg.sender === 'user' ? (
-        <User size={13} color="#A5B4FC" />
-      ) : (
-        <Bot size={13} color="#6EE7B7" />
-      )}
-    </div>
-    <div style={{ minWidth: 0, flex: 1 }}>
-      <div
-        style={{
-          background: 'rgba(255, 255, 255, 0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: '10px',
-          padding: '8px 10px',
-          lineHeight: 1.45,
-          color: '#CBD5E1'
-        }}
-      >
+}) => {
+  if (msg.sender === 'user') {
+    return (
+      <div className="studio-msg-user">
+        <div className="studio-bubble-user">
+          {msg.markdown ? (
+            <div>{renderRichText(msg.text)}</div>
+          ) : (
+            renderInline(msg.text, 'p')
+          )}
+        </div>
+        <span className="studio-msg-time">{msg.timestamp}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="studio-msg-ai">
+      <div className="studio-ai-head">
+        <span className="studio-ai-avatar">
+          <Bot size={12} />
+        </span>
+        CraftAI Assistant
+      </div>
+      <div className="studio-bubble-ai">
         {msg.markdown ? (
           <div style={{ textAlign: 'left' }}>{renderRichText(msg.text)}</div>
         ) : (
-          <div style={{ fontSize: '0.83rem' }}>{renderInline(msg.text, 'p')}</div>
+          <div>{renderInline(msg.text, 'p')}</div>
         )}
 
         {msg.changes && msg.changes.length > 0 && (
-          <ul style={{ margin: '6px 0 0', paddingLeft: '16px', color: '#64748B' }}>
+          <ul style={{ margin: '6px 0 0', paddingLeft: '16px', color: 'var(--text-muted)' }}>
             {msg.changes.slice(0, 6).map((c, i) => (
               <li key={i} style={{ fontSize: '0.76rem' }}>
                 {c}
@@ -357,51 +394,39 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         )}
       </div>
 
-      {/* Created files — clickable links that open the file in Monaco */}
+      {/* Created files — real count from the edit/build response, clickable
+          cards that open the file in Monaco */}
       {msg.files && msg.files.length > 0 && (
-        <div
-          style={{
-            marginTop: 6,
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 8,
-            padding: '6px 8px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2
-          }}
-        >
-          <span
-            style={{
-              fontSize: '0.64rem',
-              fontWeight: 700,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              color: '#64748B'
-            }}
-          >
-            Files created ({msg.files.length}) — click to open
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+          <span className="studio-metric-pill" style={{ alignSelf: 'flex-start' }}>
+            <Zap size={11} color="var(--accent-indigo-bright)" />
+            {msg.files.length} {msg.files.length === 1 ? 'file' : 'files'} synthesized
           </span>
           {msg.files.slice(0, 10).map(f => (
             <button
               key={f.path}
               type="button"
+              className="studio-file-card"
               onClick={() => onOpenFile(f.path)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                background: 'transparent',
-                border: 'none',
-                color: '#818CF8',
-                cursor: 'pointer',
-                fontSize: '0.72rem',
-                fontFamily: 'var(--font-mono)',
-                padding: '2px 4px',
-                textAlign: 'left'
-              }}
+              title={`Open ${f.path} in the editor`}
             >
-              <Code2 size={11} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.path}</span>
+              <FileText size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: 'var(--text-main)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {f.path}
+              </span>
+              <span className="studio-caps" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                View
+              </span>
             </button>
           ))}
         </div>
@@ -409,35 +434,24 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       {/* Design-direction decision cards (Plan mode handoff) */}
       {msg.decisions && msg.decisions.length > 0 && (
-        <div
-          style={{
-            marginTop: 8,
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 6
-          }}
-        >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {msg.decisions.map(dir => (
             <button
               key={dir.id}
               type="button"
+              className="studio-chip"
               onClick={() => onSelectDirection(dir.id, dir.title)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '8px 12px',
-                background: 'rgba(99, 102, 241, 0.1)',
-                border: '1px solid rgba(129, 140, 248, 0.45)',
-                borderRadius: 10,
-                color: '#A5B4FC',
-                cursor: 'pointer',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                transition: 'all 0.15s ease'
+                background: 'var(--accent-indigo-soft)',
+                borderColor: 'color-mix(in srgb, var(--accent-indigo-bright) 45%, transparent)',
+                color: 'var(--accent-indigo-bright)',
+                fontWeight: 600
               }}
             >
-              <Sparkles size={12} />
+              <Sparkles size={11} />
               {dir.title}
             </button>
           ))}
@@ -446,21 +460,13 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       {/* Follow-up suggestion chips */}
       {msg.suggestions && msg.suggestions.length > 0 && (
-        <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {msg.suggestions.map(s => (
             <button
               key={s}
               type="button"
+              className="studio-chip"
               onClick={() => onSuggestion(s)}
-              style={{
-                padding: '4px 10px',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 999,
-                color: '#94A3B8',
-                cursor: 'pointer',
-                fontSize: '0.7rem'
-              }}
             >
               {s}
             </button>
@@ -468,22 +474,20 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         </div>
       )}
 
-      <div style={{ marginTop: 4, fontSize: '0.68rem', color: '#475569' }}>
-        {msg.timestamp}
-      </div>
+      <span className="studio-msg-time">{msg.timestamp}</span>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * The transitioning generation page.
  *
  * isGenerated === false  →  clean, centered multi-mode prompt console.
- * isGenerated === true   →  split workspace: 30% "Edit with AI" chat panel
- *                           (with the live Agent Execution Trace), 20%
- *                           file-explorer tree over the generated
- *                           repository, 50% live preview iframe + Monaco
- *                           code tab bound to the selected file.
+ * isGenerated === true   →  split workspace (Stitch "Main workspace" port):
+ *                           file explorer (real generatedFiles) / "Edit with
+ *                           AI" agent drawer (real chat + trace) / live
+ *                           preview + Monaco code stage with the synthesis
+ *                           modal bound to the real pipeline state.
  */
 export const GenerateStudio: React.FC = () => {
   const {
@@ -497,12 +501,16 @@ export const GenerateStudio: React.FC = () => {
     previewVersion,
     chatMessages,
     sendChatMessage,
+    cancelGeneration,
     setCurrentScreen,
     user,
+    currentProject,
     agentTrace,
     selectDesignDirection,
     openFileRequest,
-    requestOpenFile
+    requestOpenFile,
+    attachedContext,
+    setAttachedContext
   } = useApp();
 
   const [chatInput, setChatInput] = useState('');
@@ -512,6 +520,32 @@ export const GenerateStudio: React.FC = () => {
   const [deployState, setDeployState] = useState<'idle' | 'deploying' | 'live'>('idle');
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
   const [deploySlug, setDeploySlug] = useState<string>('');
+  const [deployError, setDeployError] = useState<string | null>(null);
+  // GitHub publish flow: the modal captures slug + PAT; on success the repo
+  // URL swaps the header badge into the green "Published" state.
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [repoUrl, setRepoUrl] = useState<string | null>(null);
+  const [liveUrl, setLiveUrl] = useState<string | null>(null);
+  // Phase 6: resizable panes + preview recompile overlay
+  const chatPanelRef = usePanelRef();
+  const filePanelRef = usePanelRef();
+  const [chatCollapsed, setChatCollapsed] = useState(false);
+  const [fileCollapsed, setFileCollapsed] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  // Explorer "collapse all folders" → bump drives FileTree's internal set.
+  const [collapseAllNonce, setCollapseAllNonce] = useState(0);
+  // "View Verbose Logs" → bump opens the bottom terminal drawer.
+  const [terminalExpandNonce, setTerminalExpandNonce] = useState(0);
+  const attachInputRef = useRef<HTMLInputElement>(null);
+  const reduceMotion = useReducedMotion();
+  const triggerRecompile = () => {
+    setReloadKey(k => k + 1);
+    setPreviewLoading(true);
+  };
+  // A new generation landing also recompiles the preview iframe.
+  useEffect(() => {
+    if (previewVersion > 0) setPreviewLoading(true);
+  }, [previewVersion]);
   /** Where the ExternalLink icon actually points. Local full-screen route
    *  for the demo, so we never hit a real DNS lookup. */
   const deployHref = deploySlug
@@ -524,15 +558,20 @@ export const GenerateStudio: React.FC = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages.length]);
 
-  // Follow the project: whenever a new file set arrives, select the entry
-  // page (src/App.tsx, falling back to the first file).
+  // Follow the project: whenever a new file set arrives, select an entry
+  // page — root or monorepo layout — falling back to the first *code* file
+  // so dotfiles like .env never claim the editor by accident.
   useEffect(() => {
     if (generatedFiles.length === 0) {
       setSelectedFile(null);
       return;
     }
+    const isCode = (p: string) => /\.(tsx?|jsx?|css|py)$/.test(p);
     setSelectedFile(
-      generatedFiles.find(f => f.path === 'src/App.tsx') ?? generatedFiles[0]
+      (generatedFiles.find(f =>
+        ['src/App.tsx', 'frontend/src/App.tsx'].includes(f.path)
+      ) ?? generatedFiles.find(f => isCode(f.path))) ??
+        generatedFiles[0]
     );
   }, [generatedFiles]);
 
@@ -601,6 +640,7 @@ export const GenerateStudio: React.FC = () => {
     const slug = deploySlug || slugFromPlan();
     setDeploySlug(slug);
     setDeployState('deploying');
+    setDeployError(null);
     try {
       const res = await fetch(DEPLOY_API_URL, {
         method: 'POST',
@@ -612,7 +652,12 @@ export const GenerateStudio: React.FC = () => {
           files: generatedFiles
         })
       });
-      const url = res.headers.get('X-Deploy-Url') || `https://${slug}.${DEPLOY_DOMAIN}`;
+      if (!res.ok) {
+        throw new Error(`Publish failed (HTTP ${res.status})`);
+      }
+      const url =
+        res.headers.get('X-Deploy-Url') ||
+        `${window.location.origin}/published/${slug}`;
       // Persist the deploy locally as the source of truth — Supabase deployment
       // table can replace this when the schema is migrated.
       try {
@@ -623,11 +668,12 @@ export const GenerateStudio: React.FC = () => {
       } catch { /* storage full / disabled */ }
       setDeployUrl(url);
       setDeployState('live');
-    } catch {
-      // Backend offline (local demo): still mint a URL so the UI is exercisable.
-      const url = `https://${slug}.${DEPLOY_DOMAIN}`;
-      setDeployUrl(url);
-      setDeployState('live');
+    } catch (err) {
+      // Backend unreachable: say so. Never mint a URL the user can't open.
+      setDeployState('idle');
+      setDeployError(
+        err instanceof Error ? err.message : 'Publish failed — backend unreachable.'
+      );
     }
   };
 
@@ -636,6 +682,28 @@ export const GenerateStudio: React.FC = () => {
     if (!chatInput.trim()) return;
     sendChatMessage(chatInput);
     setChatInput('');
+  };
+
+  /** Publish modal success: swap the header into the green Published state
+   *  linking to the live Vercel site (or the GitHub repo when no deploy).
+   *  Modal result keeps showing "Vercel is building…" + View Live Site. */
+  const onGithubPublished = (result: { repoUrl: string; liveUrl?: string | null }) => {
+    setRepoUrl(result.repoUrl);
+    setLiveUrl(result.liveUrl ?? null);
+    setDeployState('live');
+    setDeployError(null);
+  };
+
+  // Attach a context file to the app-wide attachedContext state (consumed by
+  // the next fresh build; incremental edits ignore it — that's the API shape).
+  const onAttachFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    file
+      .text()
+      .then(content => setAttachedContext({ name: file.name, content }))
+      .catch(() => undefined);
   };
 
   // ---------------- Initial state: centered prompt console ----------------
@@ -662,37 +730,17 @@ export const GenerateStudio: React.FC = () => {
             transition={{ duration: 0.5 }}
             style={{ width: '100%', maxWidth: '820px', textAlign: 'center' }}
           >
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '6px 14px',
-                borderRadius: '9999px',
-                background: 'rgba(99, 102, 241, 0.12)',
-                border: '1px solid rgba(99, 102, 241, 0.35)',
-                color: '#A5B4FC',
-                fontSize: '0.75rem',
-                fontFamily: 'var(--font-mono)',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                marginBottom: '1.5rem'
-              }}
-            >
-              <Sparkles size={13} /> 3-Agent AI Engine
-            </div>
-
             <h1
               style={{
                 fontFamily: 'var(--font-display)',
                 fontSize: 'clamp(2rem, 5vw, 3.25rem)',
-                fontWeight: 800,
-                color: '#FFFFFF',
+                fontWeight: 700,
+                color: 'var(--text-heading)',
                 lineHeight: 1.1,
                 marginBottom: '0.75rem'
               }}
             >
-              What should <span style={{ color: '#818CF8' }}>CraftAi</span> build for you?
+              What should <span style={{ color: 'var(--accent-indigo-bright)' }}>CraftAi</span> build for you today?
             </h1>
             <p
               style={{
@@ -713,7 +761,7 @@ export const GenerateStudio: React.FC = () => {
               <p
                 style={{
                   marginTop: '1.25rem',
-                  color: isGenerating ? '#A5B4FC' : 'var(--neutral-slate, #94A3B8)',
+                  color: isGenerating ? 'var(--accent-indigo-bright)' : 'var(--neutral-slate, #94A3B8)',
                   fontSize: '0.88rem',
                   fontFamily: 'var(--font-mono)'
                 }}
@@ -753,17 +801,16 @@ export const GenerateStudio: React.FC = () => {
     );
   }
 
+  // Real pipeline state for the synthesis modal.
+  const phases = derivePhases(agentTrace);
+  const recentTrace = agentTrace.slice(-5);
+  const lastTrace = agentTrace[agentTrace.length - 1];
+  const projectTitle =
+    currentProject?.title ?? user?.email?.split('@')[0] ?? 'your workspace';
+
   // ---------------- Post-generation split workspace ----------------
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        background: '#05070D',
-        color: '#E2E8F0'
-      }}
-    >
+    <div className="studio-shell">
       {/* Header */}
       <header
         style={{
@@ -771,35 +818,57 @@ export const GenerateStudio: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '10px 18px',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-          background: '#090D16'
+          borderBottom: '1px solid var(--border-subtle)',
+          background: 'var(--bg-nav)'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div className="craftai-logo-icon" style={{ width: 22, height: 22 }} />
-          <span style={{ fontWeight: 800, color: '#FFFFFF' }}>
-            Craft<span style={{ color: '#818CF8' }}>Ai</span>
+          <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+            Craft<span style={{ color: 'var(--accent-indigo-bright)' }}>Ai</span>
           </span>
           <span
             style={{
-              fontSize: '0.72rem',
+              fontSize: '0.75rem',
               fontFamily: 'var(--font-mono)',
-              color: '#64748B',
-              borderLeft: '1px solid rgba(255,255,255,0.12)',
-              paddingLeft: 12
+              color: 'var(--text-muted)',
+              borderLeft: '1px solid var(--border-subtle)',
+              paddingLeft: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              minWidth: 0
             }}
           >
-            workspace · {user?.email ?? 'authenticated'}
+            <span>Personal Workspace</span>
+            <ChevronRight size={11} style={{ flexShrink: 0 }} />
+            <span
+              title={currentProject?.title}
+              style={{ color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            >
+              {projectTitle}
+            </span>
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {isGenerating && (
-            <span style={{ fontSize: '0.78rem', color: '#A5B4FC', fontFamily: 'var(--font-mono)' }}>
-              3-agent pipeline running…
-            </span>
+            <>
+              <span style={{ fontSize: '0.78rem', color: 'var(--accent-indigo-bright)', fontFamily: 'var(--font-mono)' }}>
+                3-agent pipeline running…
+              </span>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={cancelGeneration}
+                style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+              >
+                <Square size={12} />
+                Cancel
+              </button>
+            </>
           )}
-          {/* Live deploy URL badge */}
-          {deployState === 'live' && deployUrl && (
+          {/* Green Published badge — live Vercel site (or GitHub repo) */}
+          {deployState === 'live' && (liveUrl || repoUrl || deployUrl) && (
             <div
               style={{
                 display: 'flex',
@@ -807,62 +876,50 @@ export const GenerateStudio: React.FC = () => {
                 gap: 6,
                 padding: '5px 10px',
                 borderRadius: 999,
-                background: 'rgba(16,185,129,0.12)',
-                border: '1px solid rgba(16,185,129,0.4)',
-                color: '#6EE7B7',
-                fontSize: '0.74rem',
+                background: 'color-mix(in srgb, var(--agent-debugger) 12%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--agent-debugger) 40%, transparent)',
+                color: 'var(--agent-debugger)',
+                fontSize: '0.75rem',
                 fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
                 maxWidth: 320
               }}
-              title={deployUrl}
+              title={liveUrl ?? repoUrl ?? deployUrl ?? ''}
             >
-              <Globe size={12} />
+              {liveUrl ? <Globe size={12} /> : <GitBranch size={12} />}
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {deployUrl.replace(/^https?:\/\//, '')}
+                Published
               </span>
-              <button
-                type="button"
-                title="Copy URL"
-                onClick={() => navigator.clipboard?.writeText(deployUrl)}
-                style={{ background: 'transparent', border: 'none', color: '#6EE7B7', cursor: 'pointer', padding: 0, display: 'flex' }}
-              >
-                <Copy size={11} />
-              </button>
               <a
-                href={deployHref ?? '#'}
+                href={liveUrl ?? repoUrl ?? deployHref ?? '#'}
                 target="_blank"
                 rel="noreferrer"
-                title="Open published site"
-                style={{ background: 'transparent', color: '#6EE7B7', display: 'flex' }}
+                title={liveUrl ?? repoUrl ?? deployUrl ?? ''}
+                style={{ background: 'transparent', color: 'var(--agent-debugger)', display: 'flex' }}
               >
                 <ExternalLink size={11} />
               </a>
             </div>
           )}
-          {/* Publish button */}
-          <button
-            type="button"
-            onClick={handlePublish}
-            disabled={deployState === 'deploying' || !generatedCode}
-            className="btn-primary"
-            style={{
-              padding: '6px 14px',
-              fontSize: '0.78rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              opacity: deployState === 'deploying' ? 0.7 : 1
-            }}
-          >
-            {deployState === 'deploying' ? (
-              <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
-            ) : deployState === 'live' ? (
-              <Rocket size={13} />
-            ) : (
-              <Rocket size={13} />
-            )}
-            {deployState === 'deploying' ? 'Publishing…' : deployState === 'live' ? 'Re-deploy' : 'Publish'}
-          </button>
+          {/* Publish failure — surfaced honestly, never disguised as live */}
+          {deployError && (
+            <span
+              role="alert"
+              title={deployError}
+              style={{
+                fontSize: '0.75rem',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-muted)',
+                maxWidth: 260,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {deployError}
+            </span>
+          )}
+          <ThemeToggle />
           <button
             type="button"
             className="btn-ghost"
@@ -874,51 +931,148 @@ export const GenerateStudio: React.FC = () => {
         </div>
       </header>
 
-      {/* Split body: 30% chat / 20% file tree / 50% preview+code */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        {/* Left: Edit with AI chat panel + execution trace */}
-        <aside
-          style={{
-            width: '30%',
-            minWidth: '300px',
-            display: 'flex',
-            flexDirection: 'column',
-            borderRight: '1px solid rgba(255,255,255,0.08)',
-            background: '#070A12',
-            minHeight: 0
-          }}
+      {/* Split body: resizable panes — file explorer / chat / preview+code */}
+      <Group orientation="horizontal" style={{ flex: 1, minHeight: 0 }}>
+        {/* Panel 1: file explorer over the generated project */}
+        <Panel
+          panelRef={filePanelRef}
+          defaultSize="20%"
+          minSize="14%"
+          collapsible
+          collapsedSize="0%"
+          onResize={size => setFileCollapsed(size.asPercentage < 0.5)}
         >
-          <div
-            style={{
-              padding: '12px 16px',
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              color: '#FFFFFF'
-            }}
-          >
-            <Sparkles size={15} color="#818CF8" />
-            Edit with AI
+        <aside className="studio-panel">
+          <div className="studio-panel-header">
+            {chatCollapsed && (
+              <button
+                type="button"
+                title="Expand chat panel"
+                className="studio-icon-btn"
+                onClick={() => chatPanelRef.current?.expand()}
+              >
+                <ChevronsRight size={13} />
+              </button>
+            )}
+            <span className="studio-caps">Explorer</span>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                color: 'var(--text-muted)',
+                background: 'var(--bg-hover)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 999,
+                padding: '1px 8px'
+              }}
+            >
+              {generatedFiles.length}
+            </span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
+              <button
+                type="button"
+                title="Collapse all folders"
+                className="studio-icon-btn"
+                onClick={() => setCollapseAllNonce(n => n + 1)}
+              >
+                <ChevronsDownUp size={14} />
+              </button>
+              <button
+                type="button"
+                title="Collapse file panel"
+                className="studio-icon-btn"
+                onClick={() => filePanelRef.current?.collapse()}
+              >
+                <ChevronsLeft size={13} />
+              </button>
+            </div>
+          </div>
+          {/* Repo context row — real project title + real file count */}
+          <div className="studio-repo-row">
+            <FolderGit2 size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            <span className="studio-repo-name" title={projectTitle}>
+              {projectTitle}
+            </span>
+            <span style={{ marginLeft: 'auto', color: 'var(--text-subtle)', flexShrink: 0 }}>
+              {generatedFiles.length} {generatedFiles.length === 1 ? 'file' : 'files'}
+            </span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            <FileTree
+              files={generatedFiles}
+              selectedPath={selectedFile?.path ?? null}
+              onSelect={file => {
+                setSelectedFile(file);
+                setRightTab('code');
+              }}
+              collapseAllSignal={collapseAllNonce}
+            />
+          </div>
+        </aside>
+        </Panel>
+
+        {/* Drag handle 1 — glow on hover, |> re-expands the file panel */}
+        <Separator className="resize-handle">
+          {fileCollapsed && (
+            <button
+              type="button"
+              title="Expand file panel"
+              onClick={() => filePanelRef.current?.expand()}
+              style={{
+                position: 'absolute',
+                top: 8,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 18,
+                height: 26,
+                borderRadius: 6,
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--accent-indigo-bright)',
+                cursor: 'pointer'
+              }}
+            >
+              <ChevronsRight size={12} />
+            </button>
+          )}
+        </Separator>
+
+        {/* Panel 2: Edit with AI chat panel + execution trace */}
+        <Panel
+          panelRef={chatPanelRef}
+          defaultSize="30%"
+          minSize="18%"
+          collapsible
+          collapsedSize="0%"
+          onResize={size => setChatCollapsed(size.asPercentage < 0.5)}
+        >
+        <aside className="studio-panel">
+          <div className="studio-panel-header">
+            <Wand2 size={14} color="var(--accent-indigo-bright)" />
+            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-heading)' }}>
+              Edit with AI
+            </span>
+            <button
+              type="button"
+              title="Collapse chat panel"
+              className="studio-icon-btn"
+              style={{ marginLeft: 'auto' }}
+              onClick={() => chatPanelRef.current?.collapse()}
+            >
+              <ChevronsLeft size={14} />
+            </button>
           </div>
 
-          <div
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '14px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px'
-            }}
-          >
+          <div className="studio-thread">
             {/* Live agent execution trace */}
             <TraceCard steps={agentTrace} isGenerating={isGenerating} />
 
             {chatMessages.length === 0 && (
-              <p style={{ color: '#64748B', fontSize: '0.85rem' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                 Ask for changes — e.g. “make the hero gradient brighter”, “add a
                 contact form”, “switch to a light theme”. Every message re-runs
                 the 3-agent pipeline and reloads the preview.
@@ -938,142 +1092,123 @@ export const GenerateStudio: React.FC = () => {
             <div ref={chatEndRef} />
           </div>
 
-          <form
-            onSubmit={onChatSubmit}
-            style={{
-              display: 'flex',
-              gap: '8px',
-              padding: '12px',
-              borderTop: '1px solid rgba(255,255,255,0.08)'
-            }}
-          >
-            <input
-              type="text"
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              placeholder="Describe your edit…"
-              style={{
-                flex: 1,
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '10px',
-                padding: '10px 12px',
-                color: '#FFFFFF',
-                fontSize: '0.85rem',
-                outline: 'none'
-              }}
-            />
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={isGenerating || !chatInput.trim()}
-              style={{ padding: '0 14px', borderRadius: '10px' }}
-            >
-              <Send size={15} />
-            </button>
+          {/* Command dock */}
+          <form className="studio-dock" onSubmit={onChatSubmit}>
+            <div className="studio-dock-box">
+              <textarea
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    onChatSubmit(e as unknown as React.FormEvent);
+                  }
+                }}
+                placeholder="Ask CraftAI to edit code, add features, or explain…"
+                rows={2}
+              />
+              <div className="studio-dock-bar">
+                <div className="studio-dock-tools">
+                  <button
+                    type="button"
+                    className="studio-icon-btn"
+                    title="Attach context file"
+                    onClick={() => attachInputRef.current?.click()}
+                  >
+                    <Paperclip size={14} />
+                  </button>
+                  <input
+                    ref={attachInputRef}
+                    type="file"
+                    hidden
+                    accept=".txt,.md,.json,.csv,.ts,.tsx,.js,.jsx,.css,.html"
+                    onChange={onAttachFile}
+                  />
+                  {attachedContext && (
+                    <span
+                      className="studio-ctx-chip"
+                      title={attachedContext.content.slice(0, 200)}
+                    >
+                      <span className="studio-ctx-name">@Context: {attachedContext.name}</span>
+                      <button
+                        type="button"
+                        title="Remove attached context"
+                        onClick={() => setAttachedContext(null)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          padding: 0,
+                          display: 'flex',
+                          flexShrink: 0
+                        }}
+                      >
+                        <Square size={9} />
+                      </button>
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  className="studio-send"
+                  disabled={isGenerating || !chatInput.trim()}
+                  title="Send (⌘/Ctrl + Enter)"
+                >
+                  <ArrowUp size={14} />
+                </button>
+              </div>
+            </div>
           </form>
         </aside>
+        </Panel>
 
-        {/* Middle: file explorer over the generated project */}
-        <aside
-          style={{
-            width: '20%',
-            minWidth: '210px',
-            display: 'flex',
-            flexDirection: 'column',
-            borderRight: '1px solid rgba(255,255,255,0.08)',
-            background: '#070A12',
-            minHeight: 0
-          }}
-        >
-          <div
-            style={{
-              padding: '12px 16px',
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              color: '#FFFFFF'
-            }}
-          >
-            <FolderGit2 size={15} color="#818CF8" />
-            Files
-            {generatedFiles.length > 0 && (
-              <span
-                style={{
-                  marginLeft: 'auto',
-                  fontSize: '0.68rem',
-                  fontFamily: 'var(--font-mono)',
-                  color: '#64748B',
-                  padding: '2px 8px',
-                  borderRadius: 999,
-                  background: 'rgba(255,255,255,0.05)'
-                }}
-              >
-                {generatedFiles.length}
-              </span>
-            )}
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-            <FileTree
-              files={generatedFiles}
-              selectedPath={selectedFile?.path ?? null}
-              onSelect={file => {
-                setSelectedFile(file);
-                setRightTab('code');
-              }}
-            />
-          </div>
-        </aside>
-
-        {/* Right: preview iframe / Monaco toggle */}
-        <section style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '8px 12px',
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
-              background: '#090D16'
-            }}
-          >
-            <div
-              role="group"
-              aria-label="Right pane view"
+        {/* Drag handle 2 — glow on hover, |> re-expands the chat panel */}
+        <Separator className="resize-handle">
+          {chatCollapsed && (
+            <button
+              type="button"
+              title="Expand chat panel"
+              onClick={() => chatPanelRef.current?.expand()}
               style={{
+                position: 'absolute',
+                top: 8,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 5,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 2,
-                padding: 3,
-                borderRadius: 8,
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)'
+                justifyContent: 'center',
+                width: 18,
+                height: 26,
+                borderRadius: 6,
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--accent-indigo-bright)',
+                cursor: 'pointer'
               }}
             >
+              <ChevronsRight size={12} />
+            </button>
+          )}
+        </Separator>
+
+        {/* Panel 3: preview iframe / Monaco toggle + synthesis stage */}
+        <Panel defaultSize="50%" minSize="30%">
+        <section style={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <div className="studio-toolbar">
+            {/* View mode tabs */}
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: '16px', height: '100%' }}>
               {(['preview', 'code'] as const).map(tab => (
                 <button
                   key={tab}
                   type="button"
+                  className="studio-tab"
+                  data-active={rightTab === tab}
                   aria-pressed={rightTab === tab}
                   onClick={() => setRightTab(tab)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: 6,
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    background: rightTab === tab ? 'rgba(99,102,241,0.2)' : 'transparent',
-                    color: rightTab === tab ? '#A5B4FC' : '#64748B',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
                 >
-                  {tab === 'preview' ? <Eye size={13} /> : <Code2 size={13} />}
+                  {tab === 'preview' ? <Eye size={14} /> : <Code2 size={14} />}
                   {tab === 'preview' ? 'Live Preview' : 'Code'}
                 </button>
               ))}
@@ -1081,14 +1216,13 @@ export const GenerateStudio: React.FC = () => {
             {rightTab === 'code' && selectedFile && (
               <span
                 style={{
-                  marginLeft: '8px',
                   padding: '4px 10px',
                   borderRadius: '6px',
-                  fontSize: '0.72rem',
+                  fontSize: '0.75rem',
                   fontFamily: 'var(--font-mono)',
-                  color: '#94A3B8',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'var(--text-muted)',
+                  background: 'var(--bg-hover)',
+                  border: '1px solid var(--border-subtle)',
                   maxWidth: 340,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -1100,131 +1234,251 @@ export const GenerateStudio: React.FC = () => {
               </span>
             )}
             {rightTab === 'preview' && (
-              <>
-                {/* Viewport switcher (Module 5) */}
-                <div
-                  style={{
-                    marginLeft: 'auto',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 2,
-                    padding: 3,
-                    borderRadius: 8,
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)'
-                  }}
-                >
+              <div
+                style={{
+                  marginLeft: 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12
+                }}
+              >
+                {/* Device viewport switcher — constrains the real iframe */}
+                <div className="studio-segmented" role="group" aria-label="Preview viewport">
                   {(['desktop', 'tablet', 'mobile'] as ViewportMode[]).map(mode => {
                     const Icon = mode === 'desktop' ? Monitor : mode === 'tablet' ? Tablet : Smartphone;
-                    const active = viewport === mode;
                     return (
                       <button
                         key={mode}
                         type="button"
-                        title={mode}
+                        data-active={viewport === mode}
+                        title={
+                          mode === 'desktop'
+                            ? 'Desktop view (fluid width)'
+                            : mode === 'tablet'
+                              ? `Tablet view (${VIEWPORT_SIZES[mode].width}px)`
+                              : `Mobile view (${VIEWPORT_SIZES[mode].width}px)`
+                        }
                         onClick={() => setViewport(mode)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 28,
-                          height: 24,
-                          borderRadius: 6,
-                          border: 'none',
-                          cursor: 'pointer',
-                          background: active ? 'rgba(99,102,241,0.2)' : 'transparent',
-                          color: active ? '#A5B4FC' : '#64748B'
-                        }}
                       >
                         <Icon size={13} />
                       </button>
                     );
                   })}
                 </div>
-                <button
-                  type="button"
-                  title="Reload preview"
-                  onClick={() => setReloadKey(k => k + 1)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#64748B',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '0.75rem'
-                  }}
-                >
-                  <RefreshCw size={13} /> {PREVIEW_URL}
-                </button>
-              </>
+                {/* Address bar — real preview URL; the dot tracks the real
+                    iframe load state (emerald once onLoad has fired) */}
+                <div className="studio-addr" title={PREVIEW_URL}>
+                  <span
+                    className="studio-hmr-dot"
+                    data-live={!previewLoading && !isGenerating}
+                    title={
+                      !previewLoading && !isGenerating
+                        ? 'Preview served'
+                        : 'Preview loading…'
+                    }
+                  />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {PREVIEW_URL.replace(/^https?:\/\//, '')}
+                  </span>
+                  <button
+                    type="button"
+                    className="studio-icon-btn"
+                    style={{ width: 20, height: 20 }}
+                    title="Reload — re-compile the preview"
+                    onClick={triggerRecompile}
+                  >
+                    <RefreshCw size={12} />
+                  </button>
+                  <a
+                    href={PREVIEW_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="studio-icon-btn"
+                    style={{ width: 20, height: 20 }}
+                    title="Open preview in a new tab"
+                  >
+                    <ExternalLink size={12} />
+                  </a>
+                </div>
+              </div>
             )}
+            {/* Action controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+              <button
+                type="button"
+                className="studio-btn-solid"
+                onClick={() => setShowPublishModal(true)}
+                disabled={!generatedCode}
+                title="Publish — push the monorepo to GitHub"
+              >
+                {deployState === 'deploying' ? (
+                  <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <Rocket size={12} />
+                )}
+                {deployState === 'deploying'
+                  ? 'Publishing…'
+                  : deployState === 'live'
+                    ? 'Re-deploy'
+                    : 'Publish'}
+                <ArrowRight size={12} />
+              </button>
+            </div>
           </div>
 
           <div
+            className="studio-stage"
             style={{
-              position: 'relative',
-              flex: 1,
-              minHeight: 0,
-              minWidth: 0,
-              background: rightTab === 'code' ? '#0A0A0A' : '#05070D',
-              display: 'flex',
               alignItems: rightTab === 'preview' ? 'center' : 'stretch',
               justifyContent: rightTab === 'preview' ? 'center' : 'stretch',
-              overflow: rightTab === 'preview' ? 'auto' : 'hidden',
               padding: rightTab === 'preview' && viewport !== 'desktop' ? 24 : 0
             }}
           >
-            {/* Generation skeleton — covers the stale previous-project
-                preview/code the moment a new build starts. */}
-            {isGenerating && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.2 }}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  zIndex: 10,
-                  background: '#05070D',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 12,
-                  padding: 24,
-                  textAlign: 'center'
-                }}
-              >
-                <Loader2
-                  size={26}
-                  style={{ animation: 'spin 1s linear infinite', color: '#818CF8' }}
-                />
-                <span
+            {/* Synthesis overlay — the REAL pipeline state over the
+                wireframe stage: Architect / Developer / Debugger timeline
+                + live SSE trace lines; Cancel aborts the real request. */}
+            <AnimatePresence>
+              {isGenerating && (
+                <motion.div
+                  key="synth-overlay"
+                  className="studio-synth-overlay"
+                  initial={reduceMotion ? undefined : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={reduceMotion ? undefined : { opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <StageWireframe />
+                  <motion.div
+                    className="studio-modal"
+                    initial={reduceMotion ? undefined : { opacity: 0, y: 14, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <div className="studio-synth-badge">
+                      <span className="studio-synth-dot" />
+                      Synthesizing Workspace
+                    </div>
+                    <h2
+                      style={{
+                        fontSize: '1.05rem',
+                        fontWeight: 600,
+                        color: 'var(--text-heading)',
+                        marginBottom: 8,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      Building {projectTitle}
+                    </h2>
+                    <p
+                      style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--text-muted)',
+                        maxWidth: 380,
+                        margin: '0 auto 24px',
+                        lineHeight: 1.6
+                      }}
+                    >
+                      {lastTrace?.message ??
+                        'Architect → Developer → Debugger pipeline running — the preview reloads when the build lands.'}
+                    </p>
+
+                    {/* 3-step agent timeline (completed / active / pending) */}
+                    <div className="studio-timeline">
+                      <span className="studio-timeline-line" />
+                      {AGENT_STEPS.map((agent, idx) => {
+                        const phase = phases[idx];
+                        return (
+                          <div key={agent.prefix} className="studio-step" data-phase={phase}>
+                            <div className="studio-step-node">
+                              {phase === 'done' ? (
+                                <Check size={14} strokeWidth={3} />
+                              ) : phase === 'active' ? (
+                                <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                              ) : (
+                                <agent.Icon size={13} />
+                              )}
+                            </div>
+                            <span className="studio-step-label">{agent.name}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Streaming console — real SSE trace lines, newest highlighted */}
+                    <div className="studio-console">
+                      {recentTrace.length === 0 && (
+                        <span>Booting the agent pipeline…</span>
+                      )}
+                      {recentTrace.map((t, i) => (
+                        <span
+                          key={`${t.step}-${i}`}
+                          className={i === recentTrace.length - 1 ? 'studio-log-new' : undefined}
+                          style={{ display: 'flex', gap: 8, whiteSpace: 'nowrap' }}
+                        >
+                          <span style={{ opacity: 0.6, flexShrink: 0 }}>[{t.step}]</span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {t.detail ? `${t.message} — ${t.detail}` : t.message}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="studio-modal-footer">
+                      <button
+                        type="button"
+                        className="studio-link-btn"
+                        onClick={cancelGeneration}
+                        title="Abort the in-flight generation request"
+                      >
+                        <Square size={10} />
+                        Cancel Build
+                      </button>
+                      <button
+                        type="button"
+                        className="studio-link-btn studio-link-accent"
+                        onClick={() => setTerminalExpandNonce(n => n + 1)}
+                        title="Open the verbose agent trace in the terminal drawer"
+                      >
+                        View Verbose Logs
+                        <ChevronRight size={11} />
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Recompile overlay — covers the iframe until onLoad fires */}
+            <AnimatePresence>
+              {rightTab === 'preview' && previewLoading && !isGenerating && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
                   style={{
-                    fontSize: '0.92rem',
-                    fontWeight: 700,
-                    color: '#E2E8F0',
-                    fontFamily: 'var(--font-mono)'
+                    position: 'absolute',
+                    inset: 0,
+                    zIndex: 9,
+                    background: 'color-mix(in srgb, var(--bg-primary) 78%, transparent)',
+                    backdropFilter: 'blur(6px)',
+                    WebkitBackdropFilter: 'blur(6px)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10
                   }}
                 >
-                  {agentTrace.length === 0
-                    ? 'Analyzing prompt intent…'
-                    : agentTrace[agentTrace.length - 1]?.message ?? 'Building…'}
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    color: '#64748B',
-                    fontFamily: 'var(--font-mono)'
-                  }}
-                >
-                  Architect → Developer → Debugger · preview reloads when the
-                  build lands
-                </span>
-              </motion.div>
-            )}
+                  <Loader2 size={20} style={{ animation: 'spin 1s linear infinite', color: 'var(--accent-indigo-bright)' }} />
+                  <span style={{ fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                    Recompiling preview…
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <AnimatePresence mode="wait">
               {rightTab === 'preview' ? (
                 <motion.iframe
@@ -1232,6 +1486,7 @@ export const GenerateStudio: React.FC = () => {
                   ref={iframeRef}
                   src={`${PREVIEW_URL}?v=${previewVersion}-${reloadKey}`}
                   title="Generated app preview"
+                  onLoad={() => setPreviewLoading(false)}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
@@ -1243,10 +1498,10 @@ export const GenerateStudio: React.FC = () => {
                           height: VIEWPORT_SIZES[viewport].height,
                           maxWidth: '95%',
                           maxHeight: '95%',
-                          border: '1px solid rgba(255,255,255,0.15)',
+                          border: '1px solid var(--border-subtle)',
                           borderRadius: VIEWPORT_SIZES[viewport].radius,
                           background: '#000000',
-                          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.75)',
+                          boxShadow: 'var(--shadow-xl)',
                           overflow: 'hidden',
                           transition: 'all 0.3s ease'
                         }
@@ -1273,21 +1528,38 @@ export const GenerateStudio: React.FC = () => {
             </AnimatePresence>
           </div>
 
+          {/* Collapsible bottom terminal drawer (Phase 6) */}
+          <TerminalDrawer
+            steps={agentTrace}
+            isGenerating={isGenerating}
+            statusMessage={statusMessage}
+            expandSignal={terminalExpandNonce}
+          />
+
           {statusMessage && (
             <div
               style={{
                 padding: '6px 14px',
-                borderTop: '1px solid rgba(255,255,255,0.08)',
+                borderTop: '1px solid var(--border-subtle)',
                 fontSize: '0.75rem',
                 fontFamily: 'var(--font-mono)',
-                color: '#64748B'
+                color: 'var(--text-muted)'
               }}
             >
               {statusMessage}
             </div>
           )}
         </section>
-      </div>
+        </Panel>
+      </Group>
+
+      {/* Publish dialog — slug + GitHub PAT -> private repo push */}
+      <PublishModal
+        open={showPublishModal}
+        onClose={() => setShowPublishModal(false)}
+        onPublished={onGithubPublished}
+        files={generatedFiles}
+      />
     </div>
   );
 };

@@ -17,6 +17,7 @@ NVIDIA_API_KEY — no Groq or Ollama for this agent.
 import json
 import os
 import re
+from pathlib import PurePosixPath
 from typing import Optional, Tuple
 
 from dotenv import load_dotenv
@@ -24,11 +25,11 @@ from openai import OpenAI
 
 load_dotenv()
 
-NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-# Fast instruct model for the rare repair pass. (The nemotron-3-super QA pass
-# took 12+ minutes on a full page — far too slow for a live demo, so it is no
-# longer the default; override with DEBUGGER_MODEL if wanted.)
-DEFAULT_MODEL = os.getenv("DEBUGGER_MODEL", "meta/llama-3.1-nemotron-70b-instruct")
+# Same Ollama endpoint + fast cloud model as the Developer agent — the
+# generation pipeline's active stack. (NVIDIA's nemotron endpoint 404s
+# since its deprecation; override via DEBUGGER_BASE_URL/DEBUGGER_MODEL.)
+OLLAMA_BASE_URL = os.getenv("DEBUGGER_BASE_URL", "http://localhost:11434/v1")
+DEFAULT_MODEL = os.getenv("DEBUGGER_MODEL", "deepseek-v4.1-flash:cloud")
 # Cap the repair pass so a runaway generation can't stall the request.
 REPAIR_MAX_TOKENS = int(os.getenv("DEBUGGER_MAX_TOKENS", "8000"))
 
@@ -65,16 +66,17 @@ the file ("use client" or the first import) and end with the last line."""
 class DebuggerAgent:
     """Validates and fixes Developer page code against the Architect plan."""
 
-    def __init__(self, model: Optional[str] = None, base_url: str = NVIDIA_BASE_URL):
+    def __init__(self, model: Optional[str] = None, base_url: str = OLLAMA_BASE_URL):
         self.base_url = base_url
         self.model = model or DEFAULT_MODEL
-        api_key = os.environ.get("NVIDIA_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "NVIDIA_API_KEY not found in environment variables. "
-                "Add it to ai_engine/.env or export it before running."
-            )
+        # Local Ollama needs no real key (mirror developer.py); NVIDIA_API_KEY
+        # stays honored for anyone pointing DEBUGGER_BASE_URL back at it.
+        api_key = (os.getenv("OLLAMA_API_KEY", os.getenv("Ollama_API_KEY"))
+                   or os.environ.get("NVIDIA_API_KEY") or "ollama")
         self.client = OpenAI(base_url=self.base_url, api_key=api_key)
+        # Human-readable reason for the last failed apply_edit — surfaced
+        # by the /edit route so users see WHY a change was rejected.
+        self.last_edit_error = ""
 
     @staticmethod
     def structural_check(code: str, plan_json: Optional[dict] = None) -> Tuple[bool, list]:
@@ -192,6 +194,9 @@ and a change instruction. Your job is to apply ONLY the requested change by
 editing the affected files in place.
 
 Rules:
+- Identify the EXACT files that need changing (match component names, route
+  files, config referenced by the instruction) and output updated code for
+  ONLY those files. Never include unchanged files — do not invent diffs.
 - Return ONLY a JSON array of the files you CHANGED, each as:
   {"path": "<exact same path as given>", "content": "<full updated file>"}
 - Copy the path string EXACTLY from the input; never invent new paths.
@@ -203,6 +208,28 @@ Rules:
 - If the instruction requires no file change, return [].
 Output raw JSON only — no markdown fences, no commentary."""
 
+    SINGLE_EDIT_SYSTEM_PROMPT = """You are the Edit Agent of a website generation pipeline.
+You receive ONE existing file from a Next.js + Tailwind project and a change
+instruction. Rewrite the file with ONLY the requested change applied.
+
+Rules:
+- Output ONLY the full updated raw file content — no markdown fences, no
+  commentary, no diffs, no ellipses.
+- Preserve everything not related to the instruction: imports, styling,
+  copy, structure.
+- Keep styling as Tailwind utility classes only."""
+
+    SUMMARY_SYSTEM_PROMPT = """You are a collaborative, elite Pair Programmer for the user's
+generated project. You have JUST applied their requested code change. Now
+write your chat reply so the collaboration continues:
+- Friendly, conversational, first person — talk WITH the user, not at them.
+- Explain exactly what you changed and in which files (concrete and brief,
+  max ~4 lines).
+- End with ONE specific follow-up question suggesting a natural next
+  improvement related to that same change (e.g. "I updated the UI to black
+  and white — would you like me to adjust the typography to match?").
+Plain text only — no markdown headings, no code blocks, no JSON."""
+
     # ponytail: whole-file responses (not unified diffs) — robust to model
     # sloppiness; raise the cap only when real projects exceed it.
     EDIT_INPUT_CAP = 60_000
@@ -212,15 +239,83 @@ Output raw JSON only — no markdown fences, no commentary."""
 
         `files` is the current [{path, content}] of the project directory.
         Returns the list of changed files ([{path, content}]); empty list when
-        the model produced nothing usable (caller keeps the originals).
+        nothing usable was produced (caller keeps the originals, and
+        self.last_edit_error says why).
+
+        Two-stage: a whole-project JSON patch first, then — on any failure —
+        a clean rewrite of just the instruction's target file (component stem
+        match like Menu.tsx, falling back to the App.tsx entry).
         """
+        self.last_edit_error = ""
+        print(f"[DebuggerAgent] edit instruction: {instruction!r} "
+              f"({len(files)} files on disk)")
+
+        changed = self._patch_all_files(files, instruction)
+        if changed:
+            return changed
+
+        reason = self.last_edit_error or "the model returned no usable changes"
+        target = self._match_target_file(files, instruction)
+        if target is None:
+            self.last_edit_error = "the project has no editable files"
+            return []
+        print(f"[DebuggerAgent] whole-project patch failed ({reason}) — "
+              f"falling back to a clean rewrite of {target['path']} only")
+        self.last_edit_error = ""
+
+        content = self._rewrite_single_file(target, instruction)
+        if content:
+            return [{"path": target["path"], "content": content}]
+        return []
+
+    def conversational_summary(self, instruction: str,
+                               changed_paths: list) -> str:
+        """Post-edit chat reply: what changed + a follow-up question.
+
+        # ponytail: a separate cheap call instead of reshaping the patch
+        # payload — the patch stage keeps returning a plain [{path, content}]
+        # array, so its parsing/salvage/fallback paths stay untouched. One
+        # extra LLM call per edit; batch it into the patch response if
+        # edit latency ever matters.
+        """
+        if not changed_paths:
+            return ""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.SUMMARY_SYSTEM_PROMPT},
+                    {"role": "user",
+                     "content": ("The user asked: " + instruction
+                                 + "\nChanges applied to the following files: "
+                                 + ", ".join(changed_paths[:10]))},
+                ],
+                temperature=0.5,
+                max_tokens=REPAIR_MAX_TOKENS,
+            )
+            content = (response.choices[0].message.content or "").strip()
+        except Exception as e:
+            print(f"[DebuggerAgent] conversational summary call failed: "
+                  f"{type(e).__name__}: {e}")
+            return ""
+        return content
+
+    def _patch_all_files(self, files: list, instruction: str) -> list:
+        """Stage 1: send every project file and ask for changed-file JSON."""
+        by_path = {f["path"]: f for f in files}
         payload = ""
+        included = []
         for f in files:
             if len(payload) + len(f["content"]) > self.EDIT_INPUT_CAP:
-                break  # ponytail: tail files beyond the cap stay unpatched
+                print(f"[DebuggerAgent] edit input cap hit — {f['path']} and "
+                      f"later files were NOT sent to the model")
+                break
             payload += f"\n\n### FILE: {f['path']}\n{f['content']}"
+            included.append(f["path"])
         if not payload:
+            self.last_edit_error = "project files exceed the edit input cap"
             return []
+        print(f"[DebuggerAgent] edit files sent to model: {', '.join(included)}")
 
         try:
             response = self.client.chat.completions.create(
@@ -237,10 +332,20 @@ Output raw JSON only — no markdown fences, no commentary."""
             )
             content = response.choices[0].message.content
         except Exception as e:
-            print(f"[DebuggerAgent] edit call failed: {e}")
+            print(f"[DebuggerAgent] edit LLM call failed: {type(e).__name__}: {e}")
+            self.last_edit_error = f"LLM call failed ({type(e).__name__})"
+            return []
+
+        if response.choices[0].finish_reason == "length":
+            print(f"[DebuggerAgent] edit response TRUNCATED at "
+                  f"max_tokens={REPAIR_MAX_TOKENS} — the whole-project JSON "
+                  f"was cut off")
+            self.last_edit_error = ("response truncated by the token limit "
+                                    "(project too large for whole-project patch)")
             return []
 
         if not content or not content.strip():
+            self.last_edit_error = "model returned an empty response"
             return []
         text = content.strip()
         text = re.sub(r"^```(?:json)?\s*\n?", "", text)
@@ -248,11 +353,16 @@ Output raw JSON only — no markdown fences, no commentary."""
         # Tolerate stray prose around the JSON body.
         start, end = text.find("["), text.rfind("]")
         if start == -1 or end <= start:
+            print(f"[DebuggerAgent] edit response contained no JSON array. "
+                  f"First 500 chars: {text[:500]!r}")
+            self.last_edit_error = "model response contained no JSON array"
             return []
         try:
             parsed = json.loads(text[start:end + 1])
-        except ValueError:
-            print("[DebuggerAgent] edit response was not valid JSON")
+        except ValueError as e:
+            print(f"[DebuggerAgent] edit response was not valid JSON: {e}. "
+                  f"First 500 chars: {text[:500]!r}")
+            self.last_edit_error = "model response was not valid JSON"
             return []
 
         changed: list = []
@@ -262,14 +372,102 @@ Output raw JSON only — no markdown fences, no commentary."""
                     or not isinstance(item.get("content"), str)
                     or not item["content"].strip()):
                 continue
-            # Cheap safety net for patched files of ANY kind (html/css too,
-            # so structural_check's page.tsx-only "use client" rule is not
-            # enforced here): reject markdown fences and unbalanced brackets.
-            _, problems = self.structural_check(item["content"])
-            if "```" in item["content"] or any(
-                    p.startswith("unbalanced") for p in problems):
-                print(f"[DebuggerAgent] edit for {item['path']} failed the "
-                      f"structural check — keeping the original")
+            if item["path"] not in by_path:
+                print(f"[DebuggerAgent] edit referenced unknown path "
+                      f"{item['path']!r} — dropping it")
+                continue
+            # Cheap safety net: judge the patch RELATIVE to its original (see
+            # _accepts_patch — an absolute check rejects perfectly fine edits
+            # of files whose generated copy already trips the naive heuristic).
+            if not self._accepts_patch(by_path[item["path"]]["content"],
+                                       item["content"]):
+                print(f"[DebuggerAgent] edit for {item['path']} introduced new "
+                      f"structural damage — keeping the original")
                 continue
             changed.append({"path": item["path"], "content": item["content"]})
+        if not changed:
+            self.last_edit_error = ("every patched file failed the structural "
+                                    "check or referenced unknown paths")
         return changed
+
+    def _rewrite_single_file(self, file: dict, instruction: str) -> Optional[str]:
+        """Stage 2 fallback: clean rewrite of one file. Returns the new
+        content, or None with self.last_edit_error set."""
+        print(f"[DebuggerAgent] fallback rewrite target: {file['path']} "
+              f"({len(file['content'])} chars)")
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.SINGLE_EDIT_SYSTEM_PROMPT},
+                    {"role": "user",
+                     "content": f"### FILE: {file['path']}\n{file['content']}"
+                                f"\n\n### CHANGE INSTRUCTION:\n{instruction}"},
+                ],
+                temperature=0.1,
+                max_tokens=REPAIR_MAX_TOKENS,
+            )
+            content = response.choices[0].message.content
+        except Exception as e:
+            print(f"[DebuggerAgent] fallback rewrite of {file['path']} failed: "
+                  f"{type(e).__name__}: {e}")
+            self.last_edit_error = f"fallback LLM call failed ({type(e).__name__})"
+            return None
+
+        if response.choices[0].finish_reason == "length":
+            print(f"[DebuggerAgent] fallback rewrite of {file['path']} TRUNCATED "
+                  f"at max_tokens={REPAIR_MAX_TOKENS}")
+            self.last_edit_error = "fallback rewrite truncated by the token limit"
+            return None
+        if not content or not content.strip():
+            self.last_edit_error = "model returned an empty rewrite"
+            return None
+
+        cleaned = re.sub(r"^```[a-zA-Z0-9]*\s*\n?", "", content.strip())
+        cleaned = re.sub(r"\n?```\s*$", "", cleaned).strip()
+        if not cleaned:
+            self.last_edit_error = "model returned an empty rewrite"
+            return None
+        if not self._accepts_patch(file["content"], cleaned):
+            print(f"[DebuggerAgent] fallback rewrite of {file['path']} introduced "
+                  f"structural damage — keeping the original")
+            self.last_edit_error = "rewritten file failed the structural check"
+            return None
+        return cleaned
+
+    def _match_target_file(self, files: list,
+                           instruction: str) -> Optional[dict]:
+        """Pick the file the instruction most plausibly targets: a component
+        whose stem appears in the instruction (menu -> Menu.tsx), else the
+        project entry (src/App.tsx / page.tsx), else the first TSX file."""
+        text = instruction.lower()
+        for f in files:
+            stem = PurePosixPath(f["path"]).stem.lower()
+            if stem in ("app", "page", "index", "main"):
+                continue
+            if re.search(rf"\b{re.escape(stem)}s?\b", text):
+                print(f"[DebuggerAgent] instruction matches component: "
+                      f"{f['path']}")
+                return f
+        for cand in ("src/App.tsx", "src/app/page.tsx", "App.tsx", "page.tsx"):
+            for f in files:
+                if f["path"].lstrip("./") == cand:
+                    return f
+        tsx = [f for f in files if f["path"].endswith((".tsx", ".jsx"))]
+        return tsx[0] if tsx else (files[0] if files else None)
+
+    def _accepts_patch(self, original: str, patched: str) -> bool:
+        """Accept a patched file unless it introduces NEW structural damage.
+
+        Relative, not absolute: the string-stripper behind structural_check
+        miscounts apostrophe-heavy generated copy ("Don't", "It's"), so the
+        ORIGINAL file often already reports 'unbalanced' counts. A patch is
+        judged against its own original — same-or-fewer problems passes.
+        """
+        if "```" in patched:
+            return False
+        _, before = self.structural_check(original)
+        _, after = self.structural_check(patched)
+        unbalanced_before = {p for p in before if p.startswith("unbalanced")}
+        unbalanced_after = {p for p in after if p.startswith("unbalanced")}
+        return unbalanced_after <= unbalanced_before

@@ -2,13 +2,10 @@ import React from 'react';
 import { useApp } from './context/AppContext';
 import { LandingPage } from './components/LandingPage';
 import { FeaturesPage } from './components/FeaturesPage';
-import { AboutPage } from './components/AboutPage';
 import { LoginPage } from './components/LoginPage';
 import { SignupPage } from './components/SignupPage';
 import { Dashboard } from './components/Dashboard';
 import { GenerateStudio } from './components/GenerateStudio';
-import { AiAssistant } from './components/AiAssistant';
-import { DeployModal } from './components/DeployModal';
 import { PreviewHost } from './components/PreviewHost';
 import { PublishedSite } from './components/PublishedSite';
 
@@ -51,19 +48,15 @@ export const MainApp: React.FC = () => {
       {/* Screen Router */}
       {currentScreen === 'landing' && <LandingPage />}
       {currentScreen === 'features' && <FeaturesPage />}
-      {currentScreen === 'about' && <AboutPage />}
       {currentScreen === 'login' && <LoginPage />}
       {currentScreen === 'signup' && <SignupPage />}
       {currentScreen === 'dashboard' && <Dashboard initialView="home" />}
       {currentScreen === 'search' && <Dashboard initialView="search" />}
       {currentScreen === 'connectors' && <Dashboard initialView="connectors" />}
       {currentScreen === 'projects' && <Dashboard initialView="projects" />}
+      {currentScreen === 'settings' && <Dashboard initialView="settings" />}
       {currentScreen === 'generate-plan' && <GenerateStudio />}
       {currentScreen === 'workspace' && <GenerateStudio />}
-      {currentScreen === 'ai-assistant' && <AiAssistant />}
-
-      {/* Screen 9: Deploy Modal */}
-      <DeployModal />
     </>
   );
 };

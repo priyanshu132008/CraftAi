@@ -1,0 +1,287 @@
+/* Executive workspace shell — port of the Stitch "Workspace package" design.
+   Every color goes through the variables.css token system so the light
+   (snow) and dark (obsidian) themes both render correctly. The design's
+   white-on-black inverted surfaces become var(--text-heading) background
+   with var(--bg-primary) text. */
+
+/* ===================== Executive sidebar ===================== */
+
+.exec-sidebar {
+  background: var(--bg-secondary);
+}
+
+.exec-brand {
+  height: 56px;
+  flex-shrink: 0;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.exec-brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--text-heading);
+  color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.exec-brand-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.exec-brand-name {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-heading);
+}
+
+.exec-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.exec-collapse-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  flex-shrink: 0;
+}
+.exec-collapse-btn:hover {
+  color: var(--text-heading);
+}
+
+/* Workspace card — real signed-in account only (no fabricated org names). */
+.exec-workspace {
+  margin: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-hover);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: border-color var(--transition-fast);
+}
+.exec-workspace:hover {
+  border-color: var(--border-active);
+}
+
+.exec-workspace-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.exec-workspace-name {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Nav count chip (real catalog counts only). */
+.exec-nav-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.exec-nav-count.on-inverted {
+  border-color: color-mix(in srgb, var(--bg-primary) 45%, transparent);
+  color: var(--bg-primary);
+}
+
+/* ===================== Dashboard prompt stage ===================== */
+
+.prompt-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  overflow-y: auto;
+  background-image: radial-gradient(var(--bg-dots) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Subtle radial glow behind the hero. */
+.prompt-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    50% 50% at 50% 42%,
+    color-mix(in srgb, var(--text-heading) 4%, transparent) 0%,
+    transparent 80%
+  );
+  pointer-events: none;
+}
+
+.prompt-stage-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 880px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* "AI engine mesh active" status pill. */
+.stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 1.6rem;
+}
+
+.stage-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-heading);
+  flex-shrink: 0;
+  animation: exec-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes exec-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Blueprint-matrix standby strip — decorative copy, not data. */
+.standby-strip {
+  width: 100%;
+  margin-top: 3rem;
+  padding: 2.4rem 1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 55%, transparent);
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--border-subtle) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--border-subtle) 45%, transparent) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.standby-strip-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.standby-strip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-subtle);
+  flex-shrink: 0;
+}
+
+/* ===================== Connectors Hub marquee ===================== */
+
+.hub-marquee {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 75%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 55%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-lg);
+  padding: 14px 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+.hub-marquee-track {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  animation: exec-marquee 25s linear infinite;
+}
+
+.hub-marquee:hover .hub-marquee-track {
+  animation-play-state: paused;
+}
+
+/* Margin (not track gap) so the track is exactly two identical halves —
+   translateX(-50%) then loops seamlessly. */
+.hub-marquee-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 3.5rem;
+  transition: transform var(--transition-fast);
+}
+.hub-marquee-logo:hover {
+  transform: scale(1.12);
+}
+
+@keyframes exec-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-marquee-track {
+    animation: none;
+  }
+  .stage-pill-dot {
+    animation: none;
+  }
+}

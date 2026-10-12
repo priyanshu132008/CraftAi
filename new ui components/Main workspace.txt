@@ -1,0 +1,487 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_standard" name="shell-type"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "background": "#131315", "on-primary-container": "#0d0096", "secondary-container": "#571bc1", "secondary": "#d0bcff", "on-tertiary-fixed-variant": "#004e5c", "tertiary-fixed-dim": "#4cd7f6", "on-error": "#690005", "outline": "#908fa0", "primary-container": "#8083ff", "on-primary-fixed-variant": "#2f2ebe", "on-secondary-fixed": "#23005c", "tertiary-fixed": "#acedff", "on-tertiary-fixed": "#001f26", "inverse-primary": "#494bd6", "surface": "#131315", "on-tertiary": "#003640", "surface-dim": "#131315", "surface-tint": "#c0c1ff", "secondary-fixed": "#e9ddff", "outline-variant": "#464554", "error": "#ffb4ab", "inverse-on-surface": "#313032", "primary": "#c0c1ff", "on-secondary-container": "#c4abff", "on-surface-variant": "#c7c4d7", "tertiary": "#4cd7f6", "error-container": "#93000a", "inverse-surface": "#e5e1e4", "surface-container-high": "#2a2a2c", "surface-container-low": "#1c1b1d", "surface-container": "#201f22", "surface-container-highest": "#353437", "on-background": "#e5e1e4", "on-error-container": "#ffdad6", "primary-fixed": "#e1e0ff", "on-primary-fixed": "#07006c", "on-secondary-fixed-variant": "#5516be", "on-secondary": "#3c0091", "primary-fixed-dim": "#c0c1ff", "surface-variant": "#353437", "on-surface": "#e5e1e4", "surface-container-lowest": "#0e0e10", "on-primary": "#1000a9", "on-tertiary-container": "#002f38", "surface-bright": "#39393b", "tertiary-container": "#009eb9", "secondary-fixed-dim": "#d0bcff" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "margin": "1.5rem", "space-xs": "0.25rem", "space-xl": "2.5rem", "margin-mobile": "1rem", "space-sm": "0.5rem", "space-md": "1rem", "gutter-lg": "1.75rem", "space-lg": "1.5rem", "gutter-sm": "0.75rem", "gutter": "1.25rem", "margin-desktop": "2.5rem" }, "fontFamily": { "headline-md": [ "Space Grotesk" ], "code-sm": [ "JetBrains Mono" ], "title-md": [ "Inter" ], "code-md": [ "JetBrains Mono" ], "body-lg": [ "Inter" ], "headline-xl-mobile": [ "Space Grotesk" ], "headline-lg": [ "Space Grotesk" ], "headline-sm": [ "Space Grotesk" ], "headline-xl": [ "Space Grotesk" ], "body-md": [ "Inter" ], "body-sm": [ "Inter" ], "headline-lg-mobile": [ "Space Grotesk" ], "label-caps": [ "JetBrains Mono" ] }, "fontSize": { "headline-md": [ "28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "code-sm": [ "11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" } ], "title-md": [ "16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" } ], "code-md": [ "13px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "500" } ], "body-lg": [ "16px", { "lineHeight": "26px", "letterSpacing": "0em", "fontWeight": "400" } ], "headline-xl-mobile": [ "36px", { "lineHeight": "44px", "letterSpacing": "-0.025em", "fontWeight": "700" } ], "headline-lg": [ "40px", { "lineHeight": "48px", "letterSpacing": "-0.025em", "fontWeight": "600" } ], "headline-sm": [ "20px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" } ], "headline-xl": [ "56px", { "lineHeight": "64px", "letterSpacing": "-0.03em", "fontWeight": "700" } ], "body-md": [ "14px", { "lineHeight": "22px", "letterSpacing": "0em", "fontWeight": "400" } ], "body-sm": [ "12px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "400" } ], "headline-lg-mobile": [ "28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "label-caps": [ "10px", { "lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "600" } ] } } } };</script></head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased selection:bg-primary selection:text-on-primary overflow-hidden"><main class="w-full bg-background min-h-screen h-screen"><div class="flex flex-col w-full h-[calc(100vh-3.5rem)] overflow-hidden bg-surface-container-lowest text-on-surface select-none h-full">
+<div class="flex w-full h-full divide-x divide-outline-variant/30">
+<!-- PANEL 1: FILE TREE & EXPLORER -->
+<aside class="w-[300px] shrink-0 h-full flex flex-col bg-surface-container-lowest/80 backdrop-blur-xl">
+<!-- Explorer Header -->
+<div class="h-10 px-space-md flex items-center justify-between border-b border-outline-variant/30">
+<span class="font-label-caps text-label-caps tracking-wider uppercase text-outline">Explorer</span>
+<div class="flex items-center gap-space-xs text-outline">
+<button class="w-6 h-6 flex items-center justify-center rounded hover:text-on-surface hover:bg-surface-container transition-colors" title="New File">
+<span class="material-symbols-outlined text-[15px]">note_add</span>
+</button>
+<button class="w-6 h-6 flex items-center justify-center rounded hover:text-on-surface hover:bg-surface-container transition-colors" title="New Folder">
+<span class="material-symbols-outlined text-[15px]">create_new_folder</span>
+</button>
+<button class="w-6 h-6 flex items-center justify-center rounded hover:text-on-surface hover:bg-surface-container transition-colors" title="Collapse All">
+<span class="material-symbols-outlined text-[15px]">unfold_less</span>
+</button>
+<button class="w-6 h-6 flex items-center justify-center rounded hover:text-on-surface hover:bg-surface-container transition-colors" title="Search Files">
+<span class="material-symbols-outlined text-[15px]">search</span>
+</button>
+</div>
+</div>
+<!-- Repo Context -->
+<div class="px-space-md py-space-xs flex items-center justify-between bg-surface-container-low/40 border-b border-outline-variant/20">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="material-symbols-outlined text-[14px] text-outline">dataset</span>
+<span class="font-code-sm text-code-sm text-on-surface font-semibold truncate">synapse-mesh-v2</span>
+</div>
+<div class="flex items-center gap-space-xs font-code-sm text-code-sm text-outline px-1.5 py-0.5 rounded bg-surface-container/60 shrink-0">
+<span class="material-symbols-outlined text-[12px] text-tertiary">alt_route</span>
+<span class="text-[10px]">feat/rpc</span>
+</div>
+</div>
+<!-- File Tree Structure -->
+<div class="flex-1 overflow-y-auto py-2 font-code-sm text-code-sm space-y-0.5">
+<!-- Folder app/ -->
+<div class="group flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px] text-outline group-hover:text-on-surface transition-transform duration-150">expand_more</span>
+<span class="material-symbols-outlined text-[15px] text-outline">folder_open</span>
+<span class="text-on-surface font-medium">app</span>
+</div>
+<!-- Nested (auth)/ -->
+<div class="ml-4 flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline">
+<span class="material-symbols-outlined text-[14px] text-outline">chevron_right</span>
+<span class="material-symbols-outlined text-[15px] text-outline">folder</span>
+<span class="">(auth)</span>
+</div>
+<!-- Nested api/ -->
+<div class="ml-4 flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px] text-outline">expand_more</span>
+<span class="material-symbols-outlined text-[15px] text-outline">folder_open</span>
+<span class="">api</span>
+</div>
+<div class="ml-8 flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">javascript</span>
+<span class="truncate">compile/route.ts</span>
+</div>
+<div class="ml-8 flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">javascript</span>
+<span class="truncate">stream/route.ts</span>
+</div>
+<!-- Nested components/ -->
+<div class="ml-4 flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px] text-outline">expand_more</span>
+<span class="material-symbols-outlined text-[15px] text-outline">folder_open</span>
+<span class="">components</span>
+</div>
+<!-- Active File -->
+<div class="ml-8 flex items-center justify-between px-3 py-1 cursor-pointer bg-surface-container-high/90 text-on-surface border-l-2 border-primary">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-[14px] text-primary">code_blocks</span>
+<span class="truncate font-semibold text-white">mesh-viewport.tsx</span>
+</div>
+<span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0 ml-1"></span>
+</div>
+<div class="ml-8 flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">code_blocks</span>
+<span class="truncate">terminal-log.tsx</span>
+</div>
+<div class="ml-8 flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">code_blocks</span>
+<span class="truncate">agent-flow.tsx</span>
+</div>
+<div class="ml-4 flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">data_object</span>
+<span class="">layout.tsx</span>
+</div>
+<div class="ml-4 flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">data_object</span>
+<span class="">page.tsx</span>
+</div>
+<!-- Folder lib/ -->
+<div class="group flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px] text-outline">expand_more</span>
+<span class="material-symbols-outlined text-[15px] text-outline">folder_open</span>
+<span class="">lib</span>
+</div>
+<div class="ml-4 flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">javascript</span>
+<span class="truncate">craft-engine.ts</span>
+</div>
+<div class="ml-4 flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">javascript</span>
+<span class="truncate">telemetry.ts</span>
+</div>
+<!-- Root Configs -->
+<div class="flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">settings</span>
+<span class="truncate">tailwind.config.js</span>
+</div>
+<div class="flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">terminal</span>
+<span class="truncate">package.json</span>
+</div>
+<div class="flex items-center gap-1.5 px-3 py-1 cursor-pointer hover:bg-surface-container-low text-outline hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-outline">tune</span>
+<span class="truncate">tsconfig.json</span>
+</div>
+</div>
+<!-- Bottom pane: Dependencies -->
+<div class="border-t border-outline-variant/30 bg-surface-container-lowest/90">
+<div class="h-9 px-space-md flex items-center justify-between border-b border-outline-variant/20">
+<span class="font-label-caps text-label-caps uppercase text-outline">Dependencies (4)</span>
+<span class="material-symbols-outlined text-[14px] text-outline">inventory_2</span>
+</div>
+<div class="p-2 space-y-1 font-code-sm text-code-sm">
+<div class="flex items-center justify-between px-2 py-1 rounded hover:bg-surface-container text-outline">
+<span class="text-on-surface">three</span>
+<span class="text-[10px] text-outline-variant">^0.160.0</span>
+</div>
+<div class="flex items-center justify-between px-2 py-1 rounded hover:bg-surface-container text-outline">
+<span class="text-on-surface">lucide-react</span>
+<span class="text-[10px] text-outline-variant">^0.312.0</span>
+</div>
+<div class="flex items-center justify-between px-2 py-1 rounded hover:bg-surface-container text-outline">
+<span class="text-on-surface">framer-motion</span>
+<span class="text-[10px] text-outline-variant">^11.0.3</span>
+</div>
+<div class="flex items-center justify-between px-2 py-1 rounded hover:bg-surface-container text-outline">
+<span class="text-primary font-medium">@craft/ai</span>
+<span class="text-[10px] text-primary/80">3.8.2-canary</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- PANEL 2: EDIT WITH AI (AGENT ORCHESTRATOR DRAWER) -->
+<section class="w-[380px] shrink-0 h-full flex flex-col bg-surface-container-low/50 backdrop-blur-md border-r border-outline-variant/30 relative">
+<!-- Agent Drawer Header -->
+<div class="h-10 px-space-md flex items-center justify-between border-b border-outline-variant/30 bg-surface-container-lowest/60">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-primary">auto_fix_high</span>
+<span class="font-title-md text-body-md font-semibold text-on-surface">Edit with AI</span>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-high border border-outline-variant/40 font-code-sm text-label-caps text-on-surface-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-ping"></span>
+<span class="">Claude 3.5 Sonnet</span>
+</div>
+</div>
+<!-- Agent Thread Messages -->
+<div class="flex-1 overflow-y-auto p-4 space-y-4">
+<!-- User Prompt -->
+<div class="flex flex-col gap-1 items-end">
+<div class="max-w-[92%] px-3.5 py-2.5 rounded-xl bg-surface-container-highest/80 border border-outline-variant/30 text-body-md text-on-surface shadow-sm">
+            Refactor the generation pipeline into an interactive WebGL particle mesh with live telemetry and agent step status.
+          </div>
+<span class="font-code-sm text-[10px] text-outline mr-1">14:21:49</span>
+</div>
+<!-- Synthesis Metric Pill -->
+<div class="flex items-center justify-center my-2">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high/60 border border-outline-variant/30 font-code-sm text-code-sm text-outline">
+<span class="material-symbols-outlined text-[13px] text-primary">bolt</span>
+<span class="">3 files analyzed · 142 lines synthesized</span>
+</div>
+</div>
+<!-- Assistant Message -->
+<div class="flex flex-col gap-2.5 items-start">
+<div class="flex items-center gap-2">
+<div class="w-5 h-5 rounded bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined text-[13px]">neurology</span>
+</div>
+<span class="font-code-sm text-code-sm font-semibold text-on-surface">CraftAI Assistant</span>
+</div>
+<div class="p-3.5 rounded-xl bg-surface-container/60 border border-outline-variant/30 text-body-md text-on-surface-variant space-y-3 leading-relaxed">
+<p class="">
+              I have re-architected <code class="font-code-sm text-code-sm text-primary px-1 py-0.5 rounded bg-surface-container-highest">mesh-viewport.tsx</code> to mount the ambient WebGL wireframe geometry and bound the streaming agent pipeline. The orchestrator now cascades through Architect ➔ Developer ➔ Debugger with sub-second feedback.
+            </p>
+<!-- File Diff Card -->
+<div class="flex items-center justify-between p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/40 hover:border-outline transition-colors cursor-pointer group">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-[16px] text-outline group-hover:text-on-surface">description</span>
+<span class="font-code-sm text-code-sm text-on-surface font-medium truncate">mesh-viewport.tsx</span>
+<span class="font-code-sm text-[11px] text-tertiary">(+64 -12)</span>
+</div>
+<span class="font-code-sm text-label-caps text-outline hover:text-white uppercase tracking-wider shrink-0">View Diff</span>
+</div>
+</div>
+</div>
+<!-- Suggestion Chips -->
+<div class="pt-2">
+<span class="font-label-caps text-label-caps text-outline uppercase tracking-wider block mb-2">Suggested Iterations</span>
+<div class="flex flex-wrap gap-1.5">
+<button class="px-2.5 py-1 rounded-md bg-surface-container-low border border-outline-variant/40 hover:border-outline text-outline hover:text-on-surface font-code-sm text-code-sm transition-all">
+              + Add latency graph
+            </button>
+<button class="px-2.5 py-1 rounded-md bg-surface-container-low border border-outline-variant/40 hover:border-outline text-outline hover:text-on-surface font-code-sm text-code-sm transition-all">
+              + Inspect WebGL canvas
+            </button>
+<button class="px-2.5 py-1 rounded-md bg-surface-container-low border border-outline-variant/40 hover:border-outline text-outline hover:text-on-surface font-code-sm text-code-sm transition-all">
+              + Simulate debug error
+            </button>
+</div>
+</div>
+</div>
+<!-- Command Input Box (Docked) -->
+<div class="p-3 border-t border-outline-variant/30 bg-surface-container-lowest/90">
+<div class="relative rounded-xl border border-outline-variant/40 bg-surface-container-lowest focus-within:border-primary focus-within:shadow-[0_0_12px_rgba(99,102,241,0.2)] transition-all">
+<textarea class="w-full bg-transparent px-3 py-2 text-body-md text-on-surface placeholder:text-outline/70 focus:outline-none resize-none font-body-md" placeholder="Ask CraftAI to edit code, add features, or explain..." rows="2"></textarea>
+<div class="px-2.5 pb-2 flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container text-outline hover:text-on-surface transition-colors" title="Attach File">
+<span class="material-symbols-outlined text-[15px]">attach_file</span>
+</button>
+<button class="px-2 py-0.5 rounded bg-surface-container text-outline hover:text-on-surface font-code-sm text-[11px] flex items-center gap-1 transition-colors">
+<span class="text-primary font-bold">@</span>
+<span class="">Context</span>
+</button>
+<button class="px-2 py-0.5 rounded bg-surface-container text-outline hover:text-on-surface font-code-sm text-[11px] flex items-center gap-0.5 transition-colors">
+<span class="">Sonnet 3.5</span>
+<span class="material-symbols-outlined text-[13px]">expand_more</span>
+</button>
+</div>
+<button class="w-7 h-7 rounded-lg bg-white hover:bg-zinc-200 text-black flex items-center justify-center transition-transform active:scale-95 shadow-sm">
+<span class="material-symbols-outlined text-[16px] font-bold">arrow_upward</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- PANEL 3: LIVE PREVIEW & ACTIVE GENERATION STAGE -->
+<main class="flex-1 h-full flex flex-col bg-surface-container-lowest relative overflow-hidden h-screen">
+<!-- Toolbar Controls -->
+<div class="h-10 px-4 flex items-center justify-between border-b border-outline-variant/30 bg-surface-container-lowest/90 z-30">
+<!-- View Mode Tabs -->
+<div class="flex items-center gap-4 h-full">
+<button class="h-full border-b-2 border-white text-white font-medium text-body-md flex items-center gap-1.5 px-1">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+<span class="">Live Preview</span>
+</button>
+<button class="h-full border-b-2 border-transparent text-outline hover:text-on-surface font-medium text-body-md flex items-center gap-1.5 px-1 transition-colors">
+<span class="material-symbols-outlined text-[16px]">code</span>
+<span class="">Code</span>
+</button>
+</div>
+<!-- Viewport Switcher & HMR Address Pill -->
+<div class="flex items-center gap-3">
+<div class="flex items-center p-0.5 rounded-lg bg-surface-container border border-outline-variant/30">
+<button class="w-6 h-6 rounded flex items-center justify-center text-white bg-surface-container-highest" title="Desktop View (1920x1080)">
+<span class="material-symbols-outlined text-[14px]">desktop_windows</span>
+</button>
+<button class="w-6 h-6 rounded flex items-center justify-center text-outline hover:text-white" title="Tablet View (768px)">
+<span class="material-symbols-outlined text-[14px]">tablet_mac</span>
+</button>
+<button class="w-6 h-6 rounded flex items-center justify-center text-outline hover:text-white" title="Mobile View (390px)">
+<span class="material-symbols-outlined text-[14px]">smartphone</span>
+</button>
+</div>
+<!-- Address Bar -->
+<div class="flex items-center gap-2 px-2.5 py-1 rounded-md bg-surface-container-low border border-outline-variant/30 font-code-sm text-code-sm">
+<span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]"></span>
+<span class="text-on-surface font-medium">localhost:3000/preview</span>
+<button class="hover:text-white text-outline ml-1" title="Reload">
+<span class="material-symbols-outlined text-[13px]">refresh</span>
+</button>
+<button class="hover:text-white text-outline" title="Open in new window">
+<span class="material-symbols-outlined text-[13px]">open_in_new</span>
+</button>
+</div>
+</div>
+<!-- Action Controls -->
+<div class="flex items-center gap-2">
+<button class="px-3 py-1 rounded-lg border border-outline-variant/40 hover:bg-surface-container text-outline hover:text-on-surface font-code-sm text-code-sm transition-all">
+            Deploy
+          </button>
+<button class="px-3 py-1 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold font-code-sm text-code-sm flex items-center gap-1 shadow-sm transition-transform active:scale-95">
+<span class="">Publish</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- STAGE CANVAS BODY: Mesh Runtime & Loading Modal -->
+<div class="flex-1 relative flex items-center justify-center p-8 overflow-hidden bg-black">
+<!-- Interactive WebGL ThreeJS Canvas Background -->
+<!-- STITCH_THREEJS_START:ANIMATION_50 class="absolute inset-0 w-full h-full bg-transparent opacity-85" -->
+<div class="absolute inset-0 w-full h-full bg-transparent opacity-85" style="display:block;">
+<script src="https://ajax.googleapis.com/ajax/libs/threejs/r125/three.min.js"></script>
+<div id="threejs-container-ANIMATION_50" style="width:100%;height:100%"></div>
+<script>
+(function() {
+  const container = document.getElementById('threejs-container-ANIMATION_50');
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  const container = document.getElementById('threejs-canvas') || document.body;
+const width = container.clientWidth || window.innerWidth;
+const height = container.clientHeight || window.innerHeight;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+camera.position.set(0, 0, 45);
+
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+renderer.setSize(width, height);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+// Create elegant monochrome wireframe mesh sphere / torus ring structure + particles
+const particlesGeo = new THREE.BufferGeometry();
+const particleCount = 700;
+const posArray = new Float32Array(particleCount * 3);
+
+for (let i = 0; i < particleCount * 3; i += 3) {
+  posArray[i] = (Math.random() - 0.5) * 85;
+  posArray[i + 1] = (Math.random() - 0.5) * 65;
+  posArray[i + 2] = (Math.random() - 0.5) * 70;
+}
+
+particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+const particlesMat = new THREE.PointsMaterial({
+  size: 0.18,
+  color: 0xffffff,
+  transparent: true,
+  opacity: 0.35,
+  blending: THREE.AdditiveBlending
+});
+const particlesMesh = new THREE.Points(particlesGeo, particlesMat);
+scene.add(particlesMesh);
+
+// Geometric Wireframe Icosahedron & Torus Rings (Monochrome Minimalist)
+const icosaGeo = new THREE.IcosahedronGeometry(14, 2);
+const icosaWireframe = new THREE.WireframeGeometry(icosaGeo);
+const lineMaterial = new THREE.LineBasicMaterial({
+  color: 0x4f46e5,
+  transparent: true,
+  opacity: 0.22,
+  linewidth: 1
+});
+const icosaMesh = new THREE.LineSegments(icosaWireframe, lineMaterial);
+scene.add(icosaMesh);
+
+const innerIcosaGeo = new THREE.IcosahedronGeometry(9, 1);
+const innerWireframe = new THREE.WireframeGeometry(innerIcosaGeo);
+const innerLineMaterial = new THREE.LineBasicMaterial({
+  color: 0xffffff,
+  transparent: true,
+  opacity: 0.18
+});
+const innerIcosaMesh = new THREE.LineSegments(innerWireframe, innerLineMaterial);
+scene.add(innerIcosaMesh);
+
+// Subtle concentric floating rings
+const ringGeo = new THREE.RingGeometry(18, 18.08, 64);
+const ringMat = new THREE.LineBasicMaterial({
+  color: 0x27272a,
+  transparent: true,
+  opacity: 0.6
+});
+const ringWireframe = new THREE.WireframeGeometry(ringGeo);
+const ringMesh = new THREE.LineSegments(ringWireframe, ringMat);
+ringMesh.rotation.x = Math.PI / 2.3;
+scene.add(ringMesh);
+
+let mouseX = 0;
+let mouseY = 0;
+window.addEventListener('mousemove', (e) => {
+  mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+  mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+});
+
+window.addEventListener('resize', () => {
+  const w = container.clientWidth || window.innerWidth;
+  const h = container.clientHeight || window.innerHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+});
+
+let clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const elapsedTime = clock.getElapsedTime();
+
+  icosaMesh.rotation.x = elapsedTime * 0.08 + mouseY * 0.15;
+  icosaMesh.rotation.y = elapsedTime * 0.1 + mouseX * 0.15;
+
+  innerIcosaMesh.rotation.x = -elapsedTime * 0.12 - mouseY * 0.1;
+  innerIcosaMesh.rotation.y = -elapsedTime * 0.15 - mouseX * 0.1;
+
+  ringMesh.rotation.z = elapsedTime * 0.04;
+  particlesMesh.rotation.y = elapsedTime * 0.02 + mouseX * 0.05;
+
+  renderer.render(scene, camera);
+}
+animate();
+})();
+</script>
+</div>
+<!-- STITCH_THREEJS_END:ANIMATION_50 -->
+<!-- Central Floating Glass Modal Card -->
+<div class="w-[500px] p-8 rounded-2xl bg-[#09090b]/85 backdrop-blur-2xl border border-zinc-800 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] text-center relative overflow-hidden z-20">
+<!-- Top hairline specular reflection -->
+<div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
+<!-- Pulsing Synthesis Badge -->
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-highest/80 border border-outline-variant/40 mb-4 font-code-sm text-label-caps text-on-surface">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+</span>
+<span class="tracking-widest uppercase">Synthesizing Workspace</span>
+</div>
+<!-- Headings -->
+<h2 class="font-headline-md text-headline-sm text-white font-semibold tracking-tight mb-2">
+            Building Next-Gen Mesh Runtime
+          </h2>
+<p class="text-body-sm text-outline max-w-sm mx-auto mb-6 leading-relaxed font-body-sm">
+            CraftAI Engine v3.8 compiling TypeScript AST, bundling Tailwind tokens, and establishing WebSocket RPC...
+          </p>
+<!-- 3-Step Horizontal Timeline -->
+<div class="flex items-center justify-between px-2 mb-6 relative">
+<div class="absolute left-10 right-10 top-3.5 h-px bg-zinc-800 -z-0"></div>
+<!-- Step 1: Architect (Completed) -->
+<div class="flex flex-col items-center gap-1.5 relative z-10">
+<div class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center font-bold text-xs shadow-[0_0_12px_rgba(255,255,255,0.4)]">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+<span class="font-code-sm text-code-sm text-white font-medium">Architect</span>
+</div>
+<!-- Step 2: Developer (Active Compiling) -->
+<div class="flex flex-col items-center gap-1.5 relative z-10">
+<div class="w-7 h-7 rounded-full bg-black border-2 border-primary text-primary flex items-center justify-center font-bold text-xs shadow-[0_0_15px_rgba(99,102,241,0.5)]">
+<span class="material-symbols-outlined text-[15px] animate-spin">sync</span>
+</div>
+<span class="font-code-sm text-code-sm text-primary font-semibold">Developer</span>
+</div>
+<!-- Step 3: Debugger (Pending) -->
+<div class="flex flex-col items-center gap-1.5 relative z-10">
+<div class="w-7 h-7 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-500 flex items-center justify-center font-bold text-xs">
+<span class="material-symbols-outlined text-[14px]">shield</span>
+</div>
+<span class="font-code-sm text-code-sm text-zinc-500">Debugger</span>
+</div>
+</div>
+<!-- Minimalist Monospace Console Box -->
+<div class="rounded-lg bg-zinc-950/90 border border-zinc-900 p-3.5 text-left font-code-sm text-code-sm text-zinc-400 space-y-1 mb-6 overflow-hidden">
+<div class="flex items-center gap-2">
+<span class="text-zinc-600">[14:22:01.04]</span>
+<span class="text-zinc-300">→ AST tree constructed (18 modules)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-zinc-600">[14:22:01.42]</span>
+<span class="text-zinc-300">→ Tailwind JIT compiled in 38ms</span>
+</div>
+<div class="flex items-center gap-2 text-primary font-medium">
+<span class="text-zinc-600">[14:22:01.89]</span>
+<span class="">⚡ WebGL wireframe shader linked</span>
+</div>
+<div class="flex items-center gap-2 text-emerald-400">
+<span class="text-zinc-600">[14:22:02.12]</span>
+<span class="">🟢 HMR socket connected to localhost:3000</span>
+</div>
+</div>
+<!-- Action Footer -->
+<div class="flex items-center justify-between pt-1">
+<button class="font-code-sm text-code-sm text-zinc-500 hover:text-zinc-300 transition-colors">
+              Cancel Build
+            </button>
+<button class="font-code-sm text-code-sm text-white hover:text-primary flex items-center gap-1 transition-colors">
+<span class="">View Verbose Logs</span>
+<span class="material-symbols-outlined text-[13px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div></main>
+
+</body></html>

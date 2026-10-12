@@ -50,33 +50,32 @@ export const FeaturesPage: React.FC = () => {
           transition={{ duration: 0.6 }}
           style={{ maxWidth: '720px', marginBottom: '4rem' }}
         >
-          <span className="eyebrow">THE CRAFTAI WORKFLOW</span>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(2.8rem, 6vw, 5.2rem)', lineHeight: 1, letterSpacing: '-0.045em', margin: '1rem 0 1.5rem' }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(2.8rem, 6vw, 5.2rem)', lineHeight: 1, letterSpacing: '-0.045em', margin: '0 0 1.5rem' }}>
             From rough idea to <span className="gradient-text">real software.</span>
           </h1>
-          <p style={{ color: '#A1A1AA', fontSize: '1.1rem', lineHeight: 1.7, maxWidth: '620px' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: 1.7, maxWidth: '620px' }}>
             CraftAi gives your ideas structure, momentum, and a place to grow. Every part of the workflow is connected so you can stay focused on what you are making.
           </p>
         </motion.section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1px', background: '#27272A', border: '1px solid #27272A' }}>
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1px', background: 'var(--border-subtle)', border: '1px solid var(--border-subtle)' }}>
           {features.map(({ icon: Icon, title, text }, index) => (
             <motion.article
               key={title}
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.06, duration: 0.45 }}
-              style={{ background: '#090909', padding: '2rem', minHeight: '220px' }}
+              style={{ background: 'var(--bg-card)', padding: '2rem', minHeight: '220px' }}
             >
-              <Icon size={22} color="#FFFFFF" strokeWidth={1.5} />
+              <Icon size={22} color="var(--text-heading)" strokeWidth={1.5} />
               <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', margin: '2.5rem 0 0.75rem' }}>{title}</h2>
-              <p style={{ color: '#8A8A91', lineHeight: 1.65, fontSize: '0.92rem' }}>{text}</p>
+              <p style={{ color: 'var(--text-muted)', lineHeight: 1.65, fontSize: '0.92rem' }}>{text}</p>
             </motion.article>
           ))}
         </section>
 
-        <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2rem', flexWrap: 'wrap', borderTop: '1px solid #27272A', marginTop: '5rem', paddingTop: '2rem' }}>
-          <p style={{ color: '#A1A1AA', margin: 0 }}>Ready to turn your next idea into a build?</p>
+        <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2rem', flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)', marginTop: '5rem', paddingTop: '2rem' }}>
+          <p style={{ color: 'var(--text-muted)', margin: 0 }}>Ready to turn your next idea into a build?</p>
           <button className="btn-primary" onClick={() => setCurrentScreen('signup')}>
             Start building <ArrowRight size={16} />
           </button>

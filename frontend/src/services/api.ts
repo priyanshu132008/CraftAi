@@ -129,7 +129,11 @@ export async function generateProjectApi(
      *  injected into the generated app's .env by the Developer Agent. */
     connectorSecrets?: Record<string, Record<string, string>>;
     designStyle?: string | null;
+    /** Console scope dropdown — drives the monorepo structure on the backend. */
+    scope?: string | null;
     context?: string | null;
+    /** Abort the generation request (user cancel). */
+    signal?: AbortSignal;
   } = {}
 ): Promise<GenerateProjectResponse> {
   const token = await getAuthToken();
@@ -143,6 +147,7 @@ export async function generateProjectApi(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`
     },
+    signal: options.signal,
     body: JSON.stringify({
       prompt,
       mode: options.mode ?? 'build',
@@ -153,6 +158,7 @@ export async function generateProjectApi(
       connector_credentials: options.connectorCredentials ?? {},
       connector_secrets: options.connectorSecrets ?? {},
       design_style: options.designStyle ?? undefined,
+      scope: options.scope ?? undefined,
       context: options.context ?? undefined
     })
   });
@@ -176,6 +182,8 @@ export interface ProjectListItem {
   name: string;
   slug: string;
   created_at: string;
+  /** Stored generation prompt snippet (when the Supabase row has one). */
+  prompt?: string;
 }
 
 /** Files + entry of a project loaded back from the workspace disk. */
@@ -218,8 +226,9 @@ interface SupabaseProjectRow {
  *  no new project is created. Returns the full updated file set. */
 export async function editProjectApi(
   projectId: string,
-  prompt: string
-): Promise<LoadedProject & { trace?: TraceStep[] }> {
+  prompt: string,
+  signal?: AbortSignal
+): Promise<LoadedProject & { trace?: TraceStep[]; assistant_message?: string }> {
   const token = await getAuthToken();
   if (!token) {
     throw new NotAuthenticatedError();
@@ -232,17 +241,85 @@ export async function editProjectApi(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt }),
+      signal
     }
   );
   if (res.status === 401) {
     throw new NotAuthenticatedError();
   }
-  const data = (await res.json()) as LoadedProject & { message?: string };
+  const data = (await res.json()) as LoadedProject & {
+    message?: string;
+    /** Conversational pair-programmer reply from the edit agent. */
+    assistant_message?: string;
+  };
   if (!res.ok || data.status !== 'success') {
     throw new Error(data.message || `Edit failed (HTTP ${res.status})`);
   }
   return data;
+}
+
+/** Push the generated monorepo to the user's GitHub as a private repo.
+ *  The PAT travels in the body (never stored server-side); the backend
+ *  commits the whole tree to main in a single commit via the Git Trees API. */
+export async function publishGithubApi(
+  projectSlug: string,
+  githubToken: string,
+  files: GeneratedFile[]
+): Promise<{ repo_url: string; files_pushed: number; live_url?: string | null; deploy_warning?: string | null }> {
+  const res = await fetch(`${API_URL}/api/publish/github`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ project_slug: projectSlug, github_token: githubToken, files })
+  });
+  const data = (await res.json()) as {
+    status?: string;
+    message?: string;
+    repo_url?: string;
+    files_pushed?: number;
+    live_url?: string | null;
+    deploy_warning?: string | null;
+  };
+  if (!res.ok || data.status !== 'success') {
+    throw new Error(data.message || `GitHub publish failed (HTTP ${res.status})`);
+  }
+  return {
+    repo_url: data.repo_url ?? '',
+    files_pushed: data.files_pushed ?? 0,
+    live_url: data.live_url ?? null,
+    deploy_warning: data.deploy_warning ?? null
+  };
+}
+
+/** Monaco save: write an updated file back to the project workspace on disk.
+ *  Owner-only; the backend only accepts files that already exist. */
+export async function updateProjectFileApi(
+  projectId: string,
+  path: string,
+  content: string
+): Promise<void> {
+  const token = await getAuthToken();
+  if (!token) {
+    throw new NotAuthenticatedError();
+  }
+  const res = await fetch(
+    `${API_URL}/api/projects/${encodeURIComponent(projectId)}/files`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ path, content })
+    }
+  );
+  if (res.status === 401) {
+    throw new NotAuthenticatedError();
+  }
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new Error(data.message || `Save failed (HTTP ${res.status})`);
+  }
 }
 
 /** Delete a project (disk folder + Supabase row). Owner-only. */
@@ -260,6 +337,24 @@ export async function deleteProjectApi(projectId: string): Promise<void> {
   }
   if (!res.ok) {
     throw new Error(`Failed to delete project (HTTP ${res.status})`);
+  }
+}
+
+/** Duplicate a project (disk copy + Supabase row mirror). Owner-only. */
+export async function duplicateProjectApi(projectId: string): Promise<void> {
+  const token = await getAuthToken();
+  if (!token) {
+    throw new NotAuthenticatedError();
+  }
+  const res = await fetch(
+    `${API_URL}/api/projects/${encodeURIComponent(projectId)}/duplicate`,
+    { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (res.status === 401) {
+    throw new NotAuthenticatedError();
+  }
+  if (!res.ok) {
+    throw new Error(`Failed to duplicate project (HTTP ${res.status})`);
   }
 }
 

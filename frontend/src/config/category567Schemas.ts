@@ -31,6 +31,14 @@ export const CATEGORY567_SCHEMAS: Record<string, ConnectorField[]> = {
   // the VaultForm-only modal made the gap visible, so it lives here.
   firebase: [
     { key: 'apiKey', label: 'Firebase Web API Key', placeholder: 'AIzaSy...', mask: true }
+  ],
+  // Shopify: demoted from the OAuth tier — the backend has no shopify OAuth
+  // provider (per-shop authorize domains), so its "Connect your account"
+  // button redirected to an error page. Vault fields match the backend
+  // SYSTEM_CONTEXT env names exactly.
+  shopify: [
+    { key: 'storeDomain', label: 'Store Domain', placeholder: 'your-store.myshopify.com' },
+    { key: 'adminToken', label: 'Admin API Access Token', placeholder: 'shpat_...', mask: true }
   ]
 };
 

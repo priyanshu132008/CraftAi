@@ -9,12 +9,14 @@ import React, {
 import { ProjectItem } from './defaultData';
 import {
   deleteProjectApi,
+  duplicateProjectApi,
   editProjectApi,
   fetchProjects,
   generateProjectApi,
   GENERATION_EVENTS_URL,
   loadProjectApi,
   NotAuthenticatedError,
+  updateProjectFileApi,
   PlanResponse,
   GeneratedFile,
   ProjectListItem,
@@ -25,20 +27,20 @@ import {
   McpServerPayload
 } from '../services/api';
 import { supabase } from '../lib/supabaseClient';
+import { getEnabledConnectorsContext } from '../lib/connectorCatalog';
 
 export type ScreenType =
   | 'landing'
   | 'features'
-  | 'about'
   | 'login'
   | 'signup'
   | 'dashboard'
   | 'search'
   | 'connectors'
   | 'projects'
+  | 'settings'
   | 'generate-plan'
-  | 'workspace'
-  | 'ai-assistant';
+  | 'workspace';
 
 export interface ChatMessage {
   id: string;
@@ -94,19 +96,36 @@ interface UserInfo {
 interface GenerateOptions {
   mode?: GenerationMode;
   designStyle?: string | null;
+  /** Console scope dropdown ("Full-Stack Spec", …) fed to the system prompt. */
+  scope?: string | null;
 }
+
+/** Compose the extra `/generate-project` context: console scope, the wiring
+ *  instructions of every enabled connector, and an attached context file. */
+const buildExtraContext = (
+  scope: string | null | undefined,
+  connectorIds: string[],
+  attachment: AttachedContext | null
+): string | null => {
+  const parts = [
+    scope ? `Target scope: ${scope}.` : null,
+    connectorIds.length
+      ? `Connect the following services using these exact instructions:\n${getEnabledConnectorsContext(connectorIds)}`
+      : null,
+    attachment?.content ?? null
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join('\n\n') : null;
+};
 
 interface AppContextType {
   currentScreen: ScreenType;
   setCurrentScreen: (screen: ScreenType) => void;
-  isDeployModalOpen: boolean;
-  setIsDeployModalOpen: (open: boolean) => void;
   user: UserInfo | null;
   setUser: (user: UserInfo | null) => void;
   logout: () => void;
 
   prompt: string;
-  setPrompt: (prompt: string) => void;
+  setPrompt: React.Dispatch<React.SetStateAction<string>>;
   /** Console mode: build (full pipeline) | chat | plan. */
   promptMode: GenerationMode;
   setPromptMode: (mode: GenerationMode) => void;
@@ -166,12 +185,18 @@ interface AppContextType {
   refreshRecents: () => Promise<void>;
   /** Load a saved project's files into the canvas and open the workspace. */
   openProject: (projectId: string) => Promise<void>;
+  /** Monaco save: persist a file edit to the active project on disk. */
+  saveFile: (path: string, content: string) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
+  /** Duplicate a project blueprint (backend copies disk + metadata row). */
+  duplicateProject: (projectId: string) => Promise<void>;
 
   chatMessages: ChatMessage[];
   sendChatMessage: (msg: string) => void;
 
   handleGeneratePlan: (promptText: string, options?: GenerateOptions) => Promise<void>;
+  /** Abort the in-flight generation (build/chat/plan) and close the trace. */
+  cancelGeneration: () => void;
   /** Build the last plan with the chosen design direction. */
   selectDesignDirection: (direction: DesignDirection) => Promise<void>;
 }
@@ -260,7 +285,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   /** Latest screen for the session bootstrap's guard (its effect runs once). */
   const currentScreenRef = useRef<ScreenType>(currentScreen);
   currentScreenRef.current = currentScreen;
-  const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
   const [user, setUser] = useState<UserInfo | null>(null);
 
   const [prompt, setPrompt] = useState(
@@ -307,9 +331,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
-  /** Prompt that produced the last plan — reused when a design direction is picked. */
+  /** Prompt/scope that produced the last plan — reused when a design
+   *  direction is picked or scope must survive mid-flow rebuilds. */
   const lastPlanPromptRef = useRef<string>('');
+  const lastScopeRef = useRef<string | null>(null);
   const traceStreamRef = useRef<EventSource | null>(null);
+  /** Aborts the in-flight generation request on user cancel. */
+  const genAbortRef = useRef<AbortController | null>(null);
 
   // ---- Supabase session bootstrap ----
   // Auth round trips (OAuth / email confirm) are FULL page loads, so the
@@ -320,12 +348,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // deliberate in-app navigation intact.
   useEffect(() => {
     const syncSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      const su = data.session?.user;
+      // TEMP AUTH BYPASS: the Supabase host is unreachable (dead DNS) — treat
+      // any supabase error as "no session" instead of breaking the boot.
+      let su: { email?: string; user_metadata?: { full_name?: string } } | null = null;
+      try {
+        const { data } = await supabase.auth.getSession();
+        su = data.session?.user ?? null;
+      } catch {
+        su = null;
+      }
       if (su) {
         const email = su.email ?? 'user@craftai.com';
         setUser({
-          name: (su.user_metadata?.full_name as string) || email.split('@')[0],
+          name:
+            (su.user_metadata?.full_name as string | undefined) || email.split('@')[0],
           email,
           avatar: email.slice(0, 2).toUpperCase()
         });
@@ -359,7 +395,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    // TEMP: dead Supabase DNS — signOut rejects on network failure; log out locally regardless.
+    try {
+      await supabase.auth.signOut();
+    } catch { /* local-only logout */ }
     setUser(null);
     setCurrentScreen('landing');
   };
@@ -504,6 +543,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
+  /** Monaco editor save: PUT the edited file to the active project, then
+   *  sync the canvas state (file tree + editor) and reload the preview. */
+  const saveFile = useCallback(async (path: string, content: string) => {
+    if (!activeProjectId) {
+      setStatusMessage('Open or generate a project before saving edits.');
+      return;
+    }
+    try {
+      await updateProjectFileApi(activeProjectId, path, content);
+      setGeneratedFiles(prev =>
+        prev.map(f => (f.path === path ? { ...f, content } : f))
+      );
+      setSelectedFile(f => (f && f.path === path ? { ...f, content } : f));
+      setPreviewVersion(v => v + 1);
+      setStatusMessage(`Saved ${path}.`);
+    } catch (err) {
+      if (err instanceof NotAuthenticatedError) {
+        handleAuthError('login', err);
+      } else {
+        setStatusMessage(err instanceof Error ? err.message : String(err));
+      }
+    }
+  }, [activeProjectId]);
+
   /** Delete a project (disk + Supabase row) and refresh the shared lists. */
   const deleteProject = useCallback(async (projectId: string) => {
     try {
@@ -521,6 +584,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setStatusMessage(err instanceof Error ? err.message : String(err));
     }
   }, [activeProjectId, refreshRecents]);
+
+  const duplicateProject = useCallback(async (projectId: string) => {
+    try {
+      await duplicateProjectApi(projectId);
+      await refreshRecents();
+      setStatusMessage('Blueprint duplicated.');
+    } catch (err) {
+      setStatusMessage(err instanceof Error ? err.message : String(err));
+    }
+  }, [refreshRecents]);
 
   // ---- Live agent thought stream (SSE) ----
   const startTraceStream = () => {
@@ -545,6 +618,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     traceStreamRef.current = null;
   };
 
+  /**
+   * Auth/request failure surfacing. Never switches screens — kicking a user
+   * to the login page mid-flow loses their prompt and live trace. The
+   * message is shown in place (status bar / console / chat thread).
+   */
   const handleAuthError = (screen: 'login' | 'chat', err: unknown) => {
     const text =
       err instanceof NotAuthenticatedError
@@ -552,10 +630,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         : err instanceof Error
           ? err.message
           : String(err);
-    if (screen === 'login') {
-      setStatusMessage(text);
-      setCurrentScreen('login');
-    } else {
+    setStatusMessage(text);
+    if (screen === 'chat') {
       appendMessage({
         id: Date.now().toString(),
         sender: 'ai',
@@ -573,6 +649,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!promptText.trim() || isGenerating) return;
     const mode = options.mode ?? promptMode;
     const style = options.designStyle !== undefined ? options.designStyle : designStyle;
+    const scope = options.scope ?? lastScopeRef.current;
+    if (options.scope) lastScopeRef.current = options.scope;
 
     setIsGenerating(true);
     setAgentTrace([]);
@@ -598,6 +676,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentScreen('generate-plan');
     }
     startTraceStream();
+    const abort = new AbortController();
+    genAbortRef.current = abort;
     try {
       const data = await generateProjectApi(promptText, {
         mode,
@@ -608,7 +688,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         connectorCredentials: credentialFlags(),
         connectorSecrets: connectorSecretsPayload(),
         designStyle: style,
-        context: attachedContext?.content ?? null
+        scope,
+        context: buildExtraContext(scope, selectedConnectors, attachedContext),
+        signal: abort.signal
       });
       if (data.trace && data.trace.length > 0) {
         setAgentTrace(data.trace);
@@ -673,12 +755,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentScreen('generate-plan');
       }
     } catch (err) {
-      handleAuthError(isGenerated ? 'chat' : 'login', err);
+      if (err instanceof Error && err.name === 'AbortError') {
+        setStatusMessage('Generation cancelled.');
+      } else {
+        handleAuthError(isGenerated ? 'chat' : 'login', err);
+      }
     } finally {
+      genAbortRef.current = null;
       stopTraceStream();
       setIsGenerating(false);
     }
   };
+
+  /** Cancel button: abort the request; the pending call's finally block
+   *  clears isGenerating and the trace stream. */
+  const cancelGeneration = useCallback(() => {
+    genAbortRef.current?.abort();
+    stopTraceStream();
+  }, []);
 
   /** Build the last plan with a design direction chosen from a decision card. */
   const selectDesignDirection = async (direction: DesignDirection) => {
@@ -691,7 +785,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     await handleGeneratePlan(lastPlanPromptRef.current, {
       mode: 'build',
-      designStyle: direction.title
+      designStyle: direction.title,
+      scope: lastScopeRef.current ?? undefined
     });
   };
 
@@ -711,12 +806,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setGeneratedCode('');
     setOpenFileRequest(null);
     startTraceStream();
+    const abort = new AbortController();
+    genAbortRef.current = abort;
     try {
       if (activeProjectId) {
         // Incremental edit: the Debugger/Edit endpoint patches the EXISTING
         // project directory in place — same project id, no new project.
         setStatusMessage('Patching the existing project in place…');
-        const data = await editProjectApi(activeProjectId, text);
+        const data = await editProjectApi(activeProjectId, text, abort.signal);
         if (data.trace && data.trace.length > 0) {
           setAgentTrace(data.trace);
         }
@@ -725,10 +822,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsGenerated(true);
         setPreviewVersion(v => v + 1);
         setStatusMessage('Edit applied — preview reloaded.');
+        // The agent's own conversational reply (summary + follow-up
+        // question); falls back to a terse fact line if the endpoint
+        // returned no message.
         appendMessage({
           id: (Date.now() + 1).toString(),
           sender: 'ai',
-          text: `Done! Patched "${data.name ?? 'the project'}" in place — no new project was created.`,
+          text: data.assistant_message ||
+            `Updated ${data.files?.length ?? 0} files in place.`,
           timestamp: timestamp(),
           files: data.files ?? [],
           suggestions: ['Add search filter', 'Polish the animations']
@@ -747,7 +848,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             connectorCredentials: credentialFlags(),
             connectorSecrets: connectorSecretsPayload(),
             designStyle,
-            context: attachedContext?.content ?? null
+            context: buildExtraContext(null, selectedConnectors, attachedContext),
+            signal: abort.signal
           }
         );
         if (data.trace && data.trace.length > 0) {
@@ -772,8 +874,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
     } catch (err) {
-      handleAuthError('chat', err);
+      if (err instanceof Error && err.name === 'AbortError') {
+        setStatusMessage('Edit cancelled.');
+      } else {
+        handleAuthError('chat', err);
+      }
     } finally {
+      genAbortRef.current = null;
       stopTraceStream();
       setIsGenerating(false);
     }
@@ -784,8 +891,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         currentScreen,
         setCurrentScreen,
-        isDeployModalOpen,
-        setIsDeployModalOpen,
         user,
         setUser,
         logout,
@@ -830,10 +935,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recents,
         refreshRecents,
         openProject,
+        saveFile,
         deleteProject,
+        duplicateProject,
         chatMessages,
         sendChatMessage,
         handleGeneratePlan,
+        cancelGeneration,
         selectDesignDirection
       }}
     >

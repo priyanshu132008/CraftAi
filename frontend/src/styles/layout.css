@@ -5,8 +5,8 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #000000;
-  color: #EDEDED;
+  background: var(--bg-primary);
+  color: var(--text-main);
 }
 
 /* Public Navbar (Landing & Simple pages) */
@@ -15,12 +15,12 @@
   align-items: center;
   justify-content: space-between;
   padding: 1.25rem 2.5rem;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--bg-nav);
   backdrop-filter: blur(12px);
   position: sticky;
   top: 0;
   z-index: 50;
-  border-bottom: 1px solid #222222;
+  border-bottom: 1px solid var(--border-subtle);
 }
 .nav-links {
   display: flex;
@@ -31,15 +31,21 @@
 .nav-link {
   font-size: 0.9rem;
   font-weight: 500;
-  color: #A1A1AA;
+  color: var(--text-muted);
   cursor: pointer;
   transition: color var(--transition-fast);
   padding: 6px 12px;
   border-radius: 6px;
 }
 .nav-link:hover, .nav-link.active {
-  color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-heading);
+  background: var(--bg-hover);
+}
+/* Nav links are real buttons inside the li — inherit its styles. */
+.nav-link button {
+  all: inherit;
+  cursor: pointer;
+  text-align: center;
 }
 .nav-actions {
   display: flex;
@@ -51,13 +57,15 @@
 .app-shell {
   display: flex;
   min-height: 100vh;
-  background: #000000;
-  color: #EDEDED;
+  background: var(--bg-primary);
+  color: var(--text-main);
 }
 .app-sidebar {
   width: 260px;
-  background: #000000;
-  border-right: 1px solid #222222;
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -65,10 +73,11 @@
   top: 0;
   height: 100vh;
   z-index: 30;
+  overflow: hidden;
 }
 .sidebar-header {
   padding: 1.5rem;
-  border-bottom: 1px solid #222222;
+  border-bottom: 1px solid var(--border-subtle);
 }
 .sidebar-nav {
   padding: 1.25rem 0.75rem;
@@ -85,37 +94,36 @@
   border-radius: 8px;
   font-weight: 500;
   font-size: 0.88rem;
-  color: #A1A1AA;
+  color: var(--text-muted);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 .sidebar-link:hover {
-  background: #121212;
-  color: #FFFFFF;
+  background: var(--bg-hover);
+  color: var(--text-heading);
 }
 .sidebar-link.active {
-  background: #171717;
-  color: #FFFFFF;
+  color: var(--text-heading);
   font-weight: 600;
 }
 .sidebar-user {
   padding: 1.25rem;
-  border-top: 1px solid #222222;
+  border-top: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #000000;
+  background: var(--bg-nav);
 }
 .user-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #FFFFFF;
-  color: #000000;
+  background: var(--text-heading);
+  color: var(--bg-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 0.82rem;
 }
 .user-info {
@@ -126,14 +134,14 @@
 .user-name {
   font-size: 0.88rem;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--text-heading);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .user-email {
   font-size: 0.75rem;
-  color: #71717A;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -167,7 +175,7 @@
   transform: translateX(-50%);
   width: 1100px;
   height: 600px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 40%, transparent 70%);
+  background: var(--gradient-subtle-glow);
   pointer-events: none;
   z-index: 0;
 }
@@ -178,30 +186,30 @@
 .hero-headline {
   font-size: clamp(2.4rem, 4.2vw, 3.6rem);
   line-height: 1.08;
-  font-weight: 800;
+  font-weight: 700;
   margin-bottom: 1rem;
-  color: #FFFFFF;
+  color: var(--text-heading);
   letter-spacing: -0.035em;
 }
 .hero-headline span.gradient-text {
-  background: linear-gradient(180deg, #FFFFFF 20%, #71717A 100%);
+  background: linear-gradient(180deg, var(--text-heading) 20%, var(--text-muted) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   display: block;
 }
 .hero-subtext {
   font-size: 1.05rem;
-  color: #A1A1AA;
+  color: var(--text-muted);
   margin-bottom: 1.75rem;
   line-height: 1.6;
   max-width: 520px;
 }
 .hero-prompt-box {
-  background: #0A0A0A;
+  background: var(--bg-input);
   border-radius: 10px;
   padding: 8px 10px 8px 16px;
-  border: 1px solid #27272A;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -209,19 +217,19 @@
   margin-bottom: 1.25rem;
 }
 .hero-prompt-box:focus-within {
-  border-color: #FFFFFF;
-  box-shadow: 0 0 25px rgba(255, 255, 255, 0.15);
+  border-color: var(--accent-indigo-bright);
+  box-shadow: 0 0 0 3px var(--accent-indigo-soft);
 }
 .hero-prompt-input {
   flex: 1;
   border: none;
   outline: none;
   font-size: 1rem;
-  color: #FFFFFF;
+  color: var(--text-main);
   background: transparent;
 }
 .hero-prompt-input::placeholder {
-  color: #52525B;
+  color: var(--text-muted);
 }
 .hero-suggestions {
   display: flex;
@@ -229,26 +237,26 @@
   flex-wrap: wrap;
   gap: 8px;
   font-size: 0.85rem;
-  color: #71717A;
+  color: var(--text-muted);
 }
 .hero-suggestions-title {
   font-weight: 600;
-  color: #A1A1AA;
+  color: var(--text-muted);
 }
 .suggestion-chip {
   padding: 5px 12px;
-  background: #0A0A0A;
-  border: 1px solid #27272A;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
   font-size: 0.8rem;
-  color: #A1A1AA;
+  color: var(--text-muted);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 .suggestion-chip:hover {
-  border-color: #FFFFFF;
-  color: #FFFFFF;
-  background: #141414;
+  border-color: var(--accent-indigo-bright);
+  color: var(--text-heading);
+  background: var(--bg-hover);
 }
 
 /* 3D Showcase in Hero */
@@ -270,32 +278,32 @@
   width: 100%;
   height: auto;
   border-radius: 16px;
-  border: 1px solid #222222;
-  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.95);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-xl);
   display: block;
 }
 
 /* Floating Action Chips around 3D laptop - Monochrome Vercel */
 .floating-chip {
   position: absolute;
-  background: rgba(10, 10, 10, 0.9);
+  background: var(--bg-nav);
   backdrop-filter: blur(10px);
   padding: 8px 16px;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
-  border: 1px solid #27272A;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-subtle);
   font-weight: 600;
   font-size: 0.82rem;
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #FFFFFF;
+  color: var(--text-heading);
   animation: float 4s ease-in-out infinite alternate;
 }
-.chip-plan { top: 10%; left: -6%; animation-delay: 0s; border-left: 2px solid #FFFFFF; }
-.chip-generate { top: 4%; right: 18%; animation-delay: 1s; border-left: 2px solid #A1A1AA; }
-.chip-edit { bottom: 35%; right: -8%; animation-delay: 2s; border-left: 2px solid #FFFFFF; }
-.chip-deploy { bottom: 8%; right: 4%; animation-delay: 1.5s; border-left: 2px solid #71717A; }
+.chip-plan { top: 10%; left: -6%; animation-delay: 0s; border-left: 2px solid var(--border-active); }
+.chip-generate { top: 4%; right: 18%; animation-delay: 1s; border-left: 2px solid var(--accent-indigo-bright); }
+.chip-edit { bottom: 35%; right: -8%; animation-delay: 2s; border-left: 2px solid var(--border-active); }
+.chip-deploy { bottom: 8%; right: 4%; animation-delay: 1.5s; border-left: 2px solid var(--text-subtle); }
 
 @keyframes float {
   0% { transform: translateY(0px); }
@@ -309,22 +317,13 @@
   margin: 0 auto;
   text-align: center;
 }
-.section-badge {
-  display: inline-block;
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: #A1A1AA;
-  margin-bottom: 0.75rem;
-}
 .section-title {
   font-size: 2.4rem;
   margin-bottom: 1rem;
-  color: #FFFFFF;
+  color: var(--text-heading);
 }
 .section-desc {
-  color: #A1A1AA;
+  color: var(--text-muted);
   max-width: 600px;
   margin: 0 auto 3rem;
   font-size: 1.05rem;
@@ -335,25 +334,25 @@
   gap: 2rem;
 }
 .step-card {
-  background: #0A0A0A;
+  background: var(--bg-card);
   padding: 2.25rem 1.75rem;
   border-radius: 14px;
-  border: 1px solid #222222;
+  border: 1px solid var(--border-subtle);
   text-align: left;
   transition: all var(--transition-normal);
 }
 .step-card:hover {
-  border-color: #444444;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
+  border-color: var(--border-active);
+  box-shadow: var(--shadow-lg);
   transform: translateY(-4px);
 }
 .step-icon-wrap {
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  background: #141414;
-  color: #FFFFFF;
-  border: 1px solid #27272A;
+  background: var(--bg-secondary);
+  color: var(--text-heading);
+  border: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -362,10 +361,10 @@
 .step-title {
   font-size: 1.25rem;
   margin-bottom: 0.5rem;
-  color: #FFFFFF;
+  color: var(--text-heading);
 }
 .step-text {
-  color: #A1A1AA;
+  color: var(--text-muted);
   font-size: 0.92rem;
   line-height: 1.55;
 }
@@ -374,7 +373,7 @@
 .auth-page-container {
   display: flex;
   min-height: 100vh;
-  background: #000000;
+  background: var(--bg-primary);
 }
 .auth-form-side {
   flex: 1.1;
@@ -384,19 +383,21 @@
   padding: 3rem 4.5rem;
   max-width: 620px;
   margin: 0 auto;
-  color: #FFFFFF;
+  color: var(--text-heading);
 }
 .auth-visual-side {
   flex: 1;
   position: relative;
   overflow: hidden;
+  /* Deliberately obsidian in both themes — the glowing indigo particle
+     canvas reads best against near-black. */
   background: #050505;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   padding: 4rem;
   color: #FFFFFF;
-  border-left: 1px solid #222222;
+  border-left: 1px solid var(--border-subtle);
 }
 .auth-bg-img {
   position: absolute;
@@ -418,7 +419,7 @@
 }
 .auth-visual-title {
   font-size: 2.4rem;
-  font-weight: 800;
+  font-weight: 700;
   color: #FFFFFF;
   margin-bottom: 0.75rem;
   line-height: 1.2;
@@ -439,11 +440,11 @@
 }
 .dashboard-title-group h1 {
   font-size: 2rem;
-  color: #FFFFFF;
+  color: var(--text-heading);
   margin-bottom: 4px;
 }
 .dashboard-title-group p {
-  color: #A1A1AA;
+  color: var(--text-muted);
   font-size: 0.95rem;
 }
 .dashboard-controls {
@@ -455,12 +456,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #0A0A0A;
-  border: 1px solid #27272A;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 9px 14px;
   width: 260px;
-  color: #A1A1AA;
+  color: var(--text-muted);
 }
 .search-box input {
   border: none;
@@ -468,7 +469,7 @@
   background: transparent;
   width: 100%;
   font-size: 0.88rem;
-  color: #FFFFFF;
+  color: var(--text-heading);
 }
 
 .projects-grid {
@@ -477,8 +478,8 @@
   gap: 1.75rem;
 }
 .project-card {
-  background: #0A0A0A;
-  border: 1px solid #222222;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
   overflow: hidden;
   transition: all var(--transition-normal);
@@ -486,16 +487,16 @@
   flex-direction: column;
 }
 .project-card:hover {
-  border-color: #444444;
-  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.8);
+  border-color: var(--border-active);
+  box-shadow: var(--shadow-lg);
   transform: translateY(-3px);
 }
 .project-preview {
   height: 155px;
-  background: #050505;
+  background: var(--bg-input);
   position: relative;
   overflow: hidden;
-  border-bottom: 1px solid #222222;
+  border-bottom: 1px solid var(--border-subtle);
 }
 .project-preview-mockup {
   width: 100%;
@@ -516,7 +517,7 @@
 .project-title {
   font-size: 1.15rem;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--text-heading);
   margin-bottom: 4px;
 }
 .project-tags {
@@ -526,7 +527,7 @@
 }
 .project-meta {
   font-size: 0.8rem;
-  color: #71717A;
+  color: var(--text-muted);
   margin-bottom: 1.25rem;
 }
 .project-footer {
@@ -535,7 +536,7 @@
   justify-content: space-between;
   margin-top: auto;
   padding-top: 1rem;
-  border-top: 1px solid #222222;
+  border-top: 1px solid var(--border-subtle);
 }
 
 @media (max-width: 900px) {
@@ -556,18 +557,82 @@
   .steps-grid {
     grid-template-columns: 1fr;
   }
-  .auth-page-container {
-    flex-direction: column;
-  }
-  .auth-visual-side {
-    display: none;
-  }
   .app-shell {
     flex-direction: column;
   }
   .app-sidebar {
-    width: 100%;
+    width: 100% !important; /* beat the inline collapse width */
     height: auto;
     position: static;
   }
+}
+
+/* Auth gateway: below 1024px the particle canvas becomes a glowing
+   ambient background behind the stacked form instead of a hidden pane. */
+@media (max-width: 1024px) {
+  .auth-page-container {
+    position: relative;
+    flex-direction: column;
+  }
+  .auth-visual-side {
+    position: absolute;
+    inset: 0;
+    opacity: 0.35;
+    z-index: 0;
+    pointer-events: none;
+    border-left: none;
+  }
+  .auth-visual-content {
+    display: none;
+  }
+  .auth-form-side {
+    position: relative;
+    z-index: 1;
+    padding: 2.5rem 1.5rem;
+    max-width: 480px;
+  }
+}
+
+/* Frosted workspace topbar (dashboard shell header) */
+.workspace-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 2rem;
+  background: color-mix(in srgb, var(--bg-nav) 75%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  min-width: 0;
+}
+.breadcrumb-sep {
+  color: var(--border-active, var(--text-muted));
+  flex-shrink: 0;
+}
+.breadcrumb-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.breadcrumb-item.current {
+  color: var(--text-heading);
+  font-weight: 600;
+}
+.breadcrumb-item.link {
+  cursor: pointer;
+}
+.breadcrumb-item.link:hover {
+  color: var(--text-heading);
 }

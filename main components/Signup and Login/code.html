@@ -1,0 +1,486 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<meta content="web_blank" name="shell-type">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+    @layer base {
+      html, body { margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+    }
+    ::-webkit-scrollbar { display: none; }
+
+    @keyframes marqueeLeft {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    @keyframes marqueeRight {
+      0% { transform: translateX(-50%); }
+      100% { transform: translateX(0); }
+    }
+
+    .animate-marquee-left-1 {
+      animation: marqueeLeft 32s linear infinite;
+    }
+    .animate-marquee-right-2 {
+      animation: marqueeRight 36s linear infinite;
+    }
+    .animate-marquee-left-3 {
+      animation: marqueeLeft 28s linear infinite;
+    }
+
+    .animate-marquee-left-1:hover,
+    .animate-marquee-right-2:hover,
+    .animate-marquee-left-3:hover {
+      animation-play-state: paused;
+    }
+
+    .marquee-mask {
+      mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+      -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+    }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-bright": "#39393b",
+            "primary-container": "#8083ff",
+            "on-primary": "#1000a9",
+            "on-surface-variant": "#c7c4d7",
+            "surface-container": "#201f22",
+            "surface-container-lowest": "#000000",
+            "surface-container-low": "#121214",
+            "surface-container-high": "#222226",
+            "on-surface": "#e5e1e4",
+            "background": "#000000",
+            "outline": "#908fa0"
+          },
+          fontFamily: {
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "label-caps": ["JetBrains Mono", "monospace"],
+            "headline-lg": ["Space Grotesk", "sans-serif"],
+            "headline-md": ["Space Grotesk", "sans-serif"],
+            "headline-sm": ["Space Grotesk", "sans-serif"],
+            "title-md": ["Inter", "sans-serif"],
+            "body-lg": ["Inter", "sans-serif"],
+            "body-md": ["Inter", "sans-serif"],
+            "body-sm": ["Inter", "sans-serif"]
+          },
+          fontSize: {
+            "code-sm": ["11px", { lineHeight: "16px", letterSpacing: "0.02em", fontWeight: "500" }],
+            "code-md": ["13px", { lineHeight: "20px", letterSpacing: "0em", fontWeight: "500" }],
+            "label-caps": ["10px", { lineHeight: "14px", letterSpacing: "0.08em", fontWeight: "600" }],
+            "headline-lg": ["36px", { lineHeight: "44px", letterSpacing: "-0.03em", fontWeight: "700" }],
+            "headline-md": ["28px", { lineHeight: "36px", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "headline-sm": ["20px", { lineHeight: "28px", letterSpacing: "-0.015em", fontWeight: "600" }],
+            "title-md": ["16px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "600" }],
+            "body-lg": ["16px", { lineHeight: "26px", letterSpacing: "0em", fontWeight: "400" }],
+            "body-md": ["14px", { lineHeight: "22px", letterSpacing: "0em", fontWeight: "400" }],
+            "body-sm": ["12px", { lineHeight: "18px", letterSpacing: "0.01em", fontWeight: "400" }]
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-black text-[#e5e1e4] antialiased selection:bg-white selection:text-black min-h-screen relative overflow-hidden font-body-md">
+<main class="w-screen h-screen overflow-hidden">
+<div class="w-full h-full flex flex-row relative bg-black">
+<!-- LEFT COLUMN: STRICT 50% SPLIT WITH AUTH FORM -->
+<div class="w-1/2 h-full flex flex-col justify-between px-8 sm:px-14 lg:px-16 xl:px-20 py-8 z-20 overflow-y-auto bg-black">
+<!-- Header Bar: CraftAI geometric logo + Theme Toggle -->
+<header class="flex items-center justify-between w-full">
+<a class="flex items-center gap-2.5 group" href="#">
+<div class="w-8 h-8 rounded-md bg-white text-black flex items-center justify-center font-bold transition-transform duration-200 group-hover:scale-95">
+<span class="material-symbols-outlined text-[20px] font-semibold">grain</span>
+</div>
+<span class="font-headline-md text-[17px] tracking-wider font-bold text-white uppercase">CraftAI</span>
+</a>
+<!-- Subtle Top-Right Theme Toggle in Pane -->
+<button aria-label="Toggle Theme" class="w-8 h-8 rounded-md flex items-center justify-center border border-[#27272A] bg-[#0c0c0e] hover:border-zinc-500 text-[#A1A1AA] hover:text-white transition-all duration-150" onclick="document.documentElement.classList.toggle('dark')" type="button">
+<span class="material-symbols-outlined text-[17px]">dark_mode</span>
+</button>
+</header>
+<!-- Centered Vertical Form Column with generous max-width -->
+<div class="w-full max-w-[480px] mx-auto my-auto py-6 text-left">
+<!-- Minimalist Text Tabs System with crisp active underline -->
+<div class="flex items-center gap-8 mb-8 border-b border-[#27272A]/60 pb-3 relative">
+<button class="relative font-body-md text-[15px] font-semibold tracking-tight transition-colors duration-150 text-white" id="tab-signup" type="button">
+              Sign Up
+              <span class="absolute -bottom-[13px] left-0 right-0 h-[2px] bg-white transition-all duration-300" id="tab-indicator-signup"></span>
+</button>
+<button class="relative font-body-md text-[15px] font-medium tracking-tight text-[#71717A] hover:text-white transition-colors duration-150" id="tab-login" type="button">
+              Log In
+              <span class="absolute -bottom-[13px] left-0 right-0 h-[2px] bg-transparent transition-all duration-300" id="tab-indicator-login"></span>
+</button>
+</div>
+<!-- Editorial Heading & Subtitle -->
+<div class="mb-7">
+<h1 class="font-headline-lg text-headline-lg font-bold tracking-tight text-white transition-all duration-200" id="auth-heading">
+              Create your account
+            </h1>
+<p class="mt-2.5 font-body-md text-[14px] leading-relaxed text-[#71717A] transition-all duration-200" id="auth-subheading">
+              Start building autonomous software with multi-agent orchestration.
+            </p>
+</div>
+<!-- Full-Width Stacked OAuth Buttons -->
+<div class="flex flex-col gap-2.5 mb-6">
+<button class="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-lg bg-black border border-[#27272A] hover:border-white/40 text-white font-body-sm text-[13px] font-medium hover:bg-white/[0.03] transition-all active:scale-[0.99]" type="button">
+<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"></path>
+</svg>
+<span class="">Continue with Google</span>
+</button>
+<button class="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-lg bg-black border border-[#27272A] hover:border-white/40 text-white font-body-sm text-[13px] font-medium hover:bg-white/[0.03] transition-all active:scale-[0.99]" type="button">
+<svg class="w-4 h-4 fill-white shrink-0" viewBox="0 0 24 24">
+<path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path>
+</svg>
+<span class="">Continue with GitHub</span>
+</button>
+</div>
+<!-- Clean Hairline Horizontal Divider -->
+<div class="relative flex items-center justify-center my-6">
+<div class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-[#27272A]"></div>
+</div>
+<span class="relative px-3 bg-black font-code-sm text-[10px] text-[#71717A] uppercase tracking-widest">OR</span>
+</div>
+<!-- Auth Form Body -->
+<form class="space-y-4" id="auth-form" onsubmit="event.preventDefault();">
+<!-- Full Name (Sign Up only) -->
+<div class="space-y-1.5 transition-all duration-200" id="field-fullname">
+<label class="block font-code-sm text-code-sm uppercase tracking-wider text-[#A1A1AA]">Full Name</label>
+<input class="w-full px-3.5 py-2.5 rounded-lg bg-[#09090B] border border-[#27272A] text-white font-body-sm text-[14px] placeholder-[#3F3F46] focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all" placeholder="Ada Lovelace" type="text">
+</div>
+<!-- Email Address (Both) -->
+<div class="space-y-1.5">
+<label class="block font-code-sm text-code-sm uppercase tracking-wider text-[#A1A1AA]">Work Email</label>
+<input class="w-full px-3.5 py-2.5 rounded-lg bg-[#09090B] border border-[#27272A] text-white font-body-sm text-[14px] placeholder-[#3F3F46] focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all" placeholder="ada@craftai.systems" required="" type="email">
+</div>
+<!-- Password -->
+<div class="space-y-1.5 transition-all duration-200" id="field-password">
+<div class="flex items-center justify-between">
+<label class="block font-code-sm text-code-sm uppercase tracking-wider text-[#A1A1AA]">Password</label>
+<button class="hidden font-code-sm text-[11px] text-[#71717A] hover:text-white transition-colors" id="btn-toggle-login-pass" type="button">
+                  Forgot password?
+                </button>
+</div>
+<div class="relative">
+<input class="w-full px-3.5 py-2.5 pr-10 rounded-lg bg-[#09090B] border border-[#27272A] text-white font-body-sm text-[14px] placeholder-[#3F3F46] focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all" id="input-password" placeholder="••••••••••••" type="password">
+<button class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-white transition-colors p-1" id="btn-toggle-eye" type="button">
+<span class="material-symbols-outlined text-[18px]" id="eye-icon">visibility</span>
+</button>
+</div>
+<!-- Minimal Password Strength Meter -->
+<div class="flex items-center gap-1.5 pt-1.5" id="password-strength">
+<div class="h-1 flex-1 rounded-full bg-white transition-all"></div>
+<div class="h-1 flex-1 rounded-full bg-white transition-all"></div>
+<div class="h-1 flex-1 rounded-full bg-white/40 transition-all"></div>
+<div class="h-1 flex-1 rounded-full bg-[#27272A] transition-all"></div>
+<span class="font-code-sm text-[10px] text-[#71717A] ml-2 uppercase tracking-wide">8+ chars required</span>
+</div>
+</div>
+<!-- Alternative Switch for Login -->
+<div class="hidden text-left pt-1" id="login-magiclink-sub">
+<button class="font-code-sm text-code-sm text-[#71717A] hover:text-white transition-colors underline underline-offset-4" id="btn-switch-to-pw" type="button">
+                or sign in with password
+              </button>
+</div>
+<!-- High-Contrast Massive Primary CTA -->
+<button class="w-full mt-3 py-3.5 px-4 rounded-lg bg-white text-black font-title-md text-[14px] font-bold tracking-tight hover:bg-[#F4F4F5] active:scale-[0.99] transition-all duration-150 flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(255,255,255,0.2)] hover:shadow-[0_0_32px_rgba(255,255,255,0.32)]" id="btn-submit" type="submit">
+<span id="btn-submit-label" class="">Create Account</span>
+<span class="material-symbols-outlined text-[18px] font-bold">arrow_forward</span>
+</button>
+</form>
+</div>
+<!-- Footer Policy Text -->
+<footer class="w-full text-left py-2 max-w-[480px] mx-auto">
+<p class="font-body-sm text-[12px] text-[#71717A] leading-relaxed">
+            By continuing, you agree to our 
+            <a class="text-[#A1A1AA] hover:text-white underline underline-offset-2 transition-colors" href="#">Terms of Service</a> 
+            and 
+            <a class="text-[#A1A1AA] hover:text-white underline underline-offset-2 transition-colors" href="#">Privacy Policy</a>.
+          </p>
+</footer>
+</div>
+<!-- RIGHT COLUMN: STRICT 50% SPLIT WITH 3-ROW INFINITE MARQUEE -->
+<div class="w-1/2 h-full relative overflow-hidden bg-black border-l border-[#27272A]/50 flex flex-col justify-between p-8 lg:p-12">
+<!-- Top Right Subtle Architecture Pill -->
+<div class="absolute top-8 right-8 z-20 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#27272A] bg-[#0c0c0e]/80 backdrop-blur-md text-[11px] font-mono tracking-wider text-zinc-300 shadow-sm"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>40+ NATIVE INTEGRATIONS</div>
+<!-- Center Section: 3-Row Infinite Marquee with edge fade-out mask -->
+<div class="w-full my-auto flex flex-col gap-6 overflow-hidden marquee-mask py-4">
+<!-- ROW 1: SCROLL LEFT -->
+<div class="relative w-full overflow-hidden flex">
+<div class="flex items-center gap-4 shrink-0 animate-marquee-left-1" style="width: max-content;">
+<!-- Item: OpenAI -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors"><svg class="w-5 h-5 fill-white shrink-0" viewBox="0 0 24 24"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 10.597.23a6.038 6.038 0 0 0-5.783 4.218 6.04 6.04 0 0 0-3.998 2.9 6.055 6.055 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.91 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 6.04 6.04 0 0 0 3.998-2.9 6.055 6.055 0 0 0-.748-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.142-.08 4.778-2.76a.795.795 0 0 0 .393-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.505 4.505 0 0 1-4.495 4.495zm-9.66-4.126a4.47 4.47 0 0 1-.535-3.013l.142.085 4.783 2.758a.771.771 0 0 0 .78 0l5.843-3.368v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973v5.677a.766.766 0 0 0 .388.677l5.814 3.354-2.02 1.168a.076.076 0 0 1-.071 0L4.087 14.01A4.504 4.504 0 0 1 2.34 7.896zm16.1 3.856-5.843-3.354 2.02-1.164a.08.08 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.104v-5.677a.79.79 0 0 0-.402-.7zm2.01-3.023-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.407 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135-2.02-1.164a.08.08 0 0 1-.038-.052V6.067a4.5 4.5 0 0 1 7.37-3.454l-.141.08-4.779 2.76a.795.795 0 0 0-.392.68v6.737zm1.097-2.365 2.602-1.5 2.607 1.5v3l-2.607 1.5-2.602-1.5z"></path></svg><span class="text-xs font-mono text-zinc-300 font-medium">OpenAI</span></div>
+<!-- Item: Cloudflare -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-[#F38020]" viewBox="0 0 24 24"><path d="M18.36 12.87c-.24-2.1-1.95-3.73-4.08-3.83-1.35-.06-2.58.54-3.37 1.54-.53-.44-1.2-.7-1.93-.7-1.63 0-2.96 1.28-3.04 2.9-.84.28-1.44 1.07-1.44 2.01 0 1.16.94 2.1 2.1 2.1h11.4c1.33 0 2.4-1.07 2.4-2.4 0-1.21-.9-2.2-2.04-2.38v.76z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Cloudflare</span>
+</div>
+<!-- Item: Supabase -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-[#3ECF8E]" viewBox="0 0 24 24"><path d="M13.43 23.57L2.48 10.1c-.6-.73-.08-1.83.86-1.83H12V.43a.43.43 0 0 1 .74-.3l10.95 13.47c.6.73.08 1.83-.86 1.83H14v7.84a.43.43 0 0 1-.57.3z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Supabase</span>
+</div>
+<!-- Item: Vercel -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-4 h-4 fill-white" viewBox="0 0 24 24"><path d="M12 1L24 22H0L12 1Z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Vercel</span>
+</div>
+<!-- Item: Stripe -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<div class="w-5 h-5 rounded bg-[#635BFF] flex items-center justify-center font-bold text-white text-[11px] leading-none">S</div>
+<span class="text-xs font-mono text-zinc-300 font-medium">Stripe</span>
+</div>
+<!-- DUPLICATE SET 1 FOR SEAMLESS LOOP -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors"><svg class="w-5 h-5 fill-white shrink-0" viewBox="0 0 24 24"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 10.597.23a6.038 6.038 0 0 0-5.783 4.218 6.04 6.04 0 0 0-3.998 2.9 6.055 6.055 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.91 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 6.04 6.04 0 0 0 3.998-2.9 6.055 6.055 0 0 0-.748-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.142-.08 4.778-2.76a.795.795 0 0 0 .393-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.505 4.505 0 0 1-4.495 4.495zm-9.66-4.126a4.47 4.47 0 0 1-.535-3.013l.142.085 4.783 2.758a.771.771 0 0 0 .78 0l5.843-3.368v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973v5.677a.766.766 0 0 0 .388.677l5.814 3.354-2.02 1.168a.076.076 0 0 1-.071 0L4.087 14.01A4.504 4.504 0 0 1 2.34 7.896zm16.1 3.856-5.843-3.354 2.02-1.164a.08.08 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.104v-5.677a.79.79 0 0 0-.402-.7zm2.01-3.023-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.407 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135-2.02-1.164a.08.08 0 0 1-.038-.052V6.067a4.5 4.5 0 0 1 7.37-3.454l-.141.08-4.779 2.76a.795.795 0 0 0-.392.68v6.737zm1.097-2.365 2.602-1.5 2.607 1.5v3l-2.607 1.5-2.602-1.5z"></path></svg><span class="text-xs font-mono text-zinc-300 font-medium">OpenAI</span></div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-[#F38020]" viewBox="0 0 24 24"><path d="M18.36 12.87c-.24-2.1-1.95-3.73-4.08-3.83-1.35-.06-2.58.54-3.37 1.54-.53-.44-1.2-.7-1.93-.7-1.63 0-2.96 1.28-3.04 2.9-.84.28-1.44 1.07-1.44 2.01 0 1.16.94 2.1 2.1 2.1h11.4c1.33 0 2.4-1.07 2.4-2.4 0-1.21-.9-2.2-2.04-2.38v.76z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Cloudflare</span>
+</div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-[#3ECF8E]" viewBox="0 0 24 24"><path d="M13.43 23.57L2.48 10.1c-.6-.73-.08-1.83.86-1.83H12V.43a.43.43 0 0 1 .74-.3l10.95 13.47c.6.73.08 1.83-.86 1.83H14v7.84a.43.43 0 0 1-.57.3z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Supabase</span>
+</div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-4 h-4 fill-white" viewBox="0 0 24 24"><path d="M12 1L24 22H0L12 1Z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Vercel</span>
+</div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<div class="w-5 h-5 rounded bg-[#635BFF] flex items-center justify-center font-bold text-white text-[11px] leading-none">S</div>
+<span class="text-xs font-mono text-zinc-300 font-medium">Stripe</span>
+</div>
+</div>
+</div>
+<!-- ROW 2: SCROLL RIGHT -->
+<div class="relative w-full overflow-hidden flex">
+<div class="flex items-center gap-4 shrink-0 animate-marquee-right-2" style="width: max-content;">
+<!-- Item: Anthropic -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors"><svg class="w-4 h-4 text-[#CC785C] shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M13.82 3h3.58L23 21h-3.62l-1.58-4.46H10.15L8.58 21H5L13.82 3zm2.93 10.74l-2.07-5.91-2.08 5.91h4.15zM1 21h3.7L11.5 3H7.8L1 21z"></path></svg><span class="text-xs font-mono text-zinc-300 font-medium">Anthropic</span></div>
+<!-- Item: Linear -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-[#5E6AD2]" viewBox="0 0 24 24"><path d="M3.1 3.1a1 1 0 0 1 1.4 0l16.4 16.4a1 1 0 0 1-1.4 1.4L3.1 4.5a1 1 0 0 1 0-1.4zM3.1 11a1 1 0 0 1 1.4 0l8.5 8.5a1 1 0 0 1-1.4 1.4L3.1 12.4a1 1 0 0 1 0-1.4zm8-8a1 1 0 0 1 1.4 0l8.4 8.4a1 1 0 0 1-1.4 1.4L11.1 4.4a1 1 0 0 1 0-1.4z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Linear</span>
+</div>
+<!-- Item: GitHub -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-white" viewBox="0 0 24 24"><path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">GitHub</span>
+</div>
+<!-- Item: AWS -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-[#FF9900]" viewBox="0 0 24 24"><path d="M7.78 6.48c0-.68.4-1.03 1.18-1.03.74 0 1.25.32 1.54.95l1.64-.96C11.5 4.3 10.38 3.7 8.96 3.7c-2.12 0-3.32 1.24-3.32 2.92 0 2.5 3.1 2.2 3.1 3.57 0 .8-.56 1.12-1.38 1.12-.9 0-1.58-.45-1.84-1.22l-1.74.87c.54 1.5 1.84 2.1 3.58 2.1 2.24 0 3.5-1.25 3.5-2.96 0-2.73-3.08-2.37-3.08-3.62zm15.42 5.48c-6.85 3.6-14.86 2.07-21.72-2.14a.43.43 0 0 0-.58.12.45.45 0 0 0 .1.6c7.34 4.5 15.93 6.1 23.23 2.24.4-.22.25-.97-.24-.97l-.79.15z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">AWS</span>
+</div>
+<!-- Item: Slack -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5" viewBox="0 0 24 24">
+<path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A"></path>
+<path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0"></path>
+<path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z" fill="#2EB67D"></path>
+<path d="M15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="#ECB22E"></path>
+</svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Slack</span>
+</div>
+<!-- DUPLICATE SET 2 FOR SEAMLESS LOOP -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors"><svg class="w-4 h-4 text-[#CC785C] shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M13.82 3h3.58L23 21h-3.62l-1.58-4.46H10.15L8.58 21H5L13.82 3zm2.93 10.74l-2.07-5.91-2.08 5.91h4.15zM1 21h3.7L11.5 3H7.8L1 21z"></path></svg><span class="text-xs font-mono text-zinc-300 font-medium">Anthropic</span></div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-[#5E6AD2]" viewBox="0 0 24 24"><path d="M3.1 3.1a1 1 0 0 1 1.4 0l16.4 16.4a1 1 0 0 1-1.4 1.4L3.1 4.5a1 1 0 0 1 0-1.4zM3.1 11a1 1 0 0 1 1.4 0l8.5 8.5a1 1 0 0 1-1.4 1.4L3.1 12.4a1 1 0 0 1 0-1.4zm8-8a1 1 0 0 1 1.4 0l8.4 8.4a1 1 0 0 1-1.4 1.4L11.1 4.4a1 1 0 0 1 0-1.4z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Linear</span>
+</div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-white" viewBox="0 0 24 24"><path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">GitHub</span>
+</div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-[#FF9900]" viewBox="0 0 24 24"><path d="M7.78 6.48c0-.68.4-1.03 1.18-1.03.74 0 1.25.32 1.54.95l1.64-.96C11.5 4.3 10.38 3.7 8.96 3.7c-2.12 0-3.32 1.24-3.32 2.92 0 2.5 3.1 2.2 3.1 3.57 0 .8-.56 1.12-1.38 1.12-.9 0-1.58-.45-1.84-1.22l-1.74.87c.54 1.5 1.84 2.1 3.58 2.1 2.24 0 3.5-1.25 3.5-2.96 0-2.73-3.08-2.37-3.08-3.62zm15.42 5.48c-6.85 3.6-14.86 2.07-21.72-2.14a.43.43 0 0 0-.58.12.45.45 0 0 0 .1.6c7.34 4.5 15.93 6.1 23.23 2.24.4-.22.25-.97-.24-.97l-.79.15z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">AWS</span>
+</div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5" viewBox="0 0 24 24">
+<path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A"></path>
+<path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0"></path>
+<path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z" fill="#2EB67D"></path>
+<path d="M15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="#ECB22E"></path>
+</svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Slack</span>
+</div>
+</div>
+</div>
+<!-- ROW 3: SCROLL LEFT -->
+<div class="relative w-full overflow-hidden flex">
+<div class="flex items-center gap-4 shrink-0 animate-marquee-left-3" style="width: max-content;">
+<!-- Item: Datadog -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<div class="w-2.5 h-2.5 rounded-full bg-[#632CA6]"></div>
+<span class="text-xs font-mono text-zinc-300 font-medium">Datadog</span>
+</div>
+<!-- Item: Notion -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<div class="w-5 h-5 rounded bg-white text-black flex items-center justify-center font-bold text-xs">N</div>
+<span class="text-xs font-mono text-zinc-300 font-medium">Notion</span>
+</div>
+<!-- Item: Figma -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5" viewBox="0 0 38 57">
+<path d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z" fill="#1ABCFE"></path>
+<path d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 1 1-19 0z" fill="#0ACF83"></path>
+<path d="M19 0v19h9.5a9.5 9.5 0 1 0 0-19H19z" fill="#FF7262"></path>
+<path d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z" fill="#F24E1E"></path>
+<path d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z" fill="#A259FF"></path>
+</svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Figma</span>
+</div>
+<!-- Item: MongoDB -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-[#00ED64]" viewBox="0 0 24 24"><path d="M17.193 9.555c-1.264-5.228-4.764-7.994-4.764-7.994s-3.5 2.766-4.764 7.994c-1.42 5.867 1.838 9.941 4.764 12.884 2.926-2.943 6.184-7.017 4.764-12.884zm-4.764 10.457c-.184-.184-.816-.84-1.396-1.808 1.488-.584 2.224-2.032 2.224-3.352 0-2.312-2.128-3.76-2.128-3.76s-.04.032-.048.04c-.384 1.304-.44 2.96.64 4.384-1.576.104-2.344-1.288-2.344-2.336 0-1.848 1.576-3.232 2.376-3.88.08-.064.088-.072.088-.072s.008.008.088.072c.8.648 2.376 2.032 2.376 3.88 0 2.2-1.876 6.832-1.876 6.832z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">MongoDB</span>
+</div>
+<!-- Item: Next.js -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M11.572 0a11.572 11.572 0 1 0 11.572 11.572A11.575 11.575 0 0 0 11.572 0zm5.176 16.516l-5.698-7.394v7.394h-1.6V7.472h1.6l5.88 7.64v-7.64h1.6v9.044h-1.782z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Next.js</span>
+</div>
+<!-- DUPLICATE SET 3 FOR SEAMLESS LOOP -->
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<div class="w-2.5 h-2.5 rounded-full bg-[#632CA6]"></div>
+<span class="text-xs font-mono text-zinc-300 font-medium">Datadog</span>
+</div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<div class="w-5 h-5 rounded bg-white text-black flex items-center justify-center font-bold text-xs">N</div>
+<span class="text-xs font-mono text-zinc-300 font-medium">Notion</span>
+</div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5" viewBox="0 0 38 57">
+<path d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z" fill="#1ABCFE"></path>
+<path d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 1 1-19 0z" fill="#0ACF83"></path>
+<path d="M19 0v19h9.5a9.5 9.5 0 1 0 0-19H19z" fill="#FF7262"></path>
+<path d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z" fill="#F24E1E"></path>
+<path d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z" fill="#A259FF"></path>
+</svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Figma</span>
+</div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-[#00ED64]" viewBox="0 0 24 24"><path d="M17.193 9.555c-1.264-5.228-4.764-7.994-4.764-7.994s-3.5 2.766-4.764 7.994c-1.42 5.867 1.838 9.941 4.764 12.884 2.926-2.943 6.184-7.017 4.764-12.884zm-4.764 10.457c-.184-.184-.816-.84-1.396-1.808 1.488-.584 2.224-2.032 2.224-3.352 0-2.312-2.128-3.76-2.128-3.76s-.04.032-.048.04c-.384 1.304-.44 2.96.64 4.384-1.576.104-2.344-1.288-2.344-2.336 0-1.848 1.576-3.232 2.376-3.88.08-.064.088-.072.088-.072s.008.008.088.072c.8.648 2.376 2.032 2.376 3.88 0 2.2-1.876 6.832-1.876 6.832z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">MongoDB</span>
+</div>
+<div class="bg-[#121214]/80 backdrop-blur-md border border-[#27272A] px-4 py-2.5 rounded-xl flex items-center gap-3 hover:border-[#3F3F46] transition-colors">
+<svg class="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M11.572 0a11.572 11.572 0 1 0 11.572 11.572A11.575 11.575 0 0 0 11.572 0zm5.176 16.516l-5.698-7.394v7.394h-1.6V7.472h1.6l5.88 7.64v-7.64h1.6v9.044h-1.782z"></path></svg>
+<span class="text-xs font-mono text-zinc-300 font-medium">Next.js</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Status Lockup -->
+<div class="w-full text-center z-10 flex flex-col items-center pb-2"><div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#121215]/80 border border-[#27272A] backdrop-blur-md shadow-sm"><span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span><span class="text-xs text-zinc-400 tracking-wide font-mono">Powered by modern AI tools.</span></div><p class="font-code-sm text-[10px] text-zinc-600 mt-2.5 uppercase tracking-widest font-mono">ZERO CONFIGURATION // SUB-MILLISECOND RPC MESH</p></div>
+</div>
+</div>
+</main>
+<script>
+    (function() {
+      // Interactive Tabs System (Sign Up vs Log In)
+      const tabSignUp = document.getElementById('tab-signup');
+      const tabLogIn = document.getElementById('tab-login');
+      const tabIndicatorSignUp = document.getElementById('tab-indicator-signup');
+      const tabIndicatorLogIn = document.getElementById('tab-indicator-login');
+      const heading = document.getElementById('auth-heading');
+      const subheading = document.getElementById('auth-subheading');
+      const fieldFullName = document.getElementById('field-fullname');
+      const fieldPassword = document.getElementById('field-password');
+      const passwordStrength = document.getElementById('password-strength');
+      const magicLinkSub = document.getElementById('login-magiclink-sub');
+      const submitBtnLabel = document.getElementById('btn-submit-label');
+      const eyeToggle = document.getElementById('btn-toggle-eye');
+      const eyeIcon = document.getElementById('eye-icon');
+      const passwordInput = document.getElementById('input-password');
+      const forgotPwBtn = document.getElementById('btn-toggle-login-pass');
+      const switchToPwBtn = document.getElementById('btn-switch-to-pw');
+
+      let currentMode = 'signup';
+      let isPasswordVisible = false;
+      let logInWithPassword = false;
+
+      function applyState(mode) {
+        currentMode = mode;
+        if (mode === 'signup') {
+          tabSignUp.className = "relative font-body-md text-[15px] font-semibold tracking-tight transition-colors duration-150 text-white";
+          tabLogIn.className = "relative font-body-md text-[15px] font-medium tracking-tight text-[#71717A] hover:text-white transition-colors duration-150";
+          tabIndicatorSignUp.className = "absolute -bottom-[13px] left-0 right-0 h-[2px] bg-white transition-all duration-300";
+          tabIndicatorLogIn.className = "absolute -bottom-[13px] left-0 right-0 h-[2px] bg-transparent transition-all duration-300";
+
+          heading.textContent = "Create your account";
+          subheading.textContent = "Start building autonomous software with multi-agent orchestration.";
+
+          fieldFullName.classList.remove('hidden');
+          fieldPassword.classList.remove('hidden');
+          passwordStrength.classList.remove('hidden');
+          magicLinkSub.classList.add('hidden');
+          forgotPwBtn.classList.add('hidden');
+          submitBtnLabel.textContent = "Create Account";
+        } else {
+          tabLogIn.className = "relative font-body-md text-[15px] font-semibold tracking-tight transition-colors duration-150 text-white";
+          tabSignUp.className = "relative font-body-md text-[15px] font-medium tracking-tight text-[#71717A] hover:text-white transition-colors duration-150";
+          tabIndicatorLogIn.className = "absolute -bottom-[13px] left-0 right-0 h-[2px] bg-white transition-all duration-300";
+          tabIndicatorSignUp.className = "absolute -bottom-[13px] left-0 right-0 h-[2px] bg-transparent transition-all duration-300";
+
+          heading.textContent = "Welcome back";
+          subheading.textContent = "Authenticate to access workspace environments and active runs.";
+
+          fieldFullName.classList.add('hidden');
+
+          if (!logInWithPassword) {
+            fieldPassword.classList.add('hidden');
+            magicLinkSub.classList.remove('hidden');
+            submitBtnLabel.textContent = "Send Magic Link";
+          } else {
+            fieldPassword.classList.remove('hidden');
+            passwordStrength.classList.add('hidden');
+            forgotPwBtn.classList.remove('hidden');
+            magicLinkSub.classList.add('hidden');
+            submitBtnLabel.textContent = "Sign In";
+          }
+        }
+      }
+
+      tabSignUp.addEventListener('click', () => {
+        logInWithPassword = false;
+        applyState('signup');
+      });
+
+      tabLogIn.addEventListener('click', () => {
+        logInWithPassword = false;
+        applyState('login');
+      });
+
+      switchToPwBtn.addEventListener('click', () => {
+        logInWithPassword = true;
+        applyState('login');
+      });
+
+      eyeToggle.addEventListener('click', () => {
+        isPasswordVisible = !isPasswordVisible;
+        passwordInput.type = isPasswordVisible ? 'text' : 'password';
+        eyeIcon.textContent = isPasswordVisible ? 'visibility_off' : 'visibility';
+      });
+    })();
+  </script>
+
+
+
+
+
+
+</body></html>

@@ -1,0 +1,112 @@
+/* Strict 1:1 extraction of the <style> block in
+   `new ui components/Hero and main.txt`. Light mode renders the soft
+   zinc-50 palette; `html.dark` restores the source dark-monochrome. */
+
+.dot-grid {
+  /* Light mode: barely-perceptible gray-200 dots on #FAFAFA */
+  background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+html.dark .dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+}
+.mono-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #d2d2d7;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+html.dark .mono-card {
+  background: rgba(24, 24, 27, 0.5); /* zinc-900/50 elevated surface */
+  border-color: #27272a;
+}
+.mono-card:hover,
+.mono-card:focus-within {
+  border-color: #a1a1aa;
+  box-shadow: 0 0 30px -10px rgba(0, 0, 0, 0.08);
+}
+html.dark .mono-card:hover,
+html.dark .mono-card:focus-within {
+  border-color: #52525b;
+  box-shadow: 0 0 30px -10px rgba(255, 255, 255, 0.07);
+}
+
+/* Motion & Animations */
+@keyframes stageFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.stage-animate {
+  animation: stageFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes gentleFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.float-node-1 {
+  animation: gentleFloat 4s ease-in-out infinite;
+}
+.float-node-2 {
+  animation: gentleFloat 4.2s ease-in-out infinite 0.7s;
+}
+.float-node-3 {
+  animation: gentleFloat 4.5s ease-in-out infinite 1.4s;
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5);
+  }
+  50% {
+    opacity: 0.4;
+    box-shadow: 0 0 8px 1px rgba(255, 255, 255, 0.8);
+  }
+}
+.dot-pulse-glow {
+  animation: pulseGlow 2.2s infinite ease-in-out;
+}
+
+/* Architectural Integrity Cards - Scroll Reveal & Lift */
+.arch-reveal-card {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s ease,
+    border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+.arch-reveal-card.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+.arch-reveal-card.revealed:hover {
+  transform: translateY(-8px);
+  border-color: #a1a1aa;
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.06),
+    0 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+html.dark .arch-reveal-card.revealed:hover {
+  border-color: #52525b;
+  box-shadow: 0 20px 30px -10px rgba(255, 255, 255, 0.03),
+    0 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Source hides scrollbars globally; scoped here so the rest of the app
+   (Monaco, drawers) keeps its scrollbars. */
+.landing-root ::-webkit-scrollbar {
+  display: none;
+}

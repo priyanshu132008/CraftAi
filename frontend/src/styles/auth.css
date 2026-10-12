@@ -1,0 +1,142 @@
+/* Auth split page (login + signup) — Stitch design port.
+   Layout + marquee machinery; colors come from the token system so both
+   themes render correctly. Imported by components/AuthSplit.tsx. */
+
+.auth-split {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-primary);
+}
+
+.auth-split-left {
+  flex: 1 1 50%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2rem clamp(2rem, 4vw, 5rem);
+  overflow-y: auto;
+}
+
+/* Right pane: hidden under 900px, 50/50 split above. */
+.auth-split-right {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .auth-split-right {
+    flex: 1 1 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+    padding: 2rem;
+    border-left: 1px solid var(--border-subtle);
+    background: var(--bg-primary);
+  }
+}
+
+/* ---- Marquee: 3 rows, opposite directions, edge fade, hover pause ---- */
+
+@keyframes auth-marquee-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes auth-marquee-right {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+
+.auth-marquee-mask {
+  mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+}
+
+.auth-marquee {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.auth-marquee-track {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: max-content;
+  flex-shrink: 0;
+  animation: auth-marquee-left 32s linear infinite;
+}
+
+.auth-marquee--r2 .auth-marquee-track {
+  animation-name: auth-marquee-right;
+  animation-duration: 36s;
+}
+
+.auth-marquee--l3 .auth-marquee-track {
+  animation-name: auth-marquee-left;
+  animation-duration: 28s;
+}
+
+.auth-marquee:hover .auth-marquee-track {
+  animation-play-state: paused;
+}
+
+/* Brand chip — glassmorphism via the token color-mix recipe. */
+.auth-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: border-color var(--transition-fast);
+}
+
+.auth-chip:hover {
+  border-color: var(--neutral-border-focus);
+}
+
+/* Emerald pulse dot (integrations pill + status lockup). */
+@keyframes auth-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.auth-pulse-dot {
+  animation: auth-pulse 2s ease-in-out infinite;
+}
+
+/* Glass pill shell shared by the integrations pill and the lockup. */
+.auth-glass-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-marquee-track,
+  .auth-pulse-dot {
+    animation: none;
+  }
+}
