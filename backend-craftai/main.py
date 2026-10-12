@@ -11,7 +11,7 @@ if current_dir not in sys.path:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import plan, project
-from services.plan_generator import generate_plan 
+from services.planner import generate_plan
 
 app = FastAPI()
 
