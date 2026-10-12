@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 export const API_URL =
   (import.meta.env.VITE_AI_ENGINE_URL as string | undefined) ??
   (import.meta.env.VITE_API_URL as string | undefined) ?? // legacy name
-  'http://localhost:8000';
+  'https://craftai-iw4q.onrender.com';
 
 // CraftAI backend (planner/blueprint services) — nothing calls these
 // endpoints from the frontend yet; kept ready for when one does.
