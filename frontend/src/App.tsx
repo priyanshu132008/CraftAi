@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import { useApp } from './context/AppContext';
 import { LandingPage } from './components/LandingPage';
 import { FeaturesPage } from './components/FeaturesPage';
@@ -10,7 +11,18 @@ import { PreviewHost } from './components/PreviewHost';
 import { PublishedSite } from './components/PublishedSite';
 
 export const MainApp: React.FC = () => {
-  const { currentScreen, setCurrentScreen } = useApp();
+  const { currentScreen, setCurrentScreen, authReady } = useApp();
+
+  // Auth screens hold a loader until the Supabase session bootstrap finishes
+  // (getSession awaits the client's init, which parses the OAuth URL hash) so
+  // an OAuth return never renders these as signed-out mid-initialization.
+  if (!authReady && ['dashboard', 'search', 'connectors', 'projects', 'settings'].includes(currentScreen)) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+        <Loader2 size={28} style={{ animation: 'spin 1s linear infinite', color: 'var(--accent-indigo)' }} />
+      </div>
+    );
+  }
 
   // OAuth callback landings (both are full page loads — map the path onto
   // the screen state once, on mount):

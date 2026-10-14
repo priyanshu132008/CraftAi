@@ -120,6 +120,9 @@ const buildExtraContext = (
 interface AppContextType {
   currentScreen: ScreenType;
   setCurrentScreen: (screen: ScreenType) => void;
+  /** False until the first Supabase session check resolves — auth-consuming
+   *  screens hold a loading state instead of flashing signed-out. */
+  authReady: boolean;
   user: UserInfo | null;
   setUser: (user: UserInfo | null) => void;
   logout: () => void;
@@ -286,6 +289,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const currentScreenRef = useRef<ScreenType>(currentScreen);
   currentScreenRef.current = currentScreen;
   const [user, setUser] = useState<UserInfo | null>(null);
+  /** Session bootstrap not finished yet — gates the dashboard's loading state. */
+  const [authReady, setAuthReady] = useState(false);
 
   const [prompt, setPrompt] = useState(
     'Build me a modern portfolio website for a frontend developer with smooth animations and a contact form'
@@ -373,6 +378,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUser(null);
         setRecents([]);
       }
+      setAuthReady(true);
     };
     syncSession();
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
@@ -891,6 +897,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         currentScreen,
         setCurrentScreen,
+        authReady,
         user,
         setUser,
         logout,
