@@ -9,7 +9,7 @@ export const API_URL =
 // CraftAI backend (planner/blueprint services).
 export const BACKEND_URL =
   (import.meta.env.VITE_BACKEND_CRAFTAI_URL as string | undefined) ??
-  'https://craftai-1.onrender.com';
+  'https://craftai-2.onrender.com';
 
 export interface PlanResponse {
   type: string;
