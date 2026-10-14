@@ -359,6 +359,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const { data } = await supabase.auth.getSession();
         su = data.session?.user ?? null;
+        // supabase-js leaves an unrecovered implicit-flow hash in place when
+        // its init-time /user call failed (2.117 never strips it on error).
+        // Rebuild the session from the tokens still sitting in the URL.
+        if (!su && window.location.hash.includes('access_token=')) {
+          try {
+            const p = new URLSearchParams(window.location.hash.slice(1));
+            const { data: rec, error: recErr } = await supabase.auth.setSession({
+              access_token: p.get('access_token') ?? '',
+              refresh_token: p.get('refresh_token') ?? ''
+            });
+            if (!recErr) su = rec.session?.user ?? null;
+          } catch {
+            su = null;
+          }
+        }
       } catch {
         su = null;
       }
@@ -372,6 +387,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
         if (['landing', 'login', 'signup'].includes(currentScreenRef.current)) {
           setCurrentScreen('dashboard');
+        }
+        // The session is safely in storage now — scrub the OAuth tokens from
+        // the address bar. Query string is kept (the /connectors callback
+        // parses ?success=… on the same boot).
+        try {
+          window.history.replaceState(
+            null,
+            '',
+            window.location.pathname + window.location.search
+          );
+        } catch {
+          /* non-browser context — nothing to scrub */
         }
         refreshRecents();
       } else {
