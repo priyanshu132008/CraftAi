@@ -1,6 +1,7 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { useApp } from './context/AppContext';
+import { supabase } from './lib/supabaseClient';
 import { LandingPage } from './components/LandingPage';
 import { FeaturesPage } from './components/FeaturesPage';
 import { LoginPage } from './components/LoginPage';
@@ -38,6 +39,22 @@ export const MainApp: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Belt-and-braces hero redirect: OAuth returns that landed on '/' with
+  // tokens in the hash (Supabase fell back to the Site URL) must never park
+  // an authenticated user on the hero. A direct session check here — after
+  // the boot's authReady — catches the hash the bootstrap may have missed.
+  React.useEffect(() => {
+    if (!authReady || currentScreen !== 'landing') return;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (data?.session) setCurrentScreen('dashboard');
+      })
+      .catch(() => {
+        /* network failure — stay on the hero */
+      });
+  }, [authReady, currentScreen, setCurrentScreen]);
 
   // The backend-written generated app is served by this same Vite server
   // at http://localhost:3000/preview (SPA fallback loads this route).
