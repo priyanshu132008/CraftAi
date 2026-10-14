@@ -31,18 +31,19 @@ from typing import Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 
+try:
+    from ai_engine.agents.llm_config import mask, resolve
+except ImportError:
+    from agents.llm_config import mask, resolve
+
 load_dotenv()
 
-OLLAMA_BASE_URL = "http://localhost:11434/v1"
-# deepseek-v4.1-flash:cloud is the default: measured ~40-50s for a full
-# 1200-line page (fits the <60s end-to-end API budget), clean raw output,
-# all planned sections + palette hexes covered. glm-5.3:cloud is the
-# higher-quality but much slower option (~180s on the same task) — select it
-# with DEVELOPER_MODEL=glm-5.3:cloud when quality outweighs latency.
 DEFAULT_MODEL = os.getenv("DEVELOPER_MODEL", "deepseek-v4.1-flash:cloud")
 # Ollama serves local models with any key, but its cloud-routed models
-# need the Ollama account key (Ollama_API_KEY in ai_engine/.env).
-OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", os.getenv("Ollama_API_KEY", "ollama"))
+# need the Ollama account key (Ollama_API_KEY in ai_engine/.env). The
+# endpoint follows the key: cloud host when a key is configured (prod),
+# local host only on dev machines.
+OLLAMA_BASE_URL, OLLAMA_API_KEY = resolve()
 
 # Pre-built animated UI blocks (HeroSection, DarkNavbar, BentoGridFeatures,
 # PricingTable, AuthForm, Footer) authored by the backend team. They are fed
@@ -736,11 +737,12 @@ class DeveloperAgent:
     """Generates a full multi-file React project from an Architect JSON plan."""
 
     def __init__(self, model: str = None, base_url: str = OLLAMA_BASE_URL):
-        # Strictly the local Ollama host, even though the model itself is
-        # cloud-routed by Ollama (requires the Ollama account key).
         self.base_url = base_url
         self.model = model or DEFAULT_MODEL
         self.client = OpenAI(base_url=self.base_url, api_key=OLLAMA_API_KEY)
+        # Cloud-connection proof: log the target endpoint (key masked) so the
+        # Render logs show it is aiming at the hosted API, not localhost.
+        print(f"[DeveloperAgent] LLM endpoint: {self.base_url} | model: {self.model} | key: {mask(OLLAMA_API_KEY)}")
         # Pre-built block manifests, injected into every generation request.
         self.library_context = _load_component_library()
 

@@ -14,6 +14,11 @@ from typing import Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 
+try:
+    from ai_engine.agents.llm_config import mask, resolve
+except ImportError:
+    from agents.llm_config import mask, resolve
+
 load_dotenv()
 
 # Safe default plan returned when the model output cannot be parsed. Keeps the
@@ -86,12 +91,14 @@ class ArchitectAgent:
             # the strongest currently-available chat model on this key.
             self.model = model or os.getenv("MODEL_NAME", "openai/gpt-oss-120b")
         else:
-            # Default: local Ollama host, same pattern as plan_generator.
-            self.base_url = os.getenv("OLLAMA_CLOUD_BASE_URL", "http://localhost:11434/v1")
-            self.api_key = os.getenv("OLLAMA_CLOUD_API_KEY", "ollama")
+            # Default: Ollama endpoint per the shared resolver — cloud host
+            # when a key/RENDER deploy is present, local host on dev machines.
+            self.base_url, self.api_key = resolve()
             self.model = model or "deepseek-v4-pro:cloud"
 
         self.client = OpenAI(base_url=self.base_url, api_key=self.api_key)
+        # Cloud-connection proof: log the target endpoint (key masked).
+        print(f"[ArchitectAgent] LLM endpoint: {self.base_url} | model: {self.model} | key: {mask(self.api_key)}")
 
     def plan_architecture(self, user_prompt: str) -> dict:
         """Analyze a raw user prompt and return the structured layout plan.

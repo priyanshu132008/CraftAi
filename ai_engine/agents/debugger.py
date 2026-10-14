@@ -23,12 +23,18 @@ from typing import Optional, Tuple
 from dotenv import load_dotenv
 from openai import OpenAI
 
+try:
+    from ai_engine.agents.llm_config import OLLAMA_CLOUD, mask, resolve
+except ImportError:
+    from agents.llm_config import OLLAMA_CLOUD, mask, resolve
+
 load_dotenv()
 
 # Same Ollama endpoint + fast cloud model as the Developer agent — the
 # generation pipeline's active stack. (NVIDIA's nemotron endpoint 404s
 # since its deprecation; override via DEBUGGER_BASE_URL/DEBUGGER_MODEL.)
-OLLAMA_BASE_URL = os.getenv("DEBUGGER_BASE_URL", "http://localhost:11434/v1")
+_RESOLVED_URL, OLLAMA_API_KEY = resolve()
+OLLAMA_BASE_URL = os.getenv("DEBUGGER_BASE_URL", _RESOLVED_URL)
 DEFAULT_MODEL = os.getenv("DEBUGGER_MODEL", "deepseek-v4.1-flash:cloud")
 # Cap the repair pass so a runaway generation can't stall the request.
 REPAIR_MAX_TOKENS = int(os.getenv("DEBUGGER_MAX_TOKENS", "8000"))
@@ -69,11 +75,12 @@ class DebuggerAgent:
     def __init__(self, model: Optional[str] = None, base_url: str = OLLAMA_BASE_URL):
         self.base_url = base_url
         self.model = model or DEFAULT_MODEL
-        # Local Ollama needs no real key (mirror developer.py); NVIDIA_API_KEY
+        # The resolved key (permissive local default otherwise); NVIDIA_API_KEY
         # stays honored for anyone pointing DEBUGGER_BASE_URL back at it.
-        api_key = (os.getenv("OLLAMA_API_KEY", os.getenv("Ollama_API_KEY"))
-                   or os.environ.get("NVIDIA_API_KEY") or "ollama")
+        api_key = OLLAMA_API_KEY or os.environ.get("NVIDIA_API_KEY") or "ollama"
         self.client = OpenAI(base_url=self.base_url, api_key=api_key)
+        # Cloud-connection proof: log the target endpoint (key masked).
+        print(f"[DebuggerAgent] LLM endpoint: {self.base_url} | model: {self.model} | key: {mask(api_key)}")
         # Human-readable reason for the last failed apply_edit — surfaced
         # by the /edit route so users see WHY a change was rejected.
         self.last_edit_error = ""
