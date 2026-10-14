@@ -103,6 +103,17 @@ export class NotAuthenticatedError extends Error {
   }
 }
 
+/** OAuth implicit-flow tokens left unconsumed in the URL hash — the last
+ *  fallback when supabase-js refuses to persist the session on its own. */
+export function readHashToken(): string | null {
+  try {
+    const params = new URLSearchParams(window.location.hash.substring(1));
+    return params.get('access_token');
+  } catch {
+    return null;
+  }
+}
+
 /** Current Supabase access token, or null when not logged in. */
 export async function getAuthToken(): Promise<string | null> {
   const read = () =>
@@ -116,7 +127,7 @@ export async function getAuthToken(): Promise<string | null> {
     await new Promise(r => setTimeout(r, 400));
     token = await read();
   }
-  return token;
+  return token ?? readHashToken();
 }
 
 /**
