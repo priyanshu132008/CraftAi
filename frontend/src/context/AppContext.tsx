@@ -657,12 +657,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
    * message is shown in place (status bar / console / chat thread).
    */
   const handleAuthError = (screen: 'login' | 'chat', err: unknown) => {
-    const text =
-      err instanceof NotAuthenticatedError
-        ? 'Please log in to generate projects.'
-        : err instanceof Error
-          ? err.message
-          : String(err);
+    const text = err instanceof Error ? err.message : String(err);
     setStatusMessage(text);
     if (screen === 'chat') {
       appendMessage({
@@ -684,6 +679,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const style = options.designStyle !== undefined ? options.designStyle : designStyle;
     const scope = options.scope ?? lastScopeRef.current;
     if (options.scope) lastScopeRef.current = options.scope;
+    // Where the request was launched from — a failed first build goes back
+    // here instead of stranding the user on the studio's idle prompt screen.
+    const launchedFrom = currentScreenRef.current;
 
     setIsGenerating(true);
     setAgentTrace([]);
@@ -793,6 +791,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         handleAuthError(isGenerated ? 'chat' : 'login', err);
       }
+      if (mode === 'build' && !isGenerated) setCurrentScreen(launchedFrom);
     } finally {
       genAbortRef.current = null;
       stopTraceStream();

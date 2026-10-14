@@ -105,9 +105,18 @@ export class NotAuthenticatedError extends Error {
 
 /** Current Supabase access token, or null when not logged in. */
 export async function getAuthToken(): Promise<string | null> {
-  const { data, error } = await supabase.auth.getSession();
-  if (error || !data.session) return null;
-  return data.session.access_token;
+  const read = () =>
+    supabase.auth
+      .getSession()
+      .then(({ data }) => data.session?.access_token ?? null)
+      .catch(() => null);
+  let token = await read();
+  if (!token) {
+    // First read raced session recovery/refresh — give the client one beat.
+    await new Promise(r => setTimeout(r, 400));
+    token = await read();
+  }
+  return token;
 }
 
 /**
@@ -172,7 +181,18 @@ export async function generateProjectApi(
   });
 
   if (res.status === 401) {
-    throw new NotAuthenticatedError();
+    // Not the client's session being missing — the backend received the Bearer
+    // token and rejected it. Say so, or the UI blames the login state.
+    let detail = '';
+    try {
+      const j = await res.json();
+      detail = j?.detail ? ` — ${j.detail}` : '';
+    } catch {
+      /* non-JSON body (render cold start) */
+    }
+    throw new NotAuthenticatedError(
+      `The backend rejected this session (401${detail}).`
+    );
   }
 
   const data = (await res.json()) as GenerateProjectResponse;
