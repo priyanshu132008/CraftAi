@@ -60,10 +60,15 @@ async def _startup_env_debug():
     print(f"GOOGLE_CLIENT_ID loaded: {bool(os.getenv('GOOGLE_CLIENT_ID'))}")
     print("=================")
 
-# CORS: comma-separated CORS_ORIGINS in prod (e.g. the Vercel domain),
-# wildcard default so the browser frontend can't get blocked.
+# CORS: comma-separated CORS_ORIGINS in prod (e.g. the Vercel domain) plus the
+# production domains, wildcard default so the browser frontend can't get blocked.
 # Uses Bearer auth only (no cookies), so a wildcard origin is safe.
-_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+_cors_origins = [
+    o.strip()
+    for o in ("https://craftai.diy,https://www.craftai.diy,"
+              + os.environ.get("CORS_ORIGINS", "")).split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins or ["*"],

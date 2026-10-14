@@ -16,8 +16,14 @@ from services.planner import generate_plan
 app = FastAPI()
 
 # 1. Setup CORS: comma-separated CORS_ORIGINS in prod (e.g. the Vercel
-# domain), wildcard default. Bearer-token auth only, so a wildcard is safe.
-_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+# domain) plus the production domains, wildcard default. Bearer-token auth
+# only, so a wildcard is safe.
+_cors_origins = [
+    o.strip()
+    for o in ("https://craftai.diy,https://www.craftai.diy,"
+              + os.environ.get("CORS_ORIGINS", "")).split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins or ["*"],
