@@ -28,6 +28,7 @@ import {
   RefreshCw,
   Rocket,
   ShieldCheck,
+  Settings,
   Smartphone,
   Sparkles,
   Square,
@@ -42,11 +43,12 @@ import ThemeToggle from './ThemeToggle';
 import TerminalDrawer from './TerminalDrawer';
 import StageWireframe from './StageWireframe';
 import PublishModal from './PublishModal';
+import ProjectSettingsModal from './ProjectSettingsModal';
+import WorkspacePreview from './WorkspacePreview';
 import { PromptConsole } from './PromptConsole';
 import { TraceStep, API_URL } from '../services/api';
 import '../styles/studio.css';
 
-const PREVIEW_URL = 'http://localhost:3000/preview';
 const DEPLOY_API_URL = API_URL + '/api/deploy';
 
 const VIEWPORT_SIZES = {
@@ -510,7 +512,9 @@ export const GenerateStudio: React.FC = () => {
     openFileRequest,
     requestOpenFile,
     attachedContext,
-    setAttachedContext
+    setAttachedContext,
+    activeProjectId,
+    recents
   } = useApp();
 
   const [chatInput, setChatInput] = useState('');
@@ -552,7 +556,8 @@ export const GenerateStudio: React.FC = () => {
     ? `${window.location.origin}/published/${deploySlug}`
     : null;
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  // Project settings modal (gear next to the workspace title).
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -584,49 +589,6 @@ export const GenerateStudio: React.FC = () => {
       setRightTab('code');
     }
   }, [openFileRequest, generatedFiles]);
-
-  // ---- Module 6: Universal Runtime Compiler ----
-  // Inject Tailwind CDN + Google Fonts into the live preview iframe head so
-  // generated Tailwind utilities, arbitrary hex colors, and font weights all
-  // compile reliably even before Vite picks up the mirrored entry.
-  useEffect(() => {
-    if (rightTab !== 'preview') return;
-    const frame = iframeRef.current;
-    if (!frame) return;
-    const inject = () => {
-      const doc = frame.contentDocument;
-      if (!doc) return;
-      const head = doc.head;
-      if (!head.querySelector('script[data-craftai="tailwind-cdn"]')) {
-        const s = doc.createElement('script');
-        s.src = 'https://cdn.tailwindcss.com';
-        s.dataset.craftai = 'tailwind-cdn';
-        head.appendChild(s);
-      }
-      if (!head.querySelector('link[data-craftai="google-fonts"]')) {
-        const l = doc.createElement('link');
-        l.rel = 'stylesheet';
-        l.href =
-          'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap';
-        l.dataset.craftai = 'google-fonts';
-        head.appendChild(l);
-      }
-      // Global CSS reset: kill default browser button/input borders inside
-      // the generated app so Tailwind utility classes are the only source of
-      // truth. Idempotent via data-craftai marker.
-      if (!head.querySelector('style[data-craftai="reset"]')) {
-        const style = doc.createElement('style');
-        style.dataset.craftai = 'reset';
-        style.textContent =
-          'button,input,select,textarea{outline:0;border:0;background:transparent;font:inherit;color:inherit;}*{box-sizing:border-box;}';
-        head.appendChild(style);
-      }
-    };
-    frame.addEventListener('load', inject);
-    // iframe may already have loaded (e.g. previewVersion bump before ref mounted)
-    if (frame.contentDocument?.readyState === 'complete') inject();
-    return () => frame.removeEventListener('load', inject);
-  }, [rightTab, previewVersion, reloadKey]);
 
   // ---- Module 5: Subdomain deployment ----
   const slugFromPlan = (): string => {
@@ -805,8 +767,20 @@ export const GenerateStudio: React.FC = () => {
   const phases = derivePhases(agentTrace);
   const recentTrace = agentTrace.slice(-5);
   const lastTrace = agentTrace[agentTrace.length - 1];
+  // Title source of truth: the Supabase-backed recents row for the project
+  // loaded in the canvas (falls back for unsaved sessions).
+  const activeProject = recents.find(r => r.id === activeProjectId) ?? null;
   const projectTitle =
-    currentProject?.title ?? user?.email?.split('@')[0] ?? 'your workspace';
+    activeProject?.name ??
+    currentProject?.title ??
+    user?.email?.split('@')[0] ??
+    'your workspace';
+  // Vanity preview address shown in the address bar — the preview itself
+  // renders in-browser (Sandpack) from the generated file set, so no
+  // localhost/mirror route is ever requested in production.
+  const previewSlug = activeProject?.slug ??
+    (activeProjectId ? activeProjectId.split('-').slice(1).join('-') : 'untitled');
+  const previewDisplayUrl = `${window.location.host}/preview/${previewSlug}`;
 
   // ---------------- Post-generation split workspace ----------------
   return (
@@ -843,11 +817,23 @@ export const GenerateStudio: React.FC = () => {
             <span>Personal Workspace</span>
             <ChevronRight size={11} style={{ flexShrink: 0 }} />
             <span
-              title={currentProject?.title}
+              title={activeProject?.name ?? currentProject?.title}
               style={{ color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
             >
               {projectTitle}
             </span>
+            {activeProjectId && (
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                title="Project settings"
+                aria-label="Project settings"
+                className="studio-icon-btn"
+                style={{ width: 20, height: 20, paddingLeft: 0 }}
+              >
+                <Settings size={12} />
+              </button>
+            )}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1265,9 +1251,10 @@ export const GenerateStudio: React.FC = () => {
                     );
                   })}
                 </div>
-                {/* Address bar — real preview URL; the dot tracks the real
-                    iframe load state (emerald once onLoad has fired) */}
-                <div className="studio-addr" title={PREVIEW_URL}>
+                {/* Address bar — vanity URL of the in-browser preview; the
+                    dot tracks the real sandbox bundle state (emerald once
+                    Sandpack reports idle) */}
+                <div className="studio-addr" title={previewDisplayUrl}>
                   <span
                     className="studio-hmr-dot"
                     data-live={!previewLoading && !isGenerating}
@@ -1278,7 +1265,7 @@ export const GenerateStudio: React.FC = () => {
                     }
                   />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {PREVIEW_URL.replace(/^https?:\/\//, '')}
+                    {previewDisplayUrl}
                   </span>
                   <button
                     type="button"
@@ -1289,16 +1276,18 @@ export const GenerateStudio: React.FC = () => {
                   >
                     <RefreshCw size={12} />
                   </button>
-                  <a
-                    href={PREVIEW_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="studio-icon-btn"
-                    style={{ width: 20, height: 20 }}
-                    title="Open preview in a new tab"
-                  >
-                    <ExternalLink size={12} />
-                  </a>
+                  {(liveUrl ?? deployUrl) && (
+                    <a
+                      href={liveUrl ?? deployUrl ?? '#'}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="studio-icon-btn"
+                      style={{ width: 20, height: 20 }}
+                      title="Open the published site in a new tab"
+                    >
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
                 </div>
               </div>
             )}
@@ -1481,12 +1470,8 @@ export const GenerateStudio: React.FC = () => {
             </AnimatePresence>
             <AnimatePresence mode="wait">
               {rightTab === 'preview' ? (
-                <motion.iframe
+                <motion.div
                   key={`preview-${previewVersion}-${reloadKey}`}
-                  ref={iframeRef}
-                  src={`${PREVIEW_URL}?v=${previewVersion}-${reloadKey}`}
-                  title="Generated app preview"
-                  onLoad={() => setPreviewLoading(false)}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
@@ -1506,7 +1491,13 @@ export const GenerateStudio: React.FC = () => {
                           transition: 'all 0.3s ease'
                         }
                   }
-                />
+                >
+                  <WorkspacePreview
+                    files={generatedFiles}
+                    remountKey={`${previewVersion}-${reloadKey}`}
+                    onReady={() => setPreviewLoading(false)}
+                  />
+                </motion.div>
               ) : (
                 <motion.div
                   key={`code-${previewVersion}`}
@@ -1560,6 +1551,18 @@ export const GenerateStudio: React.FC = () => {
         onPublished={onGithubPublished}
         files={generatedFiles}
       />
+
+      {/* Project settings — rename, description, metadata */}
+      {activeProjectId && (
+        <ProjectSettingsModal
+          open={showSettings}
+          onClose={() => setShowSettings(false)}
+          projectId={activeProjectId}
+          initialTitle={projectTitle}
+          fileCount={generatedFiles.length}
+          createdAt={activeProject?.created_at}
+        />
+      )}
     </div>
   );
 };

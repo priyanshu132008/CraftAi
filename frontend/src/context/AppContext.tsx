@@ -182,6 +182,9 @@ interface AppContextType {
 
   currentProject: ProjectItem | null;
   setCurrentProject: (proj: ProjectItem) => void;
+  /** Project loaded in the workspace canvas (disk/Supabase id), null before
+   *  the first build. Drives the header title + project settings modal. */
+  activeProjectId: string | null;
 
   /** Real, server-fetched recents (sorted newest-first). */
   recents: ProjectListItem[];
@@ -191,6 +194,8 @@ interface AppContextType {
   /** Monaco save: persist a file edit to the active project on disk. */
   saveFile: (path: string, content: string) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
+  /** Rename a project (Supabase `projects.title`; RLS owner-only). */
+  renameProject: (projectId: string, title: string) => Promise<void>;
   /** Duplicate a project blueprint (backend copies disk + metadata row). */
   duplicateProject: (projectId: string) => Promise<void>;
 
@@ -628,6 +633,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [refreshRecents]);
 
+  /** Project settings rename: the Supabase row is the source of truth. */
+  const renameProject = useCallback(
+    async (projectId: string, title: string) => {
+      const { error } = await supabase
+        .from('projects')
+        .update({ title })
+        .eq('id', projectId);
+      if (error) throw new Error(error.message);
+      await refreshRecents();
+      setStatusMessage(`Renamed to "${title}".`);
+    },
+    [refreshRecents]
+  );
+
   // ---- Live agent thought stream (SSE) ----
   const startTraceStream = () => {
     try {
@@ -965,11 +984,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         requestOpenFile,
         currentProject,
         setCurrentProject,
+        activeProjectId,
         recents,
         refreshRecents,
         openProject,
         saveFile,
         deleteProject,
+        renameProject,
         duplicateProject,
         chatMessages,
         sendChatMessage,

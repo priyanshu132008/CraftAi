@@ -21,6 +21,7 @@
     "vite": "^8.3.0"
   },
   "dependencies": {
+    "@codesandbox/sandpack-react": "^2.20.0",
     "@monaco-editor/react": "^4.7.0",
     "@supabase/supabase-js": "^2.117.1",
     "animejs": "^4.5.0",
