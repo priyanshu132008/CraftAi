@@ -164,9 +164,11 @@ function toCraSetup(files: GeneratedFile[]): CraSetup {
 
   // import.meta exists only in ESM; the legacy bundler evaluates CJS-style,
   // so generated files (e.g. src/lib/api.ts) crash with "Cannot use
-  // 'import.meta' outside a module". Rewrite every import.meta.env reference
-  // to a plain object literal pre-filled from any .env the project shipped
-  // (VITE_* connector secrets make it into the preview this way too).
+  // 'import.meta' outside a module". Rewrite EVERY import.meta reference:
+  // import.meta.env becomes a plain object literal pre-filled from any .env
+  // the project shipped (VITE_* connector secrets make it into the preview
+  // this way too), and any leftover import.meta (hot/url/glob — Vite-only)
+  // becomes a benign object whose property reads return undefined.
   const envVars: Record<string, string> = {};
   for (const key of Object.keys(out)) {
     if (!/(^|\/)\.env(\.|$)/.test(key)) continue;
@@ -176,10 +178,14 @@ function toCraSetup(files: GeneratedFile[]): CraSetup {
     }
     delete out[key];
   }
-  const envShim = `(${JSON.stringify(envVars)})`;
+  const envJson = JSON.stringify(envVars);
+  const envShim = `(${envJson})`;
+  const metaShim = `({env:${envJson}})`;
   for (const key of Object.keys(out)) {
     if (/\.(tsx?|jsx?)$/.test(key) && out[key].includes('import.meta')) {
-      out[key] = out[key].replace(/\bimport\.meta\.env\b/g, envShim);
+      out[key] = out[key]
+        .replace(/\bimport\.meta\.env\b/g, envShim)
+        .replace(/\bimport\.meta\b/g, metaShim);
     }
   }
 

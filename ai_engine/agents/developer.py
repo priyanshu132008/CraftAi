@@ -733,6 +733,31 @@ Example structure:
   process.env.<NAME>. Never invent dummy values."""
 
 
+# Batch-split notes for parallel monorepo generation (main._run_pipeline
+# runs one DeveloperAgent call per half when the scope ships a backend).
+# The two calls share the same plan, so path conventions (frontend/src,
+# backend/, fetch("/api/...")) are the contract between them.
+FRONTEND_BATCH_NOTE = """
+
+BATCH RESTRICTION: generate ONLY the frontend half of this monorepo —
+"frontend/package.json", "frontend/index.html", the frontend configs
+(vite/tailwind/postcss/tsconfig) and everything under "frontend/src/"
+(entry "frontend/src/main.tsx", "frontend/src/App.tsx", lib API-client
+wrappers, all components). A separate process generates the backend;
+consume it only via fetch("/api/...") calls. Do NOT emit any "backend/"
+files or root-level files (no README, no root .env)."""
+
+BACKEND_BATCH_NOTE = """
+
+BATCH RESTRICTION: generate ONLY the backend half of this monorepo —
+everything under "backend/" (package.json, tsconfig.json, server.ts,
+routes/, lib/ connector files) plus root-level files (README, root .env
+with the vault credentials). Wire every requested connector entirely in
+the backend. A separate process generates the React frontend, which
+calls your REST endpoints under /api/...; do NOT emit any "frontend/"
+files."""
+
+
 class DeveloperAgent:
     """Generates a full multi-file React project from an Architect JSON plan."""
 
@@ -749,8 +774,12 @@ class DeveloperAgent:
     def generate_files(self, plan_json: dict, connectors=None,
                        custom_connectors=None, mcp_servers=None,
                        connector_rules=None, connector_secrets=None,
-                       scope=None, context=None) -> list:
+                       scope=None, context=None, batch: str = None) -> list:
         """Turn an Architect plan dict into a list of {path, content} files.
+
+        `batch` (FRONTEND_BATCH_NOTE / BACKEND_BATCH_NOTE) narrows the call
+        to half of a monorepo so two calls can run concurrently in the
+        pipeline.
 
         Returns [] if the local Ollama call fails or the output cannot be
         parsed into a valid file tree, so the pipeline can detect and report
@@ -769,7 +798,7 @@ class DeveloperAgent:
                     "initialization and SDK wiring for every connector listed "
                     "here in the backend code, following the exact "
                     "instructions provided:\n" + context)
-            system = SYSTEM_PROMPT + monorepo_prompt(scope)
+            system = SYSTEM_PROMPT + monorepo_prompt(scope) + (batch or "")
             messages = [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_content},

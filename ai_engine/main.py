@@ -43,7 +43,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from ai_engine.agents.architect import ArchitectAgent
 from ai_engine.agents.debugger import DebuggerAgent
-from ai_engine.agents.developer import DeveloperAgent, SUPPORTED_CONNECTORS, VAULT_ENV_VARS
+from ai_engine.agents.developer import (
+    DeveloperAgent, SUPPORTED_CONNECTORS, VAULT_ENV_VARS,
+    FRONTEND_BATCH_NOTE, BACKEND_BATCH_NOTE)
 from ai_engine.routes.oauth import router as oauth_router
 
 app = FastAPI(title="CraftAI Engine")
@@ -369,11 +371,48 @@ def _run_pipeline(prompt: str, connectors: Optional[list] = None,
     if mcp_servers:
         wiring += f" + {len(mcp_servers)} MCP"
     emit("developer:generating_files", f"Assembling components{wiring}…")
-    files = agents["developer"].generate_files(
-        plan, connectors,
-        custom_connectors=custom_connectors, mcp_servers=mcp_servers,
-        connector_rules=connector_rules, connector_secrets=connector_secrets,
-        scope=scope, context=context)
+
+    developer = agents["developer"]
+    gen_kwargs = dict(custom_connectors=custom_connectors,
+                      mcp_servers=mcp_servers,
+                      connector_rules=connector_rules,
+                      connector_secrets=connector_secrets,
+                      scope=scope, context=context)
+    # Monorepo scopes ship a backend — split the model call into frontend
+    # and backend halves and run them concurrently (~halves wall time, since
+    # generation latency scales with output tokens). Single call otherwise.
+    is_monorepo = bool(scope) and scope.strip().lower() not in (
+        "frontend ui", "frontend")
+    files = []
+    if is_monorepo:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        batches = {
+            "frontend": FRONTEND_BATCH_NOTE,
+            "backend": BACKEND_BATCH_NOTE,
+        }
+        results: dict = {}
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = {pool.submit(developer.generate_files, plan,
+                                   connectors, batch=note, **gen_kwargs): name
+                       for name, note in batches.items()}
+            for fut in as_completed(futures):
+                name = futures[fut]
+                results[name] = fut.result()
+                emit("developer:batch_done",
+                     f"{name.title()} batch done — "
+                     f"{len(results[name])} files.")
+        frontend_files = results.get("frontend") or []
+        if frontend_files:
+            # Dedupe by path; the frontend batch wins any overlap (it owns
+            # the previewable tree).
+            merged = {f["path"]: f for f in (results.get("backend") or [])}
+            merged.update({f["path"]: f for f in frontend_files})
+            files = list(merged.values())
+        else:
+            print("[pipeline] parallel frontend batch returned no files — "
+                  "falling back to a single full generation call")
+    if not files:
+        files = developer.generate_files(plan, connectors, **gen_kwargs)
     if not files:
         raise PipelineError("Developer agent returned no files")
     emit("developer:completed",

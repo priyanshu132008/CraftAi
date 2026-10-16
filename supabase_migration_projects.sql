@@ -13,6 +13,27 @@ create table if not exists public.projects (
 
 alter table public.projects enable row level security;
 
+-- LEGACY COLUMNS (production drift, fixed 2026-10-16 via CLI): the live
+-- table predates this migration and still carries NOT NULL `plan` (json)
+-- and `local_path` columns the insert payload never sends — PostgREST 23502.
+-- Applied live via CLI; guarded here so fresh environments (which lack the
+-- columns) don't fail:
+do $$ begin
+  if exists (select 1 from information_schema.columns
+             where table_schema='public' and table_name='projects'
+               and column_name='plan') then
+    alter table public.projects alter column plan drop not null;
+  end if;
+  if exists (select 1 from information_schema.columns
+             where table_schema='public' and table_name='projects'
+               and column_name='local_path') then
+    alter table public.projects alter column local_path drop not null;
+    alter table public.projects alter column local_path set default '';
+  end if;
+end $$;
+alter table public.projects alter column created_at set default now();
+notify pgrst, 'reload schema';
+
 -- DEMO MODE (applied to production 2026-10-16 via CLI): fully permissive.
 -- The backend additionally writes with the service-role key
 -- (SUPABASE_SERVICE_ROLE_KEY), bypassing RLS entirely.
