@@ -423,13 +423,17 @@ def _make_project_id(plan: dict, prompt: str) -> str:
     return f"{int(time.time())}-{slug or 'project'}"
 
 
-def _write_workspace(files: list, project_id: str) -> tuple:
+def _write_workspace(files: list, project_id: str,
+                     trace: Optional[list] = None) -> tuple:
     """Write EVERY generated file to generated_projects/<project_id>/.
 
-    Creates subdirectories as needed. Returns (project_dir, written_paths).
+    Creates subdirectories as needed. Emits one SSE event per file so the
+    workspace terminal streams write progress live during the build.
+    Returns (project_dir, written_paths).
     """
     project_dir = PROJECTS_ROOT / project_id
     written = []
+    total = len(files)
     for f in files:
         rel = _safe_relpath(f["path"])
         if rel is None:
@@ -439,6 +443,9 @@ def _write_workspace(files: list, project_id: str) -> tuple:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(f["content"], encoding="utf-8")
         written.append(rel.as_posix())
+        _emit_event({"step": "file:written",
+                     "message": f"Wrote {rel.as_posix()}",
+                     "detail": f"{len(written)}/{total}"}, trace)
     return project_dir, written
 
 
@@ -854,7 +861,7 @@ def _generate_and_write(prompt: str, connectors: Optional[list],
     _emit_event({"step": "writing:files",
                  "message": f"Writing {len(files)} files to the workspace…"},
                 trace)
-    project_dir, written = _write_workspace(files, project_id)
+    project_dir, written = _write_workspace(files, project_id, trace)
     # Owner stamp — /api/projects lists only workspaces whose owner.json
     # matches the caller, so recents never leak across accounts.
     if owner:
@@ -1429,6 +1436,8 @@ def edit_project(project_id: str, payload: dict,
         merged[rel.as_posix()]["content"] = f["content"]
         (project_dir / rel).write_text(f["content"], encoding="utf-8")
         written_paths.append(rel.as_posix())
+        _emit_event({"step": "file:written",
+                     "message": f"Patched {rel.as_posix()}"}, trace)
     if not written_paths:
         return JSONResponse(
             status_code=500,

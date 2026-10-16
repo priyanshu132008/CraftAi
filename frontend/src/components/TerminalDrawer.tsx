@@ -97,7 +97,7 @@ export const TerminalDrawer: React.FC<TerminalDrawerProps> = ({
               boxShadow: `0 0 6px ${isGenerating ? 'var(--accent-indigo-bright)' : 'var(--agent-debugger)'}`
             }}
           />
-          {isGenerating ? 'compiling' : 'preview · :3000'}
+          {isGenerating ? 'compiling' : 'preview · in-browser'}
         </span>
 
         <motion.span
