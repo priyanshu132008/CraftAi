@@ -114,8 +114,15 @@ ENTRY_CANDIDATES = (
 # raises without NVIDIA_API_KEY, and that must not crash server startup.
 _agents = None
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
+def _env(name: str) -> str:
+    """os.getenv with paste-proofing: Render dashboard values sometimes
+    arrive with surrounding quotes/whitespace, which would silently break
+    Supabase auth and persistence."""
+    return os.getenv(name, "").strip().strip('"').strip("'").strip()
+
+
+SUPABASE_URL = _env("SUPABASE_URL").rstrip("/")
+SUPABASE_ANON_KEY = _env("SUPABASE_ANON_KEY")
 
 # Vercel auto-deploy (publish flow): token required, team id optional
 # (organization accounts scope every call with ?teamId=).

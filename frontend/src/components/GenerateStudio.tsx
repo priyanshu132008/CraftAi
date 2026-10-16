@@ -1276,18 +1276,16 @@ export const GenerateStudio: React.FC = () => {
                   >
                     <RefreshCw size={12} />
                   </button>
-                  {(liveUrl ?? deployUrl) && (
-                    <a
-                      href={liveUrl ?? deployUrl ?? '#'}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="studio-icon-btn"
-                      style={{ width: 20, height: 20 }}
-                      title="Open the published site in a new tab"
-                    >
-                      <ExternalLink size={12} />
-                    </a>
-                  )}
+                  <a
+                    href={`${window.location.origin}/preview/${previewSlug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="studio-icon-btn"
+                    style={{ width: 20, height: 20 }}
+                    title="Open the standalone live preview in a new tab"
+                  >
+                    <ExternalLink size={12} />
+                  </a>
                 </div>
               </div>
             )}

@@ -9,6 +9,7 @@ import { SignupPage } from './components/SignupPage';
 import { Dashboard } from './components/Dashboard';
 import { GenerateStudio } from './components/GenerateStudio';
 import { PreviewHost } from './components/PreviewHost';
+import { PublicPreviewHost } from './components/PublicPreviewHost';
 import { PublishedSite } from './components/PublishedSite';
 
 export const MainApp: React.FC = () => {
@@ -56,15 +57,24 @@ export const MainApp: React.FC = () => {
       });
   }, [authReady, currentScreen, setCurrentScreen]);
 
-  // The backend-written generated app is served by this same Vite server
-  // at http://localhost:3000/preview (SPA fallback loads this route).
+  // Legacy dev-mirror route: when the backend runs on this machine it
+  // rewrites src/generated/ and this SPA serves it at /preview. Production
+  // previews go through /preview/<slug> (PublicPreviewHost) instead.
   const path =
     typeof window !== 'undefined'
       ? window.location.pathname.replace(/\/+$/, '')
       : '';
   const isPreviewPath = path.endsWith('/preview');
+  // /preview/<slug> — standalone live preview of a stored project (in-browser
+  // Sandpack bundle from the Supabase snapshot; never falls through to the
+  // landing page). Reachable without navigating the app; project files are
+  // still RLS owner-only.
+  const publicPreviewMatch = path.match(/^\/preview\/([^/]+)$/);
   const isPublishedPath = /^\/published\/[^/]+\/?$/.test(path);
 
+  if (publicPreviewMatch) {
+    return <PublicPreviewHost slug={decodeURIComponent(publicPreviewMatch[1])} />;
+  }
   if (isPreviewPath) {
     return <PreviewHost />;
   }
