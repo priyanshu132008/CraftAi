@@ -762,13 +762,16 @@ class DeveloperAgent:
     """Generates a full multi-file React project from an Architect JSON plan."""
 
     def __init__(self, model: str = None, base_url: str = OLLAMA_BASE_URL,
-                 api_key: str = None):
+                 api_key: str = None, extra_kwargs: dict = None):
         self.base_url = base_url
         self.model = model or DEFAULT_MODEL
         # NVIDIA NIM (Batch B / backend) passes its own key; the default
         # caller keeps the resolved Ollama credential.
         key = api_key if api_key else OLLAMA_API_KEY
         self.client = OpenAI(base_url=self.base_url, api_key=key)
+        # Model-specific kwargs (e.g. extra_body for Nemotron thinking mode)
+        # spliced into every completion call.
+        self.extra_kwargs = extra_kwargs or {}
         # Cloud-connection proof: log the target endpoint (key masked) so the
         # Render logs show it is aiming at the hosted API, not localhost.
         print(f"[DeveloperAgent] LLM endpoint: {self.base_url} | model: {self.model} | key: {mask(key)}")
@@ -813,13 +816,13 @@ class DeveloperAgent:
                 response = self.client.chat.completions.create(
                     model=self.model, messages=messages,
                     temperature=0.3, response_format={"type": "json_object"},
-                )
+                    **self.extra_kwargs)
             except Exception:
                 # Retry without response_format for models/endpoints that
                 # reject it — _parse_files tolerates fences and prose.
                 response = self.client.chat.completions.create(
                     model=self.model, messages=messages, temperature=0.3,
-                )
+                    **self.extra_kwargs)
             content = response.choices[0].message.content
             return self._parse_files(content)
         except Exception as e:

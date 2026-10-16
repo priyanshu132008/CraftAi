@@ -130,9 +130,13 @@ def _get_dev2():
             _dev2 = DeveloperAgent(
                 # llama-3.1-70b-instruct hit EOL (HTTP 410); override any
                 # future deprecation instantly via NVIDIA_MODEL.
-                model=os.getenv("NVIDIA_MODEL") or "nemotron-3-ultra-550b-a55b",
+                model=os.getenv("NVIDIA_MODEL")
+                or "nvidia/nemotron-3.5-super-vl-120b-a12b",
                 base_url="https://integrate.api.nvidia.com/v1",
-                api_key=key)
+                api_key=key,
+                # Nemotron reasoning toggle: OpenAI client forwards extra_body.
+                extra_kwargs={"extra_body": {"chat_template_kwargs":
+                                             {"enable_thinking": True}}})
         else:
             _dev2 = _get_agents()["developer"]
     return _dev2
