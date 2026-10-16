@@ -115,6 +115,25 @@ ENTRY_CANDIDATES = (
 # Agents are created lazily on the first request: DebuggerAgent.__init__
 # raises without NVIDIA_API_KEY, and that must not crash server startup.
 _agents = None
+_dev2 = None
+
+
+def _get_dev2():
+    """Batch-B (backend/services) developer for monorepo parallel
+    generation. Uses NVIDIA NIM when NVIDIA_API_KEY is configured so the
+    two batches saturate separate providers instead of queueing on one.
+    Falls back to the shared Ollama/DeepSeek agent otherwise."""
+    global _dev2
+    if _dev2 is None:
+        key = os.getenv("NVIDIA_API_KEY")
+        if key:
+            _dev2 = DeveloperAgent(
+                model=os.getenv("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct"),
+                base_url="https://integrate.api.nvidia.com/v1",
+                api_key=key)
+        else:
+            _dev2 = _get_agents()["developer"]
+    return _dev2
 
 def _env(name: str) -> str:
     """os.getenv with paste-proofing: Render dashboard values sometimes
@@ -387,14 +406,16 @@ def _run_pipeline(prompt: str, connectors: Optional[list] = None,
     if is_monorepo:
         from concurrent.futures import ThreadPoolExecutor, as_completed
         batches = {
-            "frontend": FRONTEND_BATCH_NOTE,
-            "backend": BACKEND_BATCH_NOTE,
+            # Batch A (frontend) keeps the Ollama/DeepSeek agent; Batch B
+            # (backend/services) routes to NVIDIA NIM when configured.
+            "frontend": (developer, FRONTEND_BATCH_NOTE),
+            "backend": (_get_dev2(), BACKEND_BATCH_NOTE),
         }
         results: dict = {}
         with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = {pool.submit(developer.generate_files, plan,
+            futures = {pool.submit(agent.generate_files, plan,
                                    connectors, batch=note, **gen_kwargs): name
-                       for name, note in batches.items()}
+                       for name, (agent, note) in batches.items()}
             for fut in as_completed(futures):
                 name = futures[fut]
                 results[name] = fut.result()

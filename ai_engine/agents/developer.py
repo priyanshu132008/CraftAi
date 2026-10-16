@@ -761,13 +761,17 @@ files."""
 class DeveloperAgent:
     """Generates a full multi-file React project from an Architect JSON plan."""
 
-    def __init__(self, model: str = None, base_url: str = OLLAMA_BASE_URL):
+    def __init__(self, model: str = None, base_url: str = OLLAMA_BASE_URL,
+                 api_key: str = None):
         self.base_url = base_url
         self.model = model or DEFAULT_MODEL
-        self.client = OpenAI(base_url=self.base_url, api_key=OLLAMA_API_KEY)
+        # NVIDIA NIM (Batch B / backend) passes its own key; the default
+        # caller keeps the resolved Ollama credential.
+        key = api_key if api_key else OLLAMA_API_KEY
+        self.client = OpenAI(base_url=self.base_url, api_key=key)
         # Cloud-connection proof: log the target endpoint (key masked) so the
         # Render logs show it is aiming at the hosted API, not localhost.
-        print(f"[DeveloperAgent] LLM endpoint: {self.base_url} | model: {self.model} | key: {mask(OLLAMA_API_KEY)}")
+        print(f"[DeveloperAgent] LLM endpoint: {self.base_url} | model: {self.model} | key: {mask(key)}")
         # Pre-built block manifests, injected into every generation request.
         self.library_context = _load_component_library()
 
