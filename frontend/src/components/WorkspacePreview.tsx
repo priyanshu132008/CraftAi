@@ -33,6 +33,38 @@ const HANG_THRESHOLD_MS = 75_000;
 const isPackageJson = (p: string) => p === 'package.json' || p.endsWith('/package.json');
 const dirOf = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/') + 1) : '');
 
+/** Server-side files that can never run in the browser sandbox — excluded
+ *  even when root detection falls back to '' (flat layouts), so a stray
+ *  `backend/` or top-level `server.ts` never reaches Sandpack. */
+const isServerFile = (p: string) =>
+  p.startsWith('backend/') || /(^|\/)server\.(ts|js|mjs)$/.test(p);
+
+const ENTRIES = ['/src/main.tsx', '/src/main.jsx', '/src/main.ts', '/src/main.js'];
+
+/** Guarantee `/index.html` and that its module script points at an entry
+ *  file that actually exists in the sandbox tree (generated apps sometimes
+ *  emit index.html referencing src/index.tsx, or omit it entirely — the
+ *  template default targets /index.tsx, which we don't have). */
+function ensureEntryHtml(out: Record<string, string>): void {
+  const entry = ENTRIES.find(e => e in out) ?? ('/src/App.tsx' in out ? '/src/main.tsx' : null);
+  if (entry === '/src/main.tsx' && !('/src/main.tsx' in out) && '/src/App.tsx' in out) {
+    out['/src/main.tsx'] =
+      "import React from 'react';\nimport { createRoot } from 'react-dom/client';\nimport App from './App';\nimport './index.css';\ncreateRoot(document.getElementById('root')!).render(<App />);\n";
+  }
+  const target = entry ?? '/src/main.tsx';
+  if ('/index.html' in out) {
+    // Repoint any stale entry reference at the resolved entry file.
+    out['/index.html'] = out['/index.html'].replace(
+      /(<script[^>]*type="module"[^>]*src=")\/src\/[^"]*(")/,
+      `$1${target}$2`
+    );
+  } else {
+    out['/index.html'] =
+      `<!doctype html><html><head><meta charset="UTF-8" /></head>` +
+      `<body><div id="root"></div><script type="module" src="${target}"></script></body></html>`;
+  }
+}
+
 /** Locate the directory holding the runnable Vite frontend: the one
  *  containing BOTH package.json and index.html (full-stack scopes emit
  *  `frontend/package.json` + `frontend/index.html` beside a `backend/`).
@@ -65,9 +97,10 @@ function toViteFiles(files: GeneratedFile[]): Record<string, string> {
   for (const f of files) {
     // Only the frontend subtree runs in the browser sandbox — sibling
     // backend/ services (express, fastapi) can't, and confuse the entry.
-    if (!f.path.startsWith(root)) continue;
+    if (!f.path.startsWith(root) || isServerFile(f.path)) continue;
     out[`/${f.path.slice(root.length)}`] = f.content;
   }
+  if (Object.keys(out).length > 0) ensureEntryHtml(out);
   return out;
 }
 
@@ -92,7 +125,7 @@ function toCraSetup(files: GeneratedFile[]): CraSetup {
 
   for (const f of files) {
     let p = f.path;
-    if (!p.startsWith(root)) continue;
+    if (!p.startsWith(root) || isServerFile(p)) continue;
     p = p.slice(root.length);
     if (p === 'package.json') {
       try {
@@ -146,9 +179,12 @@ const StatusDriver: React.FC<{
       hangTimer.current = null;
       return;
     }
-    // Sandpack reports a hard timeout itself — that's an immediate hang.
-    if (sandpack.status === 'timeout' && canHang) {
-      onHang();
+    // Sandpack's own timeout: surface whatever the bundler rendered (its
+    // error overlay) instead of sitting behind "Recompiling preview…"
+    // forever — and fall back to the no-install bundler if we still can.
+    if (sandpack.status === 'timeout') {
+      onReady();
+      if (canHang) onHang();
       return;
     }
     if (canHang && hangTimer.current === null) {

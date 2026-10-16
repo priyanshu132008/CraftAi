@@ -550,6 +550,14 @@ export const GenerateStudio: React.FC = () => {
   useEffect(() => {
     if (previewVersion > 0) setPreviewLoading(true);
   }, [previewVersion]);
+  // Backstop: the recompile overlay is decor, not a gate. Sandpack's status
+  // clears it on the happy path; a bundler failure, a save error, or a wedged
+  // sandbox must never pin the workspace under "Recompiling preview…".
+  useEffect(() => {
+    if (!previewLoading) return;
+    const t = window.setTimeout(() => setPreviewLoading(false), 90000);
+    return () => window.clearTimeout(t);
+  }, [previewLoading, previewVersion, reloadKey]);
   /** Where the ExternalLink icon actually points. Local full-screen route
    *  for the demo, so we never hit a real DNS lookup. */
   const deployHref = deploySlug
