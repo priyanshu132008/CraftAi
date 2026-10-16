@@ -128,7 +128,9 @@ def _get_dev2():
         key = os.getenv("NVIDIA_API_KEY")
         if key:
             _dev2 = DeveloperAgent(
-                model=os.getenv("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct"),
+                # llama-3.1-70b-instruct hit EOL (HTTP 410); override any
+                # future deprecation instantly via NVIDIA_MODEL.
+                model=os.getenv("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct"),
                 base_url="https://integrate.api.nvidia.com/v1",
                 api_key=key)
         else:

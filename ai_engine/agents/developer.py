@@ -823,7 +823,11 @@ class DeveloperAgent:
             content = response.choices[0].message.content
             return self._parse_files(content)
         except Exception as e:
-            print(f"[DeveloperAgent] Local Ollama call failed: {e}")
+            # Name the provider, not "Ollama": the NVIDIA batch agent shares
+            # this code path and its errors (e.g. model-EOL 410s) must not
+            # masquerade as local Ollama failures in the deploy logs.
+            print(f"[DeveloperAgent] LLM call failed "
+                  f"({self.base_url}, {self.model}): {e}")
             return []
 
     @staticmethod
