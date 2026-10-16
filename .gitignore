@@ -63,3 +63,6 @@ Thumbs.db
 # Local assistant tooling state (machine-specific)
 .claude/
 .impeccable/
+
+# Supabase CLI local state
+supabase/
