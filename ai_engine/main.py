@@ -130,7 +130,7 @@ def _get_dev2():
             _dev2 = DeveloperAgent(
                 # llama-3.1-70b-instruct hit EOL (HTTP 410); override any
                 # future deprecation instantly via NVIDIA_MODEL.
-                model=os.getenv("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct"),
+                model=os.getenv("NVIDIA_MODEL") or "nemotron-3-ultra-550b-a55b",
                 base_url="https://integrate.api.nvidia.com/v1",
                 api_key=key)
         else:
