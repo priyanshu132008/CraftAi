@@ -641,8 +641,35 @@ FILE SET RULES:
   specs, plus any listed custom API / MCP client files.
 - External imports are limited to "react" and "framer-motion" (motion.div,
   motion.h1 etc.) — plus "lucide-react" ONLY when lucide_icons is requested.
-  NO other libraries, NO image files — use styled gradient/pattern
-  placeholder <div>s for imagery (or unsplash_api image URLs when requested).
+  NO other libraries, NO image files.
+
+IMAGE RULE (violations make the UI look unfinished — check every file
+before returning):
+- NEVER use blank colored divs, empty containers, or placeholder gradients
+  where photographs/images belong. NEVER emit an <img> with an empty or
+  placeholder src.
+- ALWAYS use valid high-resolution Unsplash CDN URLs formatted exactly as:
+  https://images.unsplash.com/photo-<ID>?auto=format&fit=crop&w=1200&q=80
+- Match the photo ID to the context of the user's prompt (travel stays,
+  food, tech, gaming, people):
+  * Stays/Real Estate:  photo-1566073771259-6a8506099945
+                        photo-1512917774080-9991f1c4c750
+                        photo-1600585154340-be6161a56a0c
+                        photo-1600596542815-ffad4c1539a9
+  * Avatars/Users:      photo-1534528741775-53994a69daeb
+                        photo-1507003211169-0a1dd7228f2d
+                        photo-1494790108377-be9c29b29330
+  * Food/Dining:        photo-1504674900247-0877df9cc836
+                        photo-1565299624946-b28f40a0ae38
+  * Tech/Workspace:     photo-1498050108023-c5249f4df085
+                        photo-1460925895917-afdab827c52f
+  * Gaming/Cafes:       photo-1511512578047-dfb367046420
+                        photo-1538481199705-c710c4e965fc
+  * Travel/Hero:        photo-1488646953014-85cb44e25828
+                        photo-1507525428034-b723cf961d3e
+- Reuse an ID within the same page only when it is genuinely the same
+  subject; otherwise pick a different one from the matching category.
+- Decorative background shapes/patterns unrelated to photography are fine.
 
 CRITICAL UI INSTRUCTION (icons — a violated rule CRASHES the bundler):
 - When importing icons from "lucide-react", NEVER use brand or third-party

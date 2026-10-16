@@ -27,6 +27,88 @@ const TAILWIND_CDN = 'https://cdn.tailwindcss.com';
 const isPackageJson = (p: string) => p === 'package.json' || p.endsWith('/package.json');
 const dirOf = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/') + 1) : '');
 
+/** Curated Unsplash CDN photo IDs, grouped by prompt context — the fallback
+ *  pool when the generated code ships blank <img src> or placeholder divs.
+ *  Must stay in sync with the IMAGE RULE in ai_engine/agents/developer.py. */
+const unsplashUrl = (id: string) =>
+  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1200&q=80`;
+
+const IMAGE_CATEGORIES: { test: RegExp; ids: string[] }[] = [
+  {
+    test: /stays?|hotels?|rooms?|bookings?|real[- ]?estate|propert(y|ies)|listings?|villas?|resorts?/i,
+    ids: [
+      'photo-1566073771259-6a8506099945',
+      'photo-1512917774080-9991f1c4c750',
+      'photo-1600585154340-be6161a56a0c',
+      'photo-1600596542815-ffad4c1539a9'
+    ]
+  },
+  {
+    test: /avatars?|users?|profiles?|people|team|members?|testimonial|auth|login|signup/i,
+    ids: [
+      'photo-1534528741775-53994a69daeb',
+      'photo-1507003211169-0a1dd7228f2d',
+      'photo-1494790108377-be9c29b29330'
+    ]
+  },
+  {
+    test: /food|dining|menus?|recipes?|restaurants?|dishes?|meals?/i,
+    ids: [
+      'photo-1504674900247-0877df9cc836',
+      'photo-1565299624946-b28f40a0ae38'
+    ]
+  },
+  {
+    test: /tech|workspace|dashboards?|coding|code|developers?|laptops?|offices?/i,
+    ids: [
+      'photo-1498050108023-c5249f4df085',
+      'photo-1460925895917-afdab827c52f'
+    ]
+  },
+  {
+    test: /gam(e|ing)|cafes?|coffee|esports?|arcade/i,
+    ids: [
+      'photo-1511512578047-dfb367046420',
+      'photo-1538481199705-c710c4e965fc'
+    ]
+  },
+  {
+    test: /travel|heros?|trips?|tours?|vacations?|destinations?|flights?/i,
+    ids: [
+      'photo-1488646953014-85cb44e25828',
+      'photo-1507525428034-b723cf961d3e'
+    ]
+  }
+];
+const ALL_IMAGE_IDS = IMAGE_CATEGORIES.flatMap(c => c.ids);
+
+/** Pre-processor for generated JSX/TSX: fill blank/placeholder image spots
+ *  with a contextual Unsplash URL so a rendered project never shows broken
+ *  or blank panels. Rotation index ensures several images in one file get
+ *  different photos. */
+function applyImageFallback(code: string, path: string): string {
+  if (!code.includes('<img') && !/image\s+placeholder/i.test(code)) return code;
+  const haystack = `${path} ${code}`;
+  let rotation = 0;
+  const pick = () => {
+    const cat = IMAGE_CATEGORIES.find(c => c.test.test(haystack));
+    const pool = cat ? cat.ids : ALL_IMAGE_IDS;
+    return unsplashUrl(pool[rotation++ % pool.length]);
+  };
+  return code
+    // <img> with an empty or sentinel src ("" / '#' / 'placeholder.jpg')
+    .replace(
+      /(<img\b[^>]*?)src\s*=\s*(["'])(\s*|#|placeholder[\w ./-]*)\2/gi,
+      (_m, head: string) => `${head}src="${pick()}"`
+    )
+    // <img> with no src attribute at all
+    .replace(/<img\b(?![^>]*\ssrc\s*=)[^>]*>/gi,
+      (tag: string) => tag.replace(/>$/, ` src="${pick()}">`))
+    // JSX placeholder comment → a real <img> element
+    .replace(/\{\s*\/\*\s*image\s+placeholder\s*\*\/\s*\}/gi,
+      () => `<img src="${pick()}" alt="" className="w-full h-full object-cover" />`);
+}
+
 /** Server-side files that can never run in the browser sandbox — excluded
  *  even when root detection falls back to '' (flat layouts), so a stray
  *  `backend/` or top-level `server.ts` never reaches Sandpack. */
@@ -131,10 +213,13 @@ function toCraSetup(files: GeneratedFile[]): CraSetup {
   const envShim = `(${envJson})`;
   const metaShim = `({env:${envJson}})`;
   for (const key of Object.keys(out)) {
-    if (/\.(tsx?|jsx?)$/.test(key) && out[key].includes('import.meta')) {
-      out[key] = out[key]
-        .replace(/\bimport\.meta\.env\b/g, envShim)
-        .replace(/\bimport\.meta\b/g, metaShim);
+    if (/\.(tsx?|jsx?)$/.test(key)) {
+      out[key] = applyImageFallback(out[key], key);
+      if (out[key].includes('import.meta')) {
+        out[key] = out[key]
+          .replace(/\bimport\.meta\.env\b/g, envShim)
+          .replace(/\bimport\.meta\b/g, metaShim);
+      }
     }
   }
 
