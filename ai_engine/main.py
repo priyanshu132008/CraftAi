@@ -564,7 +564,15 @@ def _verify_supabase_token(token: str) -> Optional[dict]:
     Returns the user payload on success, None on failure. When Supabase is
     not configured (missing URL/key), a structurally valid header is
     accepted so local demos still run — but only after the header check.
+    Every failure path logs the exact cause BEFORE the caller's 401 goes
+    out, so Render logs always say why a token was rejected.
     """
+    # Config visibility first: a 401 caused by a missing/rotated key is
+    # indistinguishable from a bad token without this line.
+    masked = (f"...{SUPABASE_ANON_KEY[-6:]}" if SUPABASE_ANON_KEY
+              and len(SUPABASE_ANON_KEY) > 6 else None)
+    print(f"[auth] config: SUPABASE_URL={'set' if SUPABASE_URL else 'MISSING'} "
+          f"SUPABASE_ANON_KEY={masked or 'MISSING'}")
     if not SUPABASE_URL or not SUPABASE_ANON_KEY:
         print("[auth] SUPABASE_URL/SUPABASE_ANON_KEY not configured — "
               "skipping token verification (header presence only)")
@@ -586,15 +594,19 @@ def _verify_supabase_token(token: str) -> Optional[dict]:
             except httpx.TransportError as exc:
                 # Flaky DNS/NAT64 networks fail the first lookup; retry.
                 last_exc = exc
+                print(f"[AUTH ERROR] Token verification transport failure "
+                      f"(attempt {attempt + 1}/3): {exc!r}")
                 time.sleep(1.0)
         else:
             raise last_exc
     except httpx.HTTPError as exc:
-        print(f"[auth] Supabase verification request failed: {exc}")
+        print(f"[AUTH ERROR] Token verification failed: {exc!r}")
         return None
 
     if resp.status_code == 200:
         return resp.json()
+    print(f"[AUTH ERROR] Token verification failed: HTTP {resp.status_code} "
+          f"from /auth/v1/user — {resp.text[:300]}")
     return None
 
 
