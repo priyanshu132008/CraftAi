@@ -57,6 +57,9 @@ export interface GenerateProjectResponse {
   message?: string;
   preview_url: string;
   user_email?: string;
+  /** False means the backend generated the files but could NOT write the
+   *  Supabase project row — the build won't survive a page reload. */
+  project_saved?: boolean;
   [key: string]: unknown;
 }
 

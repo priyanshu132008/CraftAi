@@ -753,7 +753,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setGeneratedFiles(data.files ?? []);
         setIsGenerated(true);
         setPreviewVersion(v => v + 1);
-        setStatusMessage('Generation complete — preview updated.');
+        setStatusMessage(
+          data.project_saved === false
+            ? 'Generation complete — but the project could not be saved; it will disappear on reload. (Backend Supabase config missing — see /api/health/env.)'
+            : 'Generation complete — preview updated.'
+        );
 
         const connectorNote =
           data.connectors && data.connectors.length > 0

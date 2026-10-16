@@ -909,14 +909,17 @@ def _conversational_response(prompt: str, mode: str,
 
 def _record_project_in_supabase(token: str, user_id: str, project_id: str,
                                  title: str, prompt: str,
-                                 project_path: str) -> None:
-    """Upsert the generated project's metadata row into the Supabase
-    `projects` table. RLS scopes rows to the calling user's token, so the
+                                 files: list) -> None:
+    """Upsert the generated project's row into the Supabase `projects`
+    table — metadata AND the full file snapshot as JSON in the existing
+    `files` text column. RLS scopes rows to the calling user's token, so the
     insert needs no service-role key. Fail-soft: the disk workspace remains
-    the file store regardless; the listing just falls back to it."""
+    the hot store; the row is the durable copy that survives Render's
+    ephemeral-disk wipes (and what /load restores from). Returns True when
+    the row actually landed so the response can flag unsaved projects."""
     if not (SUPABASE_URL and SUPABASE_ANON_KEY and token and user_id):
         print("[projects] Supabase not configured — skipping metadata insert")
-        return
+        return False
     try:
         resp = httpx.post(
             f"{SUPABASE_URL}/rest/v1/projects",
@@ -932,18 +935,21 @@ def _record_project_in_supabase(token: str, user_id: str, project_id: str,
                 "user_id": user_id,
                 "title": title[:200],
                 "prompt": prompt[:2000],
-                "files": project_path,
+                "files": json.dumps(files or []),
             },
-            timeout=10,
+            timeout=20,
         )
-        if resp.status_code not in (200, 201):
+        saved = resp.status_code in (200, 201)
+        if not saved:
             print(f"[projects] Supabase insert failed: "
                   f"{resp.status_code} {resp.text[:200]}")
+        return saved
     except Exception as exc:  # httpx.HTTPError + InvalidURL(ValueError) etc.
         # Fail-soft by contract: schema-cache, RLS, network and config
         # errors must never crash the generation pipeline. Disk workspace
         # stays the file store; the listing falls back to it.
         print(f"[projects] Supabase insert error (ignored): {exc}")
+        return False
 
 
 @app.post("/generate-project")
@@ -1008,15 +1014,18 @@ def generate_project(payload: dict, authorization: Optional[str] = Header(defaul
         )
 
     response["user_email"] = user.get("email")
-    # Every build also lands a metadata row in the Supabase `projects` table
-    # (the source of truth for Recents / My Projects). Fail-soft: see helper.
+    # Every build also lands a row (metadata + full file snapshot) in the
+    # Supabase `projects` table — the durable source of truth for Recents /
+    # My Projects and for /load restores after a Render disk wipe. The
+    # result is surfaced in the response so the UI can say so when a deploy
+    # is misconfigured instead of losing projects silently.
     if mode == "build" and response.get("project_id"):
         raw = response["project_id"]
         slug = raw.split("-", 1)[1] if "-" in raw else raw
-        _record_project_in_supabase(
+        response["project_saved"] = _record_project_in_supabase(
             token, user.get("id") or "", raw,
             slug.replace("-", " ").title() or raw, prompt,
-            response.get("projectPath", ""))
+            response.get("files", []))
     print(f"[generate-project] user={user.get('email', 'unknown')} "
           f"connectors={connectors or []}")
     return response
@@ -1070,6 +1079,10 @@ def check_env():
     return {
         "google_id_exists": bool(os.getenv("GOOGLE_CLIENT_ID")),
         "google_secret_exists": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
+        # Persistence prerequisite — when False, every build runs but no
+        # project row is ever written (set SUPABASE_URL + the CURRENT anon
+        # key; see frontend/.env.production for a known-good one).
+        "supabase_configured": bool(SUPABASE_URL and SUPABASE_ANON_KEY),
         "expected_env_path": str(env_path),
     }
 
@@ -1144,33 +1157,94 @@ def list_projects(limit: int = 50, authorization: Optional[str] = Header(None)):
 def _owned_project_dir(project_id: str, authorization: Optional[str]):
     """Resolve an authenticated, caller-owned project directory.
 
-    Returns (project_dir, None) on success, or (None, error_response) —
-    shared by load / edit / delete so the auth, traversal and ownership
-    rules can never drift apart.
+    Returns (project_dir, user, None) on success, or (None, None,
+    error_response) — shared by load / edit / delete so the auth, traversal
+    and ownership rules can never drift apart. project_dir is None (with a
+    valid user) when the disk folder is gone — Render's ephemeral fs loses
+    it on redeploy; /load then restores from the Supabase snapshot.
     """
     token = _bearer_token(authorization)
     user = _verify_supabase_token(token) if token else None
     if user is None:
-        return None, _unauthorized("Sign in to access your projects.")
+        return None, None, _unauthorized("Sign in to access your projects.")
 
     rel = _safe_relpath(project_id)
     project_dir = PROJECTS_ROOT / rel if rel and len(rel.parts) == 1 else None
     if project_dir is None or not project_dir.is_dir():
-        return None, JSONResponse(status_code=404,
-                                  content={"status": "error", "message": "Unknown project"})
+        # Disk gone (redeploy wipe) — the caller may still own the DB row.
+        return None, user, None
     try:
         owner_file = project_dir / "owner.json"
         if not owner_file.exists():
             # unstamped legacy project — clean-slate policy
-            return None, JSONResponse(status_code=404,
-                                      content={"status": "error", "message": "Unknown project"})
+            return None, None, JSONResponse(
+                status_code=404,
+                content={"status": "error", "message": "Unknown project"})
         meta = json.loads(owner_file.read_text())
         if meta.get("owner") != user.get("id"):
-            return None, _unauthorized("This project belongs to another account.")
+            return None, None, _unauthorized("This project belongs to another account.")
     except (OSError, ValueError):
-        return None, JSONResponse(status_code=404,
-                                  content={"status": "error", "message": "Unknown project"})
-    return project_dir, None
+        return None, None, JSONResponse(
+            status_code=404,
+            content={"status": "error", "message": "Unknown project"})
+    return project_dir, user, None
+
+
+def _restore_project_from_supabase(project_id: str, token: str,
+                                   user: dict) -> Optional[Path]:
+    """Rebuild a wiped workspace folder from the project's Supabase snapshot.
+
+    RLS scopes the SELECT to the caller's own row, so ownership is enforced
+    by the query itself. The `files` column holds the JSON snapshot written
+    by generation/edit; older rows hold a legacy dir path (never JSON) and
+    can't restore. Re-materializing to disk re-enables edit/save/delete.
+    Returns the project dir, or None when no snapshot exists.
+    """
+    if not (SUPABASE_URL and SUPABASE_ANON_KEY and token):
+        return None
+    try:
+        resp = httpx.get(
+            f"{SUPABASE_URL}/rest/v1/projects",
+            params={"id": f"eq.{project_id}", "select": "files"},
+            headers={"apikey": SUPABASE_ANON_KEY,
+                     "Authorization": f"Bearer {token}"},
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            return None
+        rows = resp.json()
+        snapshot = rows[0].get("files") if rows else None
+        files = json.loads(snapshot) if isinstance(snapshot, str) else None
+        if not isinstance(files, list) or not files:
+            return None
+    except Exception as exc:
+        print(f"[projects] Supabase restore failed: {exc}")
+        return None
+
+    rel = _safe_relpath(project_id)
+    if not rel or len(rel.parts) != 1:
+        return None
+    project_dir = PROJECTS_ROOT / rel
+    try:
+        project_dir.mkdir(parents=True, exist_ok=True)
+        (project_dir / "owner.json").write_text(
+            json.dumps({"owner": user.get("id")}))
+        for f in files:
+            if not isinstance(f, dict):
+                continue
+            file_rel = _safe_relpath(str(f.get("path", "")))
+            content = f.get("content")
+            if not file_rel or not isinstance(content, str):
+                continue
+            target = project_dir / file_rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+    except OSError as exc:
+        print(f"[projects] restore write failed: {exc}")
+        return None
+    print(f"[projects] restored {len(files)} files from Supabase snapshot "
+          f"into {project_dir.name}")
+    return project_dir
 
 
 def _read_project_files(project_dir: Path) -> list:
@@ -1185,6 +1259,30 @@ def _read_project_files(project_dir: Path) -> list:
         except (UnicodeDecodeError, OSError):
             continue  # binary files (images etc.) are not canvas material
     return files
+
+
+def _snapshot_files_to_supabase(token: str, project_id: str,
+                                files: list) -> None:
+    """PATCH only the file snapshot of an existing project row (edit /
+    Monaco-save paths). A PATCH — not the generation upsert — so title and
+    the original prompt are never clobbered. Fail-soft."""
+    if not (SUPABASE_URL and SUPABASE_ANON_KEY and token):
+        return
+    try:
+        resp = httpx.patch(
+            f"{SUPABASE_URL}/rest/v1/projects",
+            params={"id": f"eq.{project_id}"},
+            headers={"apikey": SUPABASE_ANON_KEY,
+                     "Authorization": f"Bearer {token}",
+                     "Content-Type": "application/json"},
+            json={"files": json.dumps(files or [])},
+            timeout=20,
+        )
+        if resp.status_code not in (200, 204):
+            print(f"[projects] Supabase snapshot failed: "
+                  f"{resp.status_code} {resp.text[:200]}")
+    except Exception as exc:
+        print(f"[projects] Supabase snapshot error (ignored): {exc}")
 
 
 def _delete_supabase_project_row(authorization: Optional[str],
@@ -1217,11 +1315,21 @@ def load_project(project_id: str, authorization: Optional[str] = Header(None)):
 
     Same auth/ownership rules as the listing: an owner-stamped folder loads
     only for its owner; an unstamped (legacy) folder is not loadable. Re-
-    mirrors the project into the Vite preview so /preview shows it.
+    mirrors the project into the Vite preview so /preview shows it. When the
+    disk folder is gone (Render redeploy wiped the ephemeral fs) the files
+    are restored from the project's Supabase snapshot instead of 404ing.
     """
-    project_dir, err = _owned_project_dir(project_id, authorization)
+    project_dir, user, err = _owned_project_dir(project_id, authorization)
     if err:
         return err
+    if project_dir is None:
+        # Disk gone — restore from the durable Supabase row (RLS-scoped).
+        project_dir = _restore_project_from_supabase(
+            project_id, _bearer_token(authorization) or "", user)
+        if project_dir is None:
+            return JSONResponse(
+                status_code=404,
+                content={"status": "error", "message": "Unknown project"})
 
     files = _read_project_files(project_dir)
     entry = _select_entry(files)
@@ -1253,9 +1361,16 @@ def edit_project(project_id: str, payload: dict,
     are dropped). Files failing the structural balance check keep the
     original content. Returns the full updated file set like /load.
     """
-    project_dir, err = _owned_project_dir(project_id, authorization)
+    project_dir, user, err = _owned_project_dir(project_id, authorization)
     if err:
         return err
+    if project_dir is None:
+        project_dir = _restore_project_from_supabase(
+            project_id, _bearer_token(authorization) or "", user)
+        if project_dir is None:
+            return JSONResponse(
+                status_code=404,
+                content={"status": "error", "message": "Unknown project"})
 
     instruction = (payload or {}).get("prompt")
     if not instruction or not isinstance(instruction, str):
@@ -1325,6 +1440,9 @@ def edit_project(project_id: str, payload: dict,
 
     raw = project_dir.name
     slug = raw.split("-", 1)[1] if "-" in raw else raw
+    # Snapshot the post-edit state — the disk copy dies with the deploy.
+    _snapshot_files_to_supabase(
+        _bearer_token(authorization) or "", raw, list(merged.values()))
     print(f"[edit-project] id={raw} | {written} files patched in place")
     return {
         "status": "success",
@@ -1351,9 +1469,16 @@ def update_project_file(project_id: str, payload: dict,
     The Vite preview mirror is refreshed so /preview picks up the edit
     without a page reload.
     """
-    project_dir, err = _owned_project_dir(project_id, authorization)
+    project_dir, user, err = _owned_project_dir(project_id, authorization)
     if err:
         return err
+    if project_dir is None:
+        project_dir = _restore_project_from_supabase(
+            project_id, _bearer_token(authorization) or "", user)
+        if project_dir is None:
+            return JSONResponse(
+                status_code=404,
+                content={"status": "error", "message": "Unknown project"})
 
     raw_path = (payload or {}).get("path")
     content = (payload or {}).get("content")
@@ -1380,6 +1505,8 @@ def update_project_file(project_id: str, payload: dict,
     entry = _select_entry(files)
     if entry:
         _refresh_preview(files, entry["path"])
+    _snapshot_files_to_supabase(
+        _bearer_token(authorization) or "", project_id, files)
     print(f"[update-file] id={project_id} file={rel.as_posix()} saved from Monaco")
     return {"status": "success", "path": rel.as_posix()}
 
@@ -1389,9 +1516,14 @@ def delete_project(project_id: str,
                    authorization: Optional[str] = Header(None)):
     """Delete a project: remove its disk workspace folder and its Supabase
     metadata row. Owner-only (same ownership rules as load/edit)."""
-    project_dir, err = _owned_project_dir(project_id, authorization)
+    project_dir, user, err = _owned_project_dir(project_id, authorization)
     if err:
         return err
+    if project_dir is None:
+        # Disk already gone — still drop the durable Supabase row (RLS
+        # scopes it to the caller; a missing row is a silent no-op).
+        _delete_supabase_project_row(authorization, project_id)
+        return {"status": "success", "project_id": project_id}
 
     raw = project_dir.name
     try:
@@ -1411,14 +1543,20 @@ def duplicate_project(project_id: str,
     """Duplicate a project: copy its disk workspace under a fresh id,
     re-stamp ownership, and mirror the Supabase metadata row (including
     the stored prompt). Owner-only (same rules as load/edit/delete)."""
-    project_dir, err = _owned_project_dir(project_id, authorization)
+    project_dir, user, err = _owned_project_dir(project_id, authorization)
     if err:
         return err
+    if project_dir is None:
+        project_dir = _restore_project_from_supabase(
+            project_id, _bearer_token(authorization) or "", user)
+        if project_dir is None:
+            return JSONResponse(
+                status_code=404,
+                content={"status": "error", "message": "Unknown project"})
 
     raw = project_dir.name
     slug = raw.split("-", 1)[1] if "-" in raw else raw
-    token = _bearer_token(authorization)
-    user = _verify_supabase_token(token) if token else None
+    token = _bearer_token(authorization) or ""
     owner = (user or {}).get("id")
     if not owner:
         return _unauthorized("Sign in to duplicate your projects.")
@@ -1458,7 +1596,7 @@ def duplicate_project(project_id: str,
 
     title = base_slug.replace("-", " ").title()
     _record_project_in_supabase(token, owner, new_dir.name, title,
-                                prompt, str(new_dir))
+                                prompt, _read_project_files(new_dir))
     print(f"[duplicate-project] {raw} -> {new_dir.name}")
     return {"status": "success", "project_id": new_dir.name, "name": title}
 
