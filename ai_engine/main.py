@@ -123,6 +123,23 @@ def _env(name: str) -> str:
 
 SUPABASE_URL = _env("SUPABASE_URL").rstrip("/")
 SUPABASE_ANON_KEY = _env("SUPABASE_ANON_KEY")
+# Server-side persistence bypasses RLS, whose owner-id check has repeatedly
+# 403'd the user-JWT insert in production (PostgREST 42501). Ownership is
+# instead enforced EXPLICITLY (user_id filters from the verified token) on
+# every read/write path below. Used only when configured.
+SUPABASE_SERVICE_ROLE_KEY = (_env("SUPABASE_SERVICE_ROLE_KEY")
+                             or _env("SERVICE_ROLE_SECRET_KEY"))
+
+
+def _sb_headers(user_token: Optional[str]) -> dict:
+    """Auth headers for PostgREST: service role when configured (RLS
+    bypass — ownership enforced in code), else the caller's JWT (RLS
+    scopes everything to the caller)."""
+    if SUPABASE_SERVICE_ROLE_KEY:
+        return {"apikey": SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}"}
+    return {"apikey": SUPABASE_ANON_KEY,
+            "Authorization": f"Bearer {user_token or SUPABASE_ANON_KEY}"}
 
 # Vercel auto-deploy (publish flow): token required, team id optional
 # (organization accounts scope every call with ?teamId=).
@@ -938,11 +955,13 @@ def _record_project_in_supabase(token: str, user_id: str, project_id: str,
                                  files: list) -> None:
     """Upsert the generated project's row into the Supabase `projects`
     table — metadata AND the full file snapshot as JSON in the existing
-    `files` text column. RLS scopes rows to the calling user's token, so the
-    insert needs no service-role key. Fail-soft: the disk workspace remains
-    the hot store; the row is the durable copy that survives Render's
-    ephemeral-disk wipes (and what /load restores from). Returns True when
-    the row actually landed so the response can flag unsaved projects."""
+    `files` text column. Service-role key bypasses RLS when configured
+    (production inserts were 403ing on "new row violates row-level security
+    policy"); the caller's JWT is the fallback. Fail-soft: the disk
+    workspace remains the hot store; the row is the durable copy that
+    survives Render's ephemeral-disk wipes (and what /load restores from).
+    Returns True when the row actually landed so the response can flag
+    unsaved projects."""
     if not (SUPABASE_URL and SUPABASE_ANON_KEY and token and user_id):
         print("[projects] Supabase not configured — skipping metadata insert")
         return False
@@ -950,8 +969,7 @@ def _record_project_in_supabase(token: str, user_id: str, project_id: str,
         resp = httpx.post(
             f"{SUPABASE_URL}/rest/v1/projects",
             headers={
-                "apikey": SUPABASE_ANON_KEY,
-                "Authorization": f"Bearer {token}",
+                **_sb_headers(token),
                 "Content-Type": "application/json",
                 # id is the PK — re-running a slug reuses the row.
                 "Prefer": "resolution=merge-duplicates",
@@ -1166,8 +1184,7 @@ def list_projects(limit: int = 50, authorization: Optional[str] = Header(None)):
             resp = httpx.get(
                 f"{SUPABASE_URL}/rest/v1/projects",
                 params={"select": "id,prompt", "user_id": f"eq.{owner}"},
-                headers={"apikey": SUPABASE_ANON_KEY,
-                         "Authorization": f"Bearer {token}"},
+                headers=_sb_headers(token),
                 timeout=10,
             )
             if resp.status_code == 200:
@@ -1220,20 +1237,23 @@ def _restore_project_from_supabase(project_id: str, token: str,
                                    user: dict) -> Optional[Path]:
     """Rebuild a wiped workspace folder from the project's Supabase snapshot.
 
-    RLS scopes the SELECT to the caller's own row, so ownership is enforced
-    by the query itself. The `files` column holds the JSON snapshot written
-    by generation/edit; older rows hold a legacy dir path (never JSON) and
-    can't restore. Re-materializing to disk re-enables edit/save/delete.
-    Returns the project dir, or None when no snapshot exists.
+    Ownership is enforced by an explicit user_id filter (the caller's id
+    from the verified token) — the service-role key bypasses RLS, so the
+    filter is what scopes this read. With only the anon key the RLS policy
+    does the same job redundantly. The `files` column holds the JSON
+    snapshot written by generation/edit; older rows hold a legacy dir path
+    (never JSON) and can't restore. Re-materializing to disk re-enables
+    edit/save/delete. Returns the project dir, or None when no snapshot
+    exists.
     """
     if not (SUPABASE_URL and SUPABASE_ANON_KEY and token):
         return None
     try:
         resp = httpx.get(
             f"{SUPABASE_URL}/rest/v1/projects",
-            params={"id": f"eq.{project_id}", "select": "files"},
-            headers={"apikey": SUPABASE_ANON_KEY,
-                     "Authorization": f"Bearer {token}"},
+            params={"id": f"eq.{project_id}", "select": "files",
+                    "user_id": f"eq.{user.get('id')}"},
+            headers=_sb_headers(token),
             timeout=15,
         )
         if resp.status_code != 200:
@@ -1288,18 +1308,22 @@ def _read_project_files(project_dir: Path) -> list:
 
 
 def _snapshot_files_to_supabase(token: str, project_id: str,
-                                files: list) -> None:
+                                files: list,
+                                user_id: Optional[str] = None) -> None:
     """PATCH only the file snapshot of an existing project row (edit /
     Monaco-save paths). A PATCH — not the generation upsert — so title and
-    the original prompt are never clobbered. Fail-soft."""
+    the original prompt are never clobbered. The user_id filter preserves
+    ownership semantics when the service-role key bypasses RLS. Fail-soft."""
     if not (SUPABASE_URL and SUPABASE_ANON_KEY and token):
         return
+    params = {"id": f"eq.{project_id}"}
+    if user_id:
+        params["user_id"] = f"eq.{user_id}"
     try:
         resp = httpx.patch(
             f"{SUPABASE_URL}/rest/v1/projects",
-            params={"id": f"eq.{project_id}"},
-            headers={"apikey": SUPABASE_ANON_KEY,
-                     "Authorization": f"Bearer {token}",
+            params=params,
+            headers={**_sb_headers(token),
                      "Content-Type": "application/json"},
             json={"files": json.dumps(files or [])},
             timeout=20,
@@ -1312,20 +1336,25 @@ def _snapshot_files_to_supabase(token: str, project_id: str,
 
 
 def _delete_supabase_project_row(authorization: Optional[str],
-                                 project_id: str) -> None:
-    """Remove the project's metadata row (fail-soft; RLS scopes the delete
-    to the caller's own row, so no service-role key is needed)."""
+                                 project_id: str,
+                                 user_id: Optional[str] = None) -> None:
+    """Remove the project's metadata row (fail-soft). The user_id filter
+    scopes the delete when the service-role key bypasses RLS; with the anon
+    key the RLS policy enforces the same thing.
+    """
     if not (SUPABASE_URL and SUPABASE_ANON_KEY):
         return
     token = _bearer_token(authorization)
     if not token:
         return
+    params = {"id": f"eq.{project_id}"}
+    if user_id:
+        params["user_id"] = f"eq.{user_id}"
     try:
         resp = httpx.delete(
             f"{SUPABASE_URL}/rest/v1/projects",
-            params={"id": f"eq.{project_id}"},
-            headers={"apikey": SUPABASE_ANON_KEY,
-                     "Authorization": f"Bearer {token}"},
+            params=params,
+            headers=_sb_headers(token),
             timeout=10,
         )
         if resp.status_code not in (200, 204):
@@ -1470,7 +1499,8 @@ def edit_project(project_id: str, payload: dict,
     slug = raw.split("-", 1)[1] if "-" in raw else raw
     # Snapshot the post-edit state — the disk copy dies with the deploy.
     _snapshot_files_to_supabase(
-        _bearer_token(authorization) or "", raw, list(merged.values()))
+        _bearer_token(authorization) or "", raw, list(merged.values()),
+        (user or {}).get("id"))
     print(f"[edit-project] id={raw} | {written} files patched in place")
     return {
         "status": "success",
@@ -1534,7 +1564,8 @@ def update_project_file(project_id: str, payload: dict,
     if entry:
         _refresh_preview(files, entry["path"])
     _snapshot_files_to_supabase(
-        _bearer_token(authorization) or "", project_id, files)
+        _bearer_token(authorization) or "", project_id, files,
+        (user or {}).get("id"))
     print(f"[update-file] id={project_id} file={rel.as_posix()} saved from Monaco")
     return {"status": "success", "path": rel.as_posix()}
 
@@ -1548,9 +1579,10 @@ def delete_project(project_id: str,
     if err:
         return err
     if project_dir is None:
-        # Disk already gone — still drop the durable Supabase row (RLS
-        # scopes it to the caller; a missing row is a silent no-op).
-        _delete_supabase_project_row(authorization, project_id)
+        # Disk already gone — still drop the durable Supabase row (user_id
+        # filter scopes it to the caller; a missing row is a silent no-op).
+        _delete_supabase_project_row(authorization, project_id,
+                                     (user or {}).get("id"))
         return {"status": "success", "project_id": project_id}
 
     raw = project_dir.name
@@ -1560,7 +1592,7 @@ def delete_project(project_id: str,
         return JSONResponse(status_code=500,
                             content={"status": "error",
                                      "message": f"Failed to delete: {exc}"})
-    _delete_supabase_project_row(authorization, raw)
+    _delete_supabase_project_row(authorization, raw, (user or {}).get("id"))
     print(f"[delete-project] id={raw} removed from disk")
     return {"status": "success", "project_id": raw}
 
@@ -1605,15 +1637,16 @@ def duplicate_project(project_id: str,
     shutil.copytree(project_dir, new_dir)
     (new_dir / "owner.json").write_text(json.dumps({"owner": owner}))
 
-    # Carry the original generation prompt over (RLS scopes the read).
+    # Carry the original generation prompt over (user_id filter scopes the
+    # read under the service-role key; RLS does it under the anon key).
     prompt = ""
     if SUPABASE_URL and SUPABASE_ANON_KEY and token:
         try:
             resp = httpx.get(
                 f"{SUPABASE_URL}/rest/v1/projects",
-                params={"id": f"eq.{raw}", "select": "prompt"},
-                headers={"apikey": SUPABASE_ANON_KEY,
-                         "Authorization": f"Bearer {token}"},
+                params={"id": f"eq.{raw}", "select": "prompt",
+                        "user_id": f"eq.{owner}"},
+                headers=_sb_headers(token),
                 timeout=10,
             )
             if resp.status_code == 200:

@@ -58,6 +58,12 @@ function ensureEntryHtml(out: Record<string, string>): void {
       /(<script[^>]*type="module"[^>]*src=")\/src\/[^"]*(")/,
       `$1${target}$2`
     );
+    // The generated index.html sometimes emits a bare <script src=…> — the
+    // bundler evaluates it as a classic script and import.meta explodes.
+    out['/index.html'] = out['/index.html'].replace(
+      /<script\s+(?![^>]*\btype=)([^>]*src="\/src\/)/,
+      '<script type="module" $1'
+    );
   } else {
     out['/index.html'] =
       `<!doctype html><html><head><meta charset="UTF-8" /></head>` +
@@ -155,6 +161,28 @@ function toCraSetup(files: GeneratedFile[]): CraSetup {
   for (const name of Object.keys(dependencies)) {
     if (CRA_SKIP_DEPS.has(name)) delete dependencies[name];
   }
+
+  // import.meta exists only in ESM; the legacy bundler evaluates CJS-style,
+  // so generated files (e.g. src/lib/api.ts) crash with "Cannot use
+  // 'import.meta' outside a module". Rewrite every import.meta.env reference
+  // to a plain object literal pre-filled from any .env the project shipped
+  // (VITE_* connector secrets make it into the preview this way too).
+  const envVars: Record<string, string> = {};
+  for (const key of Object.keys(out)) {
+    if (!/(^|\/)\.env(\.|$)/.test(key)) continue;
+    for (const line of out[key].split('\n')) {
+      const m = line.match(/^\s*(VITE_[A-Za-z0-9_]+)\s*=\s*(.*?)\s*$/);
+      if (m) envVars[m[1]] = m[2].replace(/^["']|["']$/g, '');
+    }
+    delete out[key];
+  }
+  const envShim = `(${JSON.stringify(envVars)})`;
+  for (const key of Object.keys(out)) {
+    if (/\.(tsx?|jsx?)$/.test(key) && out[key].includes('import.meta')) {
+      out[key] = out[key].replace(/\bimport\.meta\.env\b/g, envShim);
+    }
+  }
+
   if (!out['/index.tsx'] && !out['/index.js'] && out['/App.tsx']) {
     out['/index.tsx'] =
       "import React from 'react';\nimport { createRoot } from 'react-dom/client';\nimport App from './App';\nimport './index.css';\ncreateRoot(document.getElementById('root')!).render(<App />);\n";

@@ -13,19 +13,20 @@ create table if not exists public.projects (
 
 alter table public.projects enable row level security;
 
--- Users see, insert and edit only their own rows.
-drop policy if exists "own rows select" on public.projects;
-create policy "own rows select" on public.projects
-  for select using (auth.uid() = user_id);
-
-drop policy if exists "own rows insert" on public.projects;
-create policy "own rows insert" on public.projects
-  for insert with check (auth.uid() = user_id);
-
-drop policy if exists "own rows update" on public.projects;
-create policy "own rows update" on public.projects
-  for update using (auth.uid() = user_id);
-
-drop policy if exists "own rows delete" on public.projects;
-create policy "own rows delete" on public.projects
-  for delete using (auth.uid() = user_id);
+-- DEMO MODE (applied to production 2026-10-16 via CLI): fully permissive.
+-- The backend additionally writes with the service-role key
+-- (SUPABASE_SERVICE_ROLE_KEY), bypassing RLS entirely.
+-- ⚠️ SECURITY CEILING: anyone holding the public anon key can read/write
+-- EVERY row — including file snapshots that embed connector secrets.
+-- After the demo, drop this and restore owner-scoped policies:
+--   create policy "own rows select" on public.projects
+--     for select using (auth.uid() = user_id);
+--   create policy "own rows insert" on public.projects
+--     for insert with check (auth.uid() = user_id);
+--   create policy "own rows update" on public.projects
+--     for update using (auth.uid() = user_id);
+--   create policy "own rows delete" on public.projects
+--     for delete using (auth.uid() = user_id);
+drop policy if exists "Allow all access" on public.projects;
+create policy "Allow all access" on public.projects
+  for all using (true) with check (true);
