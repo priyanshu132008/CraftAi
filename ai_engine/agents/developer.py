@@ -1037,6 +1037,16 @@ class DeveloperAgent:
         return DeveloperAgent._normalize_files(data)
 
     @staticmethod
+    def _fix_readme_newlines(path: str, content: str) -> str:
+        """Models sometimes double-escape markdown: the content arrives as
+        one line of literal \\n sequences. GitHub renders that as a wall of
+        text — unescape. README only: real source code legitimately contains
+        \\n inside string literals, so blanket-unescaping would corrupt it."""
+        if path.lower().rstrip('/').endswith('readme.md'):
+            return content.replace('\\n', '\n').replace('\\t', '\t')
+        return content
+
+    @staticmethod
     def _normalize_files(data) -> list:
         """Validate the parsed document and return a clean files list.
 
@@ -1056,7 +1066,8 @@ class DeveloperAgent:
             content = entry.get("content")
             if not path or not isinstance(content, str) or not content.strip():
                 continue
-            files.append({"path": path, "content": content})
+            files.append({"path": path,
+                          "content": DeveloperAgent._fix_readme_newlines(path, content)})
         return files
 
     @staticmethod
@@ -1082,7 +1093,8 @@ class DeveloperAgent:
                     content = raw_content
                 path = path.strip().lstrip("./")
                 if path and content.strip():
-                    files.append({"path": path, "content": content})
+                    files.append({"path": path,
+                                  "content": DeveloperAgent._fix_readme_newlines(path, content)})
             if files:
                 break
         return files
