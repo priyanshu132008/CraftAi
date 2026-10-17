@@ -1785,7 +1785,9 @@ def publish_github(payload: dict, authorization: Optional[str] = Header(None)):
         if rel is None or rel.as_posix() in seen_paths:
             continue
         seen_paths.add(rel.as_posix())
-        accepted.append({"path": rel.as_posix(), "content": f["content"]})
+        path = rel.as_posix()
+        content = DeveloperAgent._fix_readme_newlines(path, f["content"])
+        accepted.append({"path": path, "content": content})
     if not accepted:
         return {"status": "error", "message": "no files with safe relative paths"}
 
@@ -1820,6 +1822,7 @@ def publish_github(payload: dict, authorization: Optional[str] = Header(None)):
     created = httpx.post(f"{api}/user/repos", headers=headers, timeout=30,
                          json={"name": slug, "private": True, "auto_init": True,
                                "description": "Generated with CraftAI"})
+    repo_id: Optional[int] = None
     if created.status_code == 422:
         existing = httpx.get(f"{api}/repos/{login}/{slug}", headers=headers, timeout=15)
         if existing.status_code >= 400:
@@ -1827,8 +1830,12 @@ def publish_github(payload: dict, authorization: Optional[str] = Header(None)):
                                 content={"status": "error",
                                          "message": f"'{slug}' can't be created — the name "
                                                     f"is taken (try another slug)."})
+        repo_id = existing.json().get("id")
     elif created.status_code >= 400:
         return gh_fail(created, "repository creation")
+    else:
+        # Numeric repo id — the Vercel gitSource payload requires it.
+        repo_id = created.json().get("id")
 
     # 3) Base commit sha on main (auto_init guarantees it exists).
     ref = httpx.get(f"{api}/repos/{login}/{slug}/git/ref/heads/main",
@@ -1922,11 +1929,13 @@ def publish_github(payload: dict, authorization: Optional[str] = Header(None)):
                                    f"{dom.text[:200]}")
 
             # C) Trigger the production build from the pushed main branch.
+            # gitSource needs the NUMERIC GitHub repo id — "repo" (slug) as a
+            # key fails with 400 "gitSource missing required property repoId".
             dep = httpx.post(f"{vapi}/v13/deployments{vq}", headers=vheaders,
                              timeout=30,
                              json={"name": slug, "target": "production",
                                    "gitSource": {"type": "github",
-                                                 "repo": gh_repo,
+                                                 "repoId": repo_id,
                                                  "ref": "main"}})
             if dep.status_code >= 400:
                 raise RuntimeError(f"deployment HTTP {dep.status_code}: "
