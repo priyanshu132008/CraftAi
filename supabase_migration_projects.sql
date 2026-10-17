@@ -40,6 +40,28 @@ alter table public.projects
   add column if not exists slug text not null default '';
 notify pgrst, 'reload schema';
 
+-- PRODUCTION LOCKDOWN + CREDIT QUOTA (applied via CLI, 2026-10-17; replaces
+-- the demo "Allow all access" above): anyone may READ (public previews read
+-- the snapshot anonymously), but only the row's owner may write. user_id is
+-- TEXT in this table, hence the ::text cast. edits_count backs the
+-- one-AI-edit-per-project quota (enforced in ai_engine/main.py, [quota]).
+alter table public.projects
+  add column if not exists edits_count int not null default 0;
+drop policy if exists "Allow all access" on public.projects;
+drop policy if exists "Allow public read access" on public.projects;
+drop policy if exists "Allow individual insert" on public.projects;
+drop policy if exists "Allow individual update" on public.projects;
+drop policy if exists "Allow individual delete" on public.projects;
+create policy "Allow public read access" on public.projects
+  for select using (true);
+create policy "Allow individual insert" on public.projects
+  for insert with check (auth.uid()::text = user_id);
+create policy "Allow individual update" on public.projects
+  for update using (auth.uid()::text = user_id);
+create policy "Allow individual delete" on public.projects
+  for delete using (auth.uid()::text = user_id);
+notify pgrst, 'reload schema';
+
 -- DEMO MODE (applied to production 2026-10-16 via CLI): fully permissive.
 -- The backend additionally writes with the service-role key
 -- (SUPABASE_SERVICE_ROLE_KEY), bypassing RLS entirely.

@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 const PAT_STORAGE_KEY = 'craftai_github_pat';
 
 /** Public SPA preview route serving the published snapshot. */
-const previewUrl = (slug: string) => `https://www.craftai.diy/preview/${slug}`;
+const previewUrl = (slug: string) => `https://${slug}.craftai.diy`;
 
 interface PublishResult {
   repoUrl: string;

@@ -62,18 +62,18 @@ async def _startup_env_debug():
     print(f"GOOGLE_CLIENT_ID loaded: {bool(os.getenv('GOOGLE_CLIENT_ID'))}")
     print("=================")
 
-# CORS: comma-separated CORS_ORIGINS in prod (e.g. the Vercel domain) plus the
-# production domains, wildcard default so the browser frontend can't get blocked.
-# Uses Bearer auth only (no cookies), so a wildcard origin is safe.
+# CORS: production domains + localhost dev origins, plus any extras from
+# CORS_ORIGINS. Unknown origins are rejected (no wildcard fallback).
 _cors_origins = [
     o.strip()
     for o in ("https://craftai.diy,https://www.craftai.diy,"
+              "http://localhost:3000,http://localhost:5173,http://localhost:8000,"
               + os.environ.get("CORS_ORIGINS", "")).split(",")
     if o.strip()
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins or ["*"],
+    allow_origins=_cors_origins,
     allow_credentials=bool(_cors_origins),
     allow_methods=["*"],
     allow_headers=["*"],
@@ -167,6 +167,77 @@ def _sb_headers(user_token: Optional[str]) -> dict:
                 "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}"}
     return {"apikey": SUPABASE_ANON_KEY,
             "Authorization": f"Bearer {user_token or SUPABASE_ANON_KEY}"}
+
+
+def _postgrest_count(token: str, filters: dict) -> Optional[int]:
+    """Exact row count for a filtered projects query (PostgREST
+    `Prefer: count=exact`). Fail-soft: None means "couldn't count" — callers
+    treat that as no-quota-data and let the request through rather than
+    locking everyone out over a transient DB hiccup."""
+    if not (SUPABASE_URL and SUPABASE_ANON_KEY and token):
+        return None
+    try:
+        resp = httpx.get(
+            f"{SUPABASE_URL}/rest/v1/projects",
+            params={**filters, "select": "id", "limit": 1},
+            headers={**_sb_headers(token), "Prefer": "count=exact"},
+            timeout=15,
+        )
+        if resp.status_code not in (200, 206):
+            print(f"[quota] count query failed: HTTP {resp.status_code}")
+            return None
+        # Content-Range: "0-0/14" — total is the last segment.
+        total = resp.headers.get("content-range", "").rsplit("/", 1)[-1]
+        return int(total) if total.isdigit() else None
+    except (ValueError, httpx.HTTPError) as exc:
+        print(f"[quota] count query error (ignored): {exc}")
+        return None
+
+
+def _get_edits_count(token: str, project_id: str,
+                     user_id: Optional[str]) -> Optional[int]:
+    """Current edits_count of a project row (None = unavailable)."""
+    filters = {"id": f"eq.{project_id}"}
+    if user_id:
+        filters["user_id"] = f"eq.{user_id}"
+    try:
+        if not (SUPABASE_URL and SUPABASE_ANON_KEY and token):
+            return None
+        resp = httpx.get(
+            f"{SUPABASE_URL}/rest/v1/projects",
+            params={**filters, "select": "edits_count"},
+            headers=_sb_headers(token),
+            timeout=15,
+        )
+        rows = resp.json() if resp.status_code == 200 else []
+        value = rows[0].get("edits_count") if rows else None
+        return int(value) if value is not None else None
+    except (ValueError, TypeError, httpx.HTTPError) as exc:
+        print(f"[quota] edits_count read error (ignored): {exc}")
+        return None
+
+
+def _increment_edits_count(token: str, project_id: str,
+                           user_id: Optional[str]) -> None:
+    """Bump edits_count by 1 (fail-soft — never blocks a completed edit)."""
+    if not (SUPABASE_URL and SUPABASE_ANON_KEY and token):
+        return
+    params = {"id": f"eq.{project_id}"}
+    if user_id:
+        params["user_id"] = f"eq.{user_id}"
+    try:
+        resp = httpx.patch(
+            f"{SUPABASE_URL}/rest/v1/projects",
+            params=params,
+            headers={**_sb_headers(token), "Content-Type": "application/json"},
+            json={"edits_count": 1},
+            timeout=15,
+        )
+        if resp.status_code not in (200, 204):
+            print(f"[quota] edits_count bump failed: HTTP {resp.status_code}")
+    except (httpx.HTTPError, ValueError) as exc:
+        print(f"[quota] edits_count bump error (ignored): {exc}")
+
 
 # Vercel auto-deploy (publish flow): token required, team id optional
 # (organization accounts scope every call with ?teamId=).
@@ -1106,6 +1177,17 @@ def generate_project(payload: dict, authorization: Optional[str] = Header(defaul
     connector_rules = _extract_connector_rules(payload)
     connector_secrets = _extract_connector_secrets(payload)
 
+    # Credit protection: one project per account. Fail-soft counting
+    # (None = DB hiccup) lets the request through rather than locking out.
+    if mode == "build":
+        count = _postgrest_count(token, {"user_id": f"eq.{user.get('id')}"})
+        if count is not None and count >= 1:
+            return JSONResponse(
+                status_code=429,
+                content={"status": "error",
+                         "message": "Limit reached: Only 1 project allowed "
+                                    "per account."})
+
     try:
         if mode == "build":
             response = _generate_and_write(
@@ -1493,6 +1575,17 @@ def edit_project(project_id: str, payload: dict,
                 status_code=404,
                 content={"status": "error", "message": "Unknown project"})
 
+    # Credit protection: one AI edit per project. Checked against the row's
+    # edits_count; bumped to 1 after a successful edit (below).
+    token_b = _bearer_token(authorization) or ""
+    edits_count = _get_edits_count(token_b, project_id, (user or {}).get("id"))
+    if edits_count is not None and edits_count >= 1:
+        return JSONResponse(
+            status_code=429,
+            content={"status": "error",
+                     "message": "Limit reached: Only 1 AI edit allowed "
+                                "per project."})
+
     instruction = (payload or {}).get("prompt")
     if not instruction or not isinstance(instruction, str):
         return {"status": "error",
@@ -1567,6 +1660,9 @@ def edit_project(project_id: str, payload: dict,
     _snapshot_files_to_supabase(
         _bearer_token(authorization) or "", raw, list(merged.values()),
         (user or {}).get("id"))
+    # Edit completed successfully — consume the project's single edit credit.
+    if edits_count == 0:
+        _increment_edits_count(token_b, project_id, (user or {}).get("id"))
     print(f"[edit-project] id={raw} | {written} files patched in place")
     return {
         "status": "success",
