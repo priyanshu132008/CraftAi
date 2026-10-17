@@ -72,6 +72,19 @@ export const MainApp: React.FC = () => {
   const publicPreviewMatch = path.match(/^\/preview\/([^/]+)$/);
   const isPublishedPath = /^\/published\/[^/]+\/?$/.test(path);
 
+  // Wildcard subdomain: <slug>.craftai.diy serves the same standalone
+  // preview. Bare www/bare apex fall through to normal SPA routing; this
+  // needs the *.<domain> Vercel domain entry, not code.
+  const host = typeof window !== 'undefined' ? window.location.hostname : '';
+  const subdomainSlug =
+    host.endsWith('.craftai.diy') && host !== 'www.craftai.diy'
+      ? host.slice(0, -'.craftai.diy'.length)
+      : null;
+
+  if (subdomainSlug) {
+    return <PublicPreviewHost slug={decodeURIComponent(subdomainSlug)} />;
+  }
+
   if (publicPreviewMatch) {
     return <PublicPreviewHost slug={decodeURIComponent(publicPreviewMatch[1])} />;
   }

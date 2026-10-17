@@ -2,8 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, CheckCircle2, Eye, EyeOff, ExternalLink, GitBranch, Globe, Loader2, ShieldCheck, TriangleAlert, X } from 'lucide-react';
 import { publishGithubApi, GeneratedFile } from '../services/api';
+import { supabase } from '../lib/supabaseClient';
 
 const PAT_STORAGE_KEY = 'craftai_github_pat';
+
+/** Public SPA preview route serving the published snapshot. */
+const previewUrl = (slug: string) => `https://www.craftai.diy/preview/${slug}`;
 
 interface PublishResult {
   repoUrl: string;
@@ -21,7 +25,9 @@ export const PublishModal: React.FC<{
   onClose: () => void;
   onPublished: (result: PublishResult) => void;
   files: GeneratedFile[];
-}> = ({ open, onClose, onPublished, files }) => {
+  /** Active workspace id ("{epoch}-{slug}") — stamped published in Supabase. */
+  projectId: string | null;
+}> = ({ open, onClose, onPublished, files, projectId }) => {
   const [slug, setSlug] = useState('');
   const [token, setToken] = useState('');
   const [showToken, setShowToken] = useState(false);
@@ -72,6 +78,18 @@ export const PublishModal: React.FC<{
       }
       onPublished(pushResult);
       setResult(pushResult);
+      // Stamp the row so /preview/<slug> (and <slug>.craftai.diy) finds it.
+      if (projectId) {
+        const { error: updateErr } = await supabase
+          .from('projects')
+          .update({ is_published: true, slug: finalSlug })
+          .eq('id', projectId);
+        if (updateErr) {
+          // Push succeeded — surface the stamp failure without hiding the result.
+          setResult({ ...pushResult, warning: `Could not mark the project published: ${updateErr.message}` });
+          return;
+        }
+      }
       // eslint-disable-next-line no-console
       console.info(`[publish] pushed ${files_pushed} files to ${repo_url}`);
     } catch (err) {
@@ -162,43 +180,56 @@ export const PublishModal: React.FC<{
             </p>
           )}
 
-          {result && error === null && (
+          {result && error === null && !result.warning && (
             <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
               <p className="mb-2 flex items-center gap-1.5 text-[0.8rem] font-semibold text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2 size={13} /> Pushed to GitHub
+                <CheckCircle2 size={13} /> Project Published Successfully!
               </p>
               {result.liveUrl ? (
-                <>
-                  <p className="mb-2 flex items-center gap-1.5 text-[0.75rem] text-zinc-500 dark:text-zinc-400">
-                    <Loader2 size={12} className="animate-spin" /> Vercel is building{' '}
-                    {result.liveUrl} — the site goes live within a minute.
-                  </p>
-                  <a
-                    href={result.liveUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn-primary inline-flex items-center gap-2"
-                    style={{ borderRadius: 8 }}
-                  >
-                    <Globe size={13} /> View Live Site <ExternalLink size={11} />
-                  </a>
-                </>
-              ) : (
-                result.warning && (
-                  <p role="alert" className="flex items-start gap-1.5 text-[0.75rem] leading-relaxed text-amber-700 dark:text-amber-400">
-                    <TriangleAlert size={13} className="mt-0.5 flex-shrink-0" />
-                    {result.warning}{' '}
-                    <a
-                      href={result.repoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex flex-shrink-0 items-center gap-1 font-semibold underline"
-                    >
-                      <GitBranch size={12} /> View repo
-                    </a>
-                  </p>
-                )
-              )}
+                <p className="mb-2 text-[0.72rem] text-zinc-500 dark:text-zinc-400">
+                  Vercel is building the dedicated site too — goes live within a minute.
+                </p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                <a
+                  href={previewUrl(cleanSlug(slug) || 'craftai-project')}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-primary inline-flex items-center gap-2"
+                  style={{ borderRadius: 8 }}
+                >
+                  <Globe size={13} /> Open Live App <ExternalLink size={11} />
+                </a>
+                <button
+                  type="button"
+                  className="btn-outline inline-flex items-center gap-2"
+                  style={{ borderRadius: 8 }}
+                  onClick={() => {
+                    navigator.clipboard
+                      .writeText(previewUrl(cleanSlug(slug) || 'craftai-project'))
+                      .catch(() => {
+                        /* clipboard blocked — link is shown above anyway */
+                      });
+                  }}
+                >
+                  <Eye size={13} /> Copy Shareable Link
+                </button>
+              </div>
+            </div>
+          )}
+          {result?.warning && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 dark:border-amber-900 dark:bg-amber-950/40">
+              <p role="alert" className="mb-2 flex items-start gap-1.5 text-[0.75rem] leading-relaxed text-amber-700 dark:text-amber-400">
+                <TriangleAlert size={13} className="mt-0.5 flex-shrink-0" /> {result.warning}
+              </p>
+              <a
+                href={result.repoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[0.75rem] font-semibold underline"
+              >
+                <GitBranch size={12} /> View repo
+              </a>
             </div>
           )}
 

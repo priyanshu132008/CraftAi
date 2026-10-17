@@ -1556,6 +1556,7 @@ export const GenerateStudio: React.FC = () => {
         onClose={() => setShowPublishModal(false)}
         onPublished={onGithubPublished}
         files={generatedFiles}
+        projectId={activeProjectId}
       />
 
       {/* Project settings — rename, description, metadata */}

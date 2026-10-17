@@ -32,6 +32,12 @@ do $$ begin
   end if;
 end $$;
 alter table public.projects alter column created_at set default now();
+
+-- PUBLISH FLOW (applied to production via CLI, 2026-10-17): the Publish modal
+-- stamps these on the row, and PublicPreviewHost matches by row slug.
+alter table public.projects
+  add column if not exists is_published boolean not null default false,
+  add column if not exists slug text not null default '';
 notify pgrst, 'reload schema';
 
 -- DEMO MODE (applied to production 2026-10-16 via CLI): fully permissive.

@@ -11,12 +11,10 @@ interface ProjectRow {
 }
 
 /** Standalone live preview at /preview/<slug-or-id>: pulls the project's
- *  stored file snapshot from Supabase and bundles it in-browser.
- *
- *  NOTE on "public": the projects table is RLS owner-only, so this page is
- *  reachable without app auth but only returns files to the project's
- *  owner. Truly anonymous sharing is the {slug}.craftai.diy Vercel publish
- *  path — this route intentionally does NOT bypass RLS. */
+ *  stored file snapshot from Supabase and bundles it in-browser. The table's
+ *  public SELECT policy makes sharded share links anonymous-readable; only
+ *  published rows matter, and the demo "Allow all access" policy is the
+ *  broader ceiling. */
 export const PublicPreviewHost: React.FC<{ slug: string }> = ({ slug }) => {
   const [title, setTitle] = useState<string | null>(null);
   const [files, setFiles] = useState<GeneratedFile[] | null>(null);
@@ -26,11 +24,13 @@ export const PublicPreviewHost: React.FC<{ slug: string }> = ({ slug }) => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // Full workspace id ("{epoch}-{slug}") or bare slug suffix.
+      // Match: full workspace id ("{epoch}-{slug}"), its slug suffix, or the
+      // Publish modal's stored slug column. RLS is public-read, so the
+      // snapshot loads anonymously too.
       let query = supabase.from('projects').select('id, title, files');
-      query = slug.includes('-') && /^\d+-/.test(slug)
-        ? query.eq('id', slug)
-        : query.like('id', `%-${slug}`);
+      query = query.or(
+        `slug.eq.${slug},id.eq.${slug},id.like.*-${slug}`
+      );
       const { data, error: err } = await query.limit(1);
       if (cancelled) return;
       if (err) {
