@@ -145,7 +145,8 @@ export const ProjectsGrid: React.FC = () => {
                 whileHover={reduceMotion ? undefined : { y: -5, borderColor: 'var(--border-active)', boxShadow: 'var(--shadow-lg)' }}
                 transition={{ duration: 0.2 }}
                 className="project-card"
-                style={{ boxShadow: 'none', position: 'relative' }}
+                style={{ boxShadow: 'none', position: 'relative', cursor: 'pointer' }}
+                onClick={() => openProject(rec.id)}
               >
                 {/* Aurora thumbnail — layered per-project hue gradients with a
                     blueprint grid overlay (no more flat generic gradient) */}
@@ -304,7 +305,10 @@ export const ProjectsGrid: React.FC = () => {
                     </span>
                     <motion.button
                       className="btn-outline"
-                      onClick={() => openProject(rec.id)}
+                      onClick={e => {
+                        e.stopPropagation();
+                        openProject(rec.id);
+                      }}
                       style={{ padding: '6px 12px', borderRadius: 6, fontSize: '0.82rem', gap: 6 }}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
